@@ -564,8 +564,8 @@ async def upload_file(file: UploadFile = File(...)):
         if df.shape[1] < 2:
             raise HTTPException(status_code=400, detail="File must have at least 2 columns")
 
-        # Log activity
-        log_activity(
+        # Log activity with broadcast
+        await log_activity_with_broadcast(
             "New data uploaded",
             f"{file.filename} ({len(df)} rows, {df.shape[1]} columns)",
             "success"
@@ -741,8 +741,8 @@ async def delete_model(model_id: str):
     model_name = models_store[model_id]["name"]
     del models_store[model_id]
 
-    # Log activity
-    log_activity(
+    # Log activity with broadcast
+    await log_activity_with_broadcast(
         "Model deleted",
         f"Model {model_name} removed from system",
         "warning"
@@ -772,7 +772,7 @@ async def save_settings(settings: Settings):
     global current_settings
     current_settings = settings
 
-    log_activity("Settings updated", "System configuration has been updated", "success")
+    await log_activity_with_broadcast("Settings updated", "System configuration has been updated", "success")
 
     return {"message": "Settings saved successfully"}
 

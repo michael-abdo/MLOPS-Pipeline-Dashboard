@@ -803,15 +803,15 @@
                 
                 <div class="grid grid-3">
                     <div class="metric">
-                        <div class="metric-value">94%</div>
+                        <div class="metric-value" id="modelAccuracy">--</div>
                         <div class="metric-label">Accuracy</div>
                     </div>
                     <div class="metric">
-                        <div class="metric-value">1,247</div>
+                        <div class="metric-value" id="predictionCount">--</div>
                         <div class="metric-label">Predictions Made</div>
                     </div>
                     <div class="metric">
-                        <div class="metric-value">23ms</div>
+                        <div class="metric-value" id="responseTime">--</div>
                         <div class="metric-label">Response Time</div>
                     </div>
                 </div>
@@ -917,41 +917,7 @@
         <div class="card">
             <h3 style="margin-bottom: var(--spacing-lg);">🔍 Live Activity Feed</h3>
             <div id="activityFeed" style="max-height: 300px; overflow-y: auto;">
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md) 0; border-bottom: 1px solid var(--border-color);">
-                    <div>
-                        <strong>🔮 Prediction request processed</strong>
-                        <p style="color: var(--text-secondary); font-size: 0.9rem;">Input: [age=34, income=75000] → Output: 89% likely to buy</p>
-                    </div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted);">2 sec ago</div>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md) 0; border-bottom: 1px solid var(--border-color);">
-                    <div>
-                        <strong>📊 System health check completed</strong>
-                        <p style="color: var(--text-secondary); font-size: 0.9rem;">All services healthy • Response time: 23ms</p>
-                    </div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted);">15 sec ago</div>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md) 0; border-bottom: 1px solid var(--border-color);">
-                    <div>
-                        <strong>🔮 Batch predictions completed</strong>
-                        <p style="color: var(--text-secondary); font-size: 0.9rem;">Processed 45 records in 1.2 seconds</p>
-                    </div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted);">1 min ago</div>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md) 0; border-bottom: 1px solid var(--border-color);">
-                    <div>
-                        <strong>📈 Model performance updated</strong>
-                        <p style="color: var(--text-secondary); font-size: 0.9rem;">Accuracy: 94.2% • Processed 1,247 predictions today</p>
-                    </div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted);">2 min ago</div>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md) 0;">
-                    <div>
-                        <strong>🚀 Model deployed successfully</strong>
-                        <p style="color: var(--text-secondary); font-size: 0.9rem;">Customer Prediction Model v2.1 is now live</p>
-                    </div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted);">2 hours ago</div>
-                </div>
+                <!-- Activities will be loaded from backend -->
             </div>
         </div>
     </div>
@@ -1191,12 +1157,9 @@
             const livePredictionsElement = document.getElementById('livePredictions');
             const systemHealthElement = document.getElementById('systemHealth');
             
-            // Update predictions/minute based on system activity
-            if (livePredictionsElement) {
-                const currentPredictions = parseInt(livePredictionsElement.textContent) || 23;
-                const variance = Math.floor(Math.random() * 10) - 5; // -5 to +5
-                const newPredictions = Math.max(10, Math.min(50, currentPredictions + variance));
-                livePredictionsElement.textContent = newPredictions + '/min';
+            // Update predictions/minute from backend data
+            if (livePredictionsElement && metrics.predictions_per_minute !== undefined) {
+                livePredictionsElement.textContent = metrics.predictions_per_minute + '/min';
             }
             
             // Update system health based on CPU and memory usage
@@ -1215,12 +1178,6 @@
             
             // Update System Performance Monitor with color-coded indicators
             updateSystemPerformanceMetrics(metrics);
-            
-            // Add real-time activity to the live feed
-            addLiveActivityItem(
-                '📊 System metrics updated',
-                `CPU: ${metrics.cpu_percent}%, Memory: ${metrics.memory_percent}%, Disk: ${metrics.disk_percent}%`
-            );
             
             // Update any other metric displays for backward compatibility
             const connectionsElement = document.getElementById('activeConnections');
@@ -1646,19 +1603,17 @@
             const accuracyPercent = accuracy ? Math.round(accuracy * 100) : 0;
             
             // Update accuracy with real value
-            document.querySelector('.metric-value').textContent = accuracyPercent + '%';
+            const accuracyElement = document.getElementById('modelAccuracy');
+            if (accuracyElement) {
+                accuracyElement.textContent = accuracyPercent + '%';
+            }
             
             // Store model ID for later use
             if (modelId) {
                 window.currentModelId = modelId;
             }
             
-            // Update other metrics (would come from API in production)
-            const predictions = Math.floor(1000 + Math.random() * 500);
-            const responseTime = Math.floor(15 + Math.random() * 15);
-            
-            document.querySelectorAll('.metric-value')[1].textContent = predictions.toLocaleString();
-            document.querySelectorAll('.metric-value')[2].textContent = responseTime + 'ms';
+            // Other metrics will be updated from backend data
         }
 
         // Utility functions for UI updates
@@ -2319,26 +2274,34 @@
         });
 
         // Start real-time activity simulation
-        function startRealTimeSimulation() {
-            const activityTypes = [
-                { title: '🔮 Prediction request processed', desc: 'Input: [age=32, income=68000] → Output: 76% likely to buy' },
-                { title: '📊 System health check completed', desc: 'All services healthy • Response time: 18ms' },
-                { title: '🧠 Model performance evaluated', desc: 'Accuracy maintained at 94.2% • No drift detected' },
-                { title: '📈 Metrics updated', desc: 'Prediction volume: +12% from last hour' },
-                { title: '🔄 Cache refreshed', desc: 'Model cache updated • Response time optimized' },
-                { title: '📡 API response optimized', desc: 'Average response time reduced to 19ms' }
-            ];
-            
-            // Add initial activity
-            addLiveActivityItem('🚀 System initialized', 'ML Pipeline dashboard ready for use');
-            
-            // Simulate real-time activity every 8-15 seconds
-            setInterval(() => {
-                if (Math.random() < 0.6) { // 60% chance
-                    const activity = activityTypes[Math.floor(Math.random() * activityTypes.length)];
-                    addLiveActivityItem(activity.title, activity.desc);
+
+        // Load and display current model metrics
+        async function loadCurrentModelMetrics() {
+            try {
+                const response = await fetch(`${API_BASE}/models`);
+                if (response.ok) {
+                    const models = await response.json();
+                    if (models.length > 0) {
+                        // Display the most recent model
+                        const latestModel = models[0];
+                        updateMetrics(latestModel.accuracy, latestModel.model_id);
+                        
+                        // Update other metrics if available
+                        const predCountEl = document.getElementById('predictionCount');
+                        const respTimeEl = document.getElementById('responseTime');
+                        
+                        if (predCountEl && latestModel.predictions_made !== undefined) {
+                            predCountEl.textContent = latestModel.predictions_made.toLocaleString();
+                        }
+                        
+                        if (respTimeEl && latestModel.avg_response_time !== undefined) {
+                            respTimeEl.textContent = Math.round(latestModel.avg_response_time) + 'ms';
+                        }
+                    }
                 }
-            }, 8000 + Math.random() * 7000); // 8-15 seconds
+            } catch (error) {
+                console.error('Error loading model metrics:', error);
+            }
         }
 
         // Initialize page
@@ -2346,11 +2309,11 @@
             // Initialize WebSocket connection for real-time updates
             initWebSocket();
             
-            // Start real-time activity simulation
-            startRealTimeSimulation();
-            
             // Load activity log from backend
             loadActivityLog();
+            
+            // Load current model metrics
+            loadCurrentModelMetrics();
             
             // Add file input event listener
             const fileInput = document.getElementById('fileInput');
