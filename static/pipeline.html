@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Management - ML Pipeline</title>
+    <link rel="stylesheet" href="/static/css/shared.css">
+    <link rel="stylesheet" href="/static/css/pipeline.css">
+</head>
+<body>
+    <!-- Navigation will be rendered by JavaScript component -->
+    <nav class="main-nav" id="main-nav"></nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">MLOps Pipeline Management</h1>
+            <p class="page-subtitle">Create, monitor, and manage your machine learning pipelines</p>
+        </div>
+
+        <!-- Pipeline Status Overview -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">🔄 Active Pipelines</h3>
+            
+            <div class="grid grid-3">
+                <div class="metric">
+                    <div class="metric-value" id="activePipelines">2</div>
+                    <div class="metric-label">Active Pipelines</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="completedToday">5</div>
+                    <div class="metric-label">Completed Today</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="avgDuration">12m</div>
+                    <div class="metric-label">Avg Duration</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pipeline Creation -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">⚡ Create New Pipeline</h3>
+            
+            <div class="pipeline-templates">
+                <div class="template-card" data-template="training">
+                    <div class="template-icon">🎯</div>
+                    <h4>Training Pipeline</h4>
+                    <p>Complete model training workflow with validation</p>
+                    <button class="btn btn-primary">Create</button>
+                </div>
+                
+                <div class="template-card" data-template="inference">
+                    <div class="template-icon">🚀</div>
+                    <h4>Inference Pipeline</h4>
+                    <p>Deploy models for real-time predictions</p>
+                    <button class="btn btn-primary">Create</button>
+                </div>
+                
+                <div class="template-card" data-template="etl">
+                    <div class="template-icon">🔧</div>
+                    <h4>Data Pipeline</h4>
+                    <p>Extract, transform, and load data processes</p>
+                    <button class="btn btn-primary">Create</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Pipelines -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">📋 Pipeline Status</h3>
+            
+            <div class="pipeline-list" id="pipelineList">
+                <!-- Pipeline items will be populated by JavaScript -->
+                <div class="pipeline-item running">
+                    <div class="pipeline-status">
+                        <div class="status-dot status-running"></div>
+                    </div>
+                    <div class="pipeline-info">
+                        <h4>Customer Segmentation Training</h4>
+                        <p>Training RandomForest model with customer data</p>
+                        <div class="pipeline-meta">
+                            <span>Started: 2 minutes ago</span>
+                            <span>Step: Feature Engineering (3/7)</span>
+                        </div>
+                    </div>
+                    <div class="pipeline-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 42%"></div>
+                        </div>
+                        <span class="progress-text">42%</span>
+                    </div>
+                    <div class="pipeline-actions">
+                        <button class="btn btn-secondary">View</button>
+                        <button class="btn btn-secondary">Stop</button>
+                    </div>
+                </div>
+
+                <div class="pipeline-item completed">
+                    <div class="pipeline-status">
+                        <div class="status-dot status-completed"></div>
+                    </div>
+                    <div class="pipeline-info">
+                        <h4>Product Recommendation Model</h4>
+                        <p>Collaborative filtering pipeline completed</p>
+                        <div class="pipeline-meta">
+                            <span>Completed: 1 hour ago</span>
+                            <span>Duration: 8m 34s</span>
+                            <span>Accuracy: 89.2%</span>
+                        </div>
+                    </div>
+                    <div class="pipeline-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill status-completed" style="width: 100%"></div>
+                        </div>
+                        <span class="progress-text">100%</span>
+                    </div>
+                    <div class="pipeline-actions">
+                        <button class="btn btn-primary">Deploy</button>
+                        <button class="btn btn-secondary">View</button>
+                    </div>
+                </div>
+
+                <div class="pipeline-item failed">
+                    <div class="pipeline-status">
+                        <div class="status-dot status-failed"></div>
+                    </div>
+                    <div class="pipeline-info">
+                        <h4>Fraud Detection Pipeline</h4>
+                        <p>Failed during data validation step</p>
+                        <div class="pipeline-meta">
+                            <span>Failed: 3 hours ago</span>
+                            <span>Error: Invalid column format</span>
+                        </div>
+                    </div>
+                    <div class="pipeline-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill status-failed" style="width: 15%"></div>
+                        </div>
+                        <span class="progress-text">Failed</span>
+                    </div>
+                    <div class="pipeline-actions">
+                        <button class="btn btn-primary">Retry</button>
+                        <button class="btn btn-secondary">Debug</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pipeline Analytics -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">📊 Pipeline Analytics</h3>
+            
+            <div class="grid grid-2">
+                <div>
+                    <h4>Success Rate (Last 30 Days)</h4>
+                    <div class="metric-large">
+                        <span class="metric-value">94.5%</span>
+                        <span class="metric-trend positive">+2.3%</span>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4>Average Execution Time</h4>
+                    <div class="metric-large">
+                        <span class="metric-value">8m 42s</span>
+                        <span class="metric-trend negative">+1.2m</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">🔍 Pipeline Activity</h3>
+            <div id="activityFeed" style="max-height: 300px; overflow-y: auto;">
+                <!-- Activities will be loaded from backend -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Import JavaScript modules -->
+    <script type="module" src="/static/js/components/navigation.js"></script>
+    <script type="module" src="/static/js/pages/pipeline.js"></script>
+</body>
+</html>

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Architecture - ML Pipeline</title>
+    <link rel="stylesheet" href="/static/css/shared.css">
+</head>
+<body>
+    <!-- Navigation will be rendered by JavaScript component -->
+    <nav class="main-nav" id="main-nav"></nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">AI Architecture Overview</h1>
+            <p class="page-subtitle">System topology, components, and integration points</p>
+        </div>
+
+        <!-- System Overview -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">🏗️ System Architecture</h3>
+            
+            <div class="architecture-diagram">
+                <div class="arch-layer">
+                    <div class="layer-title">Frontend Layer</div>
+                    <div class="arch-components">
+                        <div class="arch-component">
+                            <div class="component-icon">🎨</div>
+                            <div class="component-name">Dashboard</div>
+                            <div class="component-desc">User Interface</div>
+                        </div>
+                        <div class="arch-component">
+                            <div class="component-icon">⚙️</div>
+                            <div class="component-name">Settings</div>
+                            <div class="component-desc">Configuration</div>
+                        </div>
+                        <div class="arch-component">
+                            <div class="component-icon">🔄</div>
+                            <div class="component-name">Pipeline</div>
+                            <div class="component-desc">Workflow Management</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="arch-layer">
+                    <div class="layer-title">API Layer</div>
+                    <div class="arch-components">
+                        <div class="arch-component">
+                            <div class="component-icon">🚀</div>
+                            <div class="component-name">FastAPI</div>
+                            <div class="component-desc">RESTful API</div>
+                        </div>
+                        <div class="arch-component">
+                            <div class="component-icon">🔌</div>
+                            <div class="component-name">WebSocket</div>
+                            <div class="component-desc">Real-time Updates</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="arch-layer">
+                    <div class="layer-title">ML Layer</div>
+                    <div class="arch-components">
+                        <div class="arch-component">
+                            <div class="component-icon">🧠</div>
+                            <div class="component-name">Scikit-learn</div>
+                            <div class="component-desc">ML Algorithms</div>
+                        </div>
+                        <div class="arch-component">
+                            <div class="component-icon">📊</div>
+                            <div class="component-name">Pandas</div>
+                            <div class="component-desc">Data Processing</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="arch-layer">
+                    <div class="layer-title">Storage Layer</div>
+                    <div class="arch-components">
+                        <div class="arch-component">
+                            <div class="component-icon">📁</div>
+                            <div class="component-name">File System</div>
+                            <div class="component-desc">Data & Models</div>
+                        </div>
+                        <div class="arch-component">
+                            <div class="component-icon">💾</div>
+                            <div class="component-name">Memory Store</div>
+                            <div class="component-desc">Session State</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Component Status -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">📊 Component Health</h3>
+            
+            <div class="grid grid-2">
+                <div class="component-status">
+                    <div class="status-header">
+                        <div class="status-dot status-good"></div>
+                        <h4>Frontend Services</h4>
+                    </div>
+                    <div class="status-list">
+                        <div class="status-item">
+                            <span>Dashboard</span>
+                            <span class="status-value">✅ Active</span>
+                        </div>
+                        <div class="status-item">
+                            <span>WebSocket Client</span>
+                            <span class="status-value">✅ Connected</span>
+                        </div>
+                        <div class="status-item">
+                            <span>API Client</span>
+                            <span class="status-value">✅ Healthy</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="component-status">
+                    <div class="status-header">
+                        <div class="status-dot status-good"></div>
+                        <h4>Backend Services</h4>
+                    </div>
+                    <div class="status-list">
+                        <div class="status-item">
+                            <span>FastAPI Server</span>
+                            <span class="status-value">✅ Running</span>
+                        </div>
+                        <div class="status-item">
+                            <span>WebSocket Server</span>
+                            <span class="status-value">✅ Active</span>
+                        </div>
+                        <div class="status-item">
+                            <span>ML Engine</span>
+                            <span class="status-value">✅ Ready</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Integration Points -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">🔗 Integration Points</h3>
+            
+            <div class="integration-list">
+                <div class="integration-item">
+                    <div class="integration-icon">📡</div>
+                    <div class="integration-info">
+                        <h4>WebSocket Real-time Communication</h4>
+                        <p>Bidirectional communication for training progress, system metrics, and activity updates</p>
+                        <div class="integration-details">
+                            <span>Endpoint: /ws</span>
+                            <span>Protocol: WebSocket</span>
+                            <span>Status: Connected</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="integration-item">
+                    <div class="integration-icon">🔄</div>
+                    <div class="integration-info">
+                        <h4>REST API Integration</h4>
+                        <p>RESTful endpoints for file uploads, model management, and configuration</p>
+                        <div class="integration-details">
+                            <span>Base URL: /api</span>
+                            <span>Format: JSON</span>
+                            <span>Auth: None (MVP)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="integration-item">
+                    <div class="integration-icon">💾</div>
+                    <div class="integration-info">
+                        <h4>File System Storage</h4>
+                        <p>Local storage for uploaded datasets and trained model artifacts</p>
+                        <div class="integration-details">
+                            <span>Uploads: /uploads</span>
+                            <span>Models: /models</span>
+                            <span>Format: Binary</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Metrics -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">📈 System Performance</h3>
+            
+            <div class="grid grid-3">
+                <div class="metric">
+                    <div class="metric-value" id="apiLatency">23ms</div>
+                    <div class="metric-label">API Response Time</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="wsLatency">12ms</div>
+                    <div class="metric-label">WebSocket Latency</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="throughput">150/s</div>
+                    <div class="metric-label">Request Throughput</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import JavaScript modules -->
+    <script type="module" src="/static/js/components/navigation.js"></script>
+    <script type="module">
+        // Simple architecture page initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Architecture page loaded');
+        });
+    </script>
+
+    <style>
+        /* Architecture-specific styles */
+        .architecture-diagram {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        .arch-layer {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            background: var(--background-color);
+        }
+
+        .layer-title {
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--text-primary);
+            text-align: center;
+        }
+
+        .arch-components {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: var(--spacing-md);
+        }
+
+        .arch-component {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .arch-component:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .component-icon {
+            font-size: 2rem;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .component-name {
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .component-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .component-status {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+        }
+
+        .status-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .status-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm);
+            background: var(--background-color);
+            border-radius: var(--radius-sm);
+        }
+
+        .status-value {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .integration-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        .integration-item {
+            display: flex;
+            gap: var(--spacing-lg);
+            padding: var(--spacing-lg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+        }
+
+        .integration-icon {
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+
+        .integration-info h4 {
+            margin: 0 0 var(--spacing-sm) 0;
+        }
+
+        .integration-info p {
+            margin: 0 0 var(--spacing-md) 0;
+            color: var(--text-secondary);
+        }
+
+        .integration-details {
+            display: flex;
+            gap: var(--spacing-md);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .integration-details span {
+            background: var(--background-color);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+        }
+    </style>
+</body>
+</html>

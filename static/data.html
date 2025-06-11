@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Management - ML Pipeline</title>
+    <link rel="stylesheet" href="/static/css/shared.css">
+</head>
+<body>
+    <!-- Navigation will be rendered by JavaScript component -->
+    <nav class="main-nav" id="main-nav"></nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Data Management</h1>
+            <p class="page-subtitle">Upload, process, and manage your datasets</p>
+        </div>
+
+        <!-- Data Upload Section -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">📂 Upload Dataset</h3>
+            
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="fileInput" accept=".csv,.json,.parquet" style="display: none;">
+                <div class="upload-content">
+                    <div class="upload-icon">📁</div>
+                    <h4>Drop files here or click to browse</h4>
+                    <p>Supported formats: CSV, JSON, Parquet</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                        Choose File
+                    </button>
+                </div>
+            </div>
+            
+            <div class="upload-progress" id="uploadProgress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="uploadProgressFill"></div>
+                </div>
+                <span class="progress-text" id="uploadProgressText">0%</span>
+            </div>
+        </div>
+
+        <!-- Dataset Library -->
+        <div class="card">
+            <div class="card-header">
+                <h3>📚 Dataset Library</h3>
+                <div class="card-actions">
+                    <select class="select" id="datasetFilter">
+                        <option value="all">All Datasets</option>
+                        <option value="training">Training Data</option>
+                        <option value="validation">Validation Data</option>
+                        <option value="test">Test Data</option>
+                    </select>
+                    <button class="btn btn-secondary" id="refreshDatasets">Refresh</button>
+                </div>
+            </div>
+            
+            <div class="dataset-grid" id="datasetGrid">
+                <!-- Datasets will be loaded dynamically -->
+                <div class="dataset-card">
+                    <div class="dataset-header">
+                        <div class="dataset-icon">📊</div>
+                        <div class="dataset-info">
+                            <h4>simple_test_data.csv</h4>
+                            <p>Training dataset for basic model testing</p>
+                        </div>
+                        <div class="dataset-status">
+                            <span class="status-badge status-ready">Ready</span>
+                        </div>
+                    </div>
+                    <div class="dataset-stats">
+                        <div class="stat">
+                            <span class="stat-label">Rows:</span>
+                            <span class="stat-value">1,250</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Columns:</span>
+                            <span class="stat-value">8</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Size:</span>
+                            <span class="stat-value">89.2 KB</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Type:</span>
+                            <span class="stat-value">CSV</span>
+                        </div>
+                    </div>
+                    <div class="dataset-actions">
+                        <button class="btn btn-primary">Preview</button>
+                        <button class="btn btn-secondary">Profile</button>
+                        <button class="btn btn-secondary">Download</button>
+                    </div>
+                </div>
+
+                <div class="dataset-card">
+                    <div class="dataset-header">
+                        <div class="dataset-icon">📈</div>
+                        <div class="dataset-info">
+                            <h4>customer_segments.json</h4>
+                            <p>Customer segmentation analysis results</p>
+                        </div>
+                        <div class="dataset-status">
+                            <span class="status-badge status-processing">Processing</span>
+                        </div>
+                    </div>
+                    <div class="dataset-stats">
+                        <div class="stat">
+                            <span class="stat-label">Records:</span>
+                            <span class="stat-value">45,680</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Features:</span>
+                            <span class="stat-value">15</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Size:</span>
+                            <span class="stat-value">2.3 MB</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Type:</span>
+                            <span class="stat-value">JSON</span>
+                        </div>
+                    </div>
+                    <div class="dataset-actions">
+                        <button class="btn btn-primary">Preview</button>
+                        <button class="btn btn-secondary">Profile</button>
+                        <button class="btn btn-secondary">Download</button>
+                    </div>
+                </div>
+
+                <div class="dataset-card">
+                    <div class="dataset-header">
+                        <div class="dataset-icon">⚠️</div>
+                        <div class="dataset-info">
+                            <h4>large_dataset.parquet</h4>
+                            <p>Large-scale production dataset</p>
+                        </div>
+                        <div class="dataset-status">
+                            <span class="status-badge status-error">Error</span>
+                        </div>
+                    </div>
+                    <div class="dataset-stats">
+                        <div class="stat">
+                            <span class="stat-label">Rows:</span>
+                            <span class="stat-value">Unknown</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Columns:</span>
+                            <span class="stat-value">Unknown</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Size:</span>
+                            <span class="stat-value">156.8 MB</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Type:</span>
+                            <span class="stat-value">Parquet</span>
+                        </div>
+                    </div>
+                    <div class="dataset-actions">
+                        <button class="btn btn-primary">Retry</button>
+                        <button class="btn btn-secondary">Debug</button>
+                        <button class="btn btn-danger">Delete</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Quality Assessment -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">🔍 Data Quality Assessment</h3>
+            
+            <div class="quality-overview">
+                <div class="quality-score">
+                    <div class="score-circle">
+                        <div class="score-value">85%</div>
+                    </div>
+                    <div class="score-label">Overall Quality Score</div>
+                </div>
+                
+                <div class="quality-metrics">
+                    <div class="quality-metric">
+                        <div class="metric-icon">✅</div>
+                        <div class="metric-info">
+                            <h4>Completeness</h4>
+                            <p>92% of data points are complete</p>
+                            <div class="metric-bar">
+                                <div class="metric-fill" style="width: 92%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="quality-metric">
+                        <div class="metric-icon">🎯</div>
+                        <div class="metric-info">
+                            <h4>Accuracy</h4>
+                            <p>88% of values within expected ranges</p>
+                            <div class="metric-bar">
+                                <div class="metric-fill" style="width: 88%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="quality-metric">
+                        <div class="metric-icon">🔗</div>
+                        <div class="metric-info">
+                            <h4>Consistency</h4>
+                            <p>95% of data follows standard formats</p>
+                            <div class="metric-bar">
+                                <div class="metric-fill" style="width: 95%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="quality-metric">
+                        <div class="metric-icon">⚠️</div>
+                        <div class="metric-info">
+                            <h4>Validity</h4>
+                            <p>76% of records pass validation rules</p>
+                            <div class="metric-bar">
+                                <div class="metric-fill warning" style="width: 76%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Processing Jobs -->
+        <div class="card">
+            <div class="card-header">
+                <h3>⚙️ Data Processing Jobs</h3>
+                <button class="btn btn-primary" id="createJobBtn">Create Job</button>
+            </div>
+            
+            <div class="job-list">
+                <div class="job-item">
+                    <div class="job-status">
+                        <div class="status-dot status-running"></div>
+                    </div>
+                    <div class="job-info">
+                        <h4>Data Cleaning & Normalization</h4>
+                        <p>Cleaning customer data and normalizing features</p>
+                        <div class="job-meta">
+                            <span>Started: 5 minutes ago</span>
+                            <span>Progress: 67%</span>
+                        </div>
+                    </div>
+                    <div class="job-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 67%"></div>
+                        </div>
+                    </div>
+                    <div class="job-actions">
+                        <button class="btn btn-secondary">View</button>
+                        <button class="btn btn-secondary">Stop</button>
+                    </div>
+                </div>
+
+                <div class="job-item">
+                    <div class="job-status">
+                        <div class="status-dot status-completed"></div>
+                    </div>
+                    <div class="job-info">
+                        <h4>Feature Engineering</h4>
+                        <p>Generated 12 new features from raw data</p>
+                        <div class="job-meta">
+                            <span>Completed: 2 hours ago</span>
+                            <span>Duration: 14m 23s</span>
+                        </div>
+                    </div>
+                    <div class="job-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill status-completed" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="job-actions">
+                        <button class="btn btn-primary">View Results</button>
+                        <button class="btn btn-secondary">Download</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">🔍 Data Activity</h3>
+            <div id="activityFeed" style="max-height: 300px; overflow-y: auto;">
+                <!-- Activities will be loaded from backend -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Import JavaScript modules -->
+    <script type="module" src="/static/js/components/navigation.js"></script>
+    <script type="module" src="/static/js/pages/data.js"></script>
+
+    <style>
+        /* Data-specific styles */
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: var(--primary-color);
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        .upload-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .upload-progress {
+            margin-top: var(--spacing-lg);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .dataset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+        }
+
+        .dataset-card {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            background: var(--surface-color);
+        }
+
+        .dataset-header {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .dataset-icon {
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+
+        .dataset-info {
+            flex: 1;
+        }
+
+        .dataset-info h4 {
+            margin: 0 0 var(--spacing-sm) 0;
+        }
+
+        .dataset-info p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .dataset-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+        }
+
+        .stat-value {
+            font-weight: 600;
+        }
+
+        .dataset-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+
+        .dataset-actions .btn {
+            flex: 1;
+            padding: var(--spacing-sm);
+            font-size: 0.9rem;
+        }
+
+        .status-badge {
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-badge.status-ready {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+
+        .status-badge.status-processing {
+            background: rgba(37, 99, 235, 0.1);
+            color: var(--primary-color);
+        }
+
+        .status-badge.status-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+        }
+
+        .quality-overview {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: var(--spacing-xl);
+            align-items: center;
+        }
+
+        .quality-score {
+            text-align: center;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border: 8px solid var(--primary-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .score-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .quality-metrics {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        .quality-metric {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+
+        .metric-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .metric-info {
+            flex: 1;
+        }
+
+        .metric-info h4 {
+            margin: 0 0 var(--spacing-sm) 0;
+        }
+
+        .metric-info p {
+            margin: 0 0 var(--spacing-sm) 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .metric-bar {
+            height: 8px;
+            background: var(--border-color);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+        }
+
+        .metric-fill {
+            height: 100%;
+            background: var(--success-color);
+            border-radius: var(--radius-sm);
+            transition: width 0.3s ease;
+        }
+
+        .metric-fill.warning {
+            background: var(--warning-color);
+        }
+
+        .job-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .job-item {
+            display: grid;
+            grid-template-columns: auto 1fr auto auto;
+            gap: var(--spacing-md);
+            align-items: center;
+            padding: var(--spacing-lg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background: var(--surface-color);
+        }
+
+        .job-info h4 {
+            margin: 0 0 var(--spacing-sm) 0;
+        }
+
+        .job-info p {
+            margin: 0 0 var(--spacing-sm) 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .job-meta {
+            display: flex;
+            gap: var(--spacing-md);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .job-progress {
+            min-width: 100px;
+        }
+
+        .job-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+
+        .job-actions .btn {
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: 0.9rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .dataset-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .quality-overview {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+            
+            .job-item {
+                grid-template-columns: 1fr;
+                gap: var(--spacing-md);
+                text-align: center;
+            }
+        }
+    </style>
+</body>
+</html>

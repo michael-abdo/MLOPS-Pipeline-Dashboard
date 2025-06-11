@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Monitoring - ML Pipeline</title>
+    <link rel="stylesheet" href="/static/css/shared.css">
+</head>
+<body>
+    <!-- Navigation will be rendered by JavaScript component -->
+    <nav class="main-nav" id="main-nav"></nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">System Monitoring</h1>
+            <p class="page-subtitle">Monitor system performance, resources, and health</p>
+        </div>
+
+        <!-- System Overview -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">🖥️ System Overview</h3>
+            
+            <div class="grid grid-4">
+                <div class="metric">
+                    <div class="metric-value" id="systemUptime">99.8%</div>
+                    <div class="metric-label">System Uptime</div>
+                    <div class="metric-trend positive">+0.2%</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="cpuUsage">34%</div>
+                    <div class="metric-label">CPU Usage</div>
+                    <div class="metric-trend negative">+5%</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="memoryUsage">2.1GB</div>
+                    <div class="metric-label">Memory Usage</div>
+                    <div class="metric-trend positive">-0.3GB</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="diskUsage">45%</div>
+                    <div class="metric-label">Disk Usage</div>
+                    <div class="metric-trend positive">-2%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-time Charts -->
+        <div class="grid grid-2">
+            <div class="card">
+                <h4>📊 CPU & Memory Usage</h4>
+                <div class="chart-container">
+                    <canvas id="resourceChart" width="400" height="200"></canvas>
+                </div>
+                <div class="chart-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--primary-color);"></div>
+                        <span>CPU Usage</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--success-color);"></div>
+                        <span>Memory Usage</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h4>🌐 Network Activity</h4>
+                <div class="chart-container">
+                    <canvas id="networkChart" width="400" height="200"></canvas>
+                </div>
+                <div class="chart-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--warning-color);"></div>
+                        <span>Incoming</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--danger-color);"></div>
+                        <span>Outgoing</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Service Health -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">🔧 Service Health</h3>
+            
+            <div class="service-grid">
+                <div class="service-item">
+                    <div class="service-header">
+                        <div class="service-icon">🚀</div>
+                        <div class="service-info">
+                            <h4>FastAPI Server</h4>
+                            <p>Main application server</p>
+                        </div>
+                        <div class="service-status">
+                            <div class="status-dot status-good"></div>
+                            <span class="status-text">Healthy</span>
+                        </div>
+                    </div>
+                    <div class="service-metrics">
+                        <div class="service-metric">
+                            <span class="metric-label">Response Time:</span>
+                            <span class="metric-value">23ms</span>
+                        </div>
+                        <div class="service-metric">
+                            <span class="metric-label">Requests/min:</span>
+                            <span class="metric-value">142</span>
+                        </div>
+                        <div class="service-metric">
+                            <span class="metric-label">Error Rate:</span>
+                            <span class="metric-value">0.1%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="service-item">
+                    <div class="service-header">
+                        <div class="service-icon">🔌</div>
+                        <div class="service-info">
+                            <h4>WebSocket Server</h4>
+                            <p>Real-time communication</p>
+                        </div>
+                        <div class="service-status">
+                            <div class="status-dot status-good"></div>
+                            <span class="status-text">Connected</span>
+                        </div>
+                    </div>
+                    <div class="service-metrics">
+                        <div class="service-metric">
+                            <span class="metric-label">Active Connections:</span>
+                            <span class="metric-value">3</span>
+                        </div>
+                        <div class="service-metric">
+                            <span class="metric-label">Messages/sec:</span>
+                            <span class="metric-value">8</span>
+                        </div>
+                        <div class="service-metric">
+                            <span class="metric-label">Latency:</span>
+                            <span class="metric-value">12ms</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="service-item">
+                    <div class="service-header">
+                        <div class="service-icon">🧠</div>
+                        <div class="service-info">
+                            <h4>ML Engine</h4>
+                            <p>Machine learning processing</p>
+                        </div>
+                        <div class="service-status">
+                            <div class="status-dot status-good"></div>
+                            <span class="status-text">Ready</span>
+                        </div>
+                    </div>
+                    <div class="service-metrics">
+                        <div class="service-metric">
+                            <span class="metric-label">Models Loaded:</span>
+                            <span class="metric-value">2</span>
+                        </div>
+                        <div class="service-metric">
+                            <span class="metric-label">Queue Size:</span>
+                            <span class="metric-value">0</span>
+                        </div>
+                        <div class="service-metric">
+                            <span class="metric-label">Avg Processing:</span>
+                            <span class="metric-value">1.2s</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="service-item">
+                    <div class="service-header">
+                        <div class="service-icon">💾</div>
+                        <div class="service-info">
+                            <h4>Storage System</h4>
+                            <p>File and data storage</p>
+                        </div>
+                        <div class="service-status">
+                            <div class="status-dot status-warning"></div>
+                            <span class="status-text">Warning</span>
+                        </div>
+                    </div>
+                    <div class="service-metrics">
+                        <div class="service-metric">
+                            <span class="metric-label">Free Space:</span>
+                            <span class="metric-value">156GB</span>
+                        </div>
+                        <div class="service-metric">
+                            <span class="metric-label">Read Speed:</span>
+                            <span class="metric-value">450MB/s</span>
+                        </div>
+                        <div class="service-metric">
+                            <span class="metric-label">Write Speed:</span>
+                            <span class="metric-value">320MB/s</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Metrics -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">⚡ Performance Metrics</h3>
+            
+            <div class="performance-grid">
+                <div class="performance-category">
+                    <h4>📈 Training Performance</h4>
+                    <div class="performance-metrics">
+                        <div class="performance-item">
+                            <div class="performance-icon">🎯</div>
+                            <div class="performance-info">
+                                <div class="performance-label">Average Training Time</div>
+                                <div class="performance-value">14.2 seconds</div>
+                                <div class="performance-change positive">-2.1s from last week</div>
+                            </div>
+                        </div>
+                        <div class="performance-item">
+                            <div class="performance-icon">📊</div>
+                            <div class="performance-info">
+                                <div class="performance-label">Model Accuracy</div>
+                                <div class="performance-value">94.7%</div>
+                                <div class="performance-change positive">+1.2% from last week</div>
+                            </div>
+                        </div>
+                        <div class="performance-item">
+                            <div class="performance-icon">⚡</div>
+                            <div class="performance-info">
+                                <div class="performance-label">Inference Speed</div>
+                                <div class="performance-value">45ms</div>
+                                <div class="performance-change negative">+5ms from last week</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="performance-category">
+                    <h4>🔄 Pipeline Performance</h4>
+                    <div class="performance-metrics">
+                        <div class="performance-item">
+                            <div class="performance-icon">✅</div>
+                            <div class="performance-info">
+                                <div class="performance-label">Success Rate</div>
+                                <div class="performance-value">97.3%</div>
+                                <div class="performance-change positive">+0.8% from last week</div>
+                            </div>
+                        </div>
+                        <div class="performance-item">
+                            <div class="performance-icon">🕒</div>
+                            <div class="performance-info">
+                                <div class="performance-label">Average Duration</div>
+                                <div class="performance-value">8m 42s</div>
+                                <div class="performance-change negative">+1.2m from last week</div>
+                            </div>
+                        </div>
+                        <div class="performance-item">
+                            <div class="performance-icon">🔧</div>
+                            <div class="performance-info">
+                                <div class="performance-label">Queue Wait Time</div>
+                                <div class="performance-value">23s</div>
+                                <div class="performance-change positive">-12s from last week</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Alerts -->
+        <div class="card">
+            <div class="card-header">
+                <h3>🚨 System Alerts</h3>
+                <div class="card-actions">
+                    <button class="btn btn-secondary" id="clearAlertsBtn">Clear All</button>
+                    <button class="btn btn-primary" id="configureAlertsBtn">Configure</button>
+                </div>
+            </div>
+            
+            <div class="alerts-list">
+                <div class="alert-item warning">
+                    <div class="alert-icon">⚠️</div>
+                    <div class="alert-info">
+                        <h4>Storage Space Warning</h4>
+                        <p>Disk usage has exceeded 80% threshold. Consider cleaning up old data or expanding storage.</p>
+                        <div class="alert-meta">
+                            <span>Priority: Medium</span>
+                            <span>Triggered: 2 hours ago</span>
+                        </div>
+                    </div>
+                    <div class="alert-actions">
+                        <button class="btn btn-secondary">Acknowledge</button>
+                        <button class="btn btn-primary">View Details</button>
+                    </div>
+                </div>
+
+                <div class="alert-item info">
+                    <div class="alert-icon">ℹ️</div>
+                    <div class="alert-info">
+                        <h4>Model Performance Improvement</h4>
+                        <p>Latest model training achieved 94.7% accuracy, a 1.2% improvement over previous version.</p>
+                        <div class="alert-meta">
+                            <span>Priority: Low</span>
+                            <span>Triggered: 4 hours ago</span>
+                        </div>
+                    </div>
+                    <div class="alert-actions">
+                        <button class="btn btn-secondary">Dismiss</button>
+                        <button class="btn btn-primary">View Model</button>
+                    </div>
+                </div>
+
+                <div class="alert-item success">
+                    <div class="alert-icon">✅</div>
+                    <div class="alert-info">
+                        <h4>System Health Check Passed</h4>
+                        <p>All system components are functioning normally. No issues detected in the last 24 hours.</p>
+                        <div class="alert-meta">
+                            <span>Priority: Low</span>
+                            <span>Triggered: 6 hours ago</span>
+                        </div>
+                    </div>
+                    <div class="alert-actions">
+                        <button class="btn btn-secondary">Dismiss</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Feed -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">🔍 System Activity</h3>
+            <div id="activityFeed" style="max-height: 300px; overflow-y: auto;">
+                <!-- Activities will be loaded from backend -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Import JavaScript modules -->
+    <script type="module" src="/static/js/components/navigation.js"></script>
+    <script type="module" src="/static/js/pages/monitoring.js"></script>
+
+    <style>
+        /* Monitoring-specific styles */
+        .metric-trend {
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            margin-top: var(--spacing-sm);
+        }
+
+        .metric-trend.positive {
+            color: var(--success-color);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .metric-trend.negative {
+            color: var(--danger-color);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin: var(--spacing-lg) 0;
+            background: var(--background-color);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+        }
+
+        .chart-legend {
+            display: flex;
+            gap: var(--spacing-lg);
+            justify-content: center;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            font-size: 0.9rem;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: var(--spacing-lg);
+        }
+
+        .service-item {
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-lg);
+            background: var(--surface-color);
+        }
+
+        .service-header {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .service-icon {
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+
+        .service-info {
+            flex: 1;
+        }
+
+        .service-info h4 {
+            margin: 0 0 var(--spacing-sm) 0;
+        }
+
+        .service-info p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .service-status {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .status-text {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .service-metrics {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+
+        .service-metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm);
+            background: var(--background-color);
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+        }
+
+        .service-metric .metric-label {
+            color: var(--text-secondary);
+        }
+
+        .service-metric .metric-value {
+            font-weight: 600;
+        }
+
+        .performance-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: var(--spacing-xl);
+        }
+
+        .performance-category h4 {
+            margin-bottom: var(--spacing-lg);
+            padding-bottom: var(--spacing-md);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .performance-metrics {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-lg);
+        }
+
+        .performance-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-md);
+            background: var(--surface-color);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+        }
+
+        .performance-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .performance-info {
+            flex: 1;
+        }
+
+        .performance-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .performance-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .performance-change {
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .performance-change.positive {
+            color: var(--success-color);
+        }
+
+        .performance-change.negative {
+            color: var(--danger-color);
+        }
+
+        .alerts-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-md);
+        }
+
+        .alert-item {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--spacing-md);
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+        }
+
+        .alert-item.warning {
+            background: rgba(245, 158, 11, 0.05);
+            border-color: rgba(245, 158, 11, 0.2);
+        }
+
+        .alert-item.info {
+            background: rgba(37, 99, 235, 0.05);
+            border-color: rgba(37, 99, 235, 0.2);
+        }
+
+        .alert-item.success {
+            background: rgba(16, 185, 129, 0.05);
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .alert-item.error {
+            background: rgba(239, 68, 68, 0.05);
+            border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        .alert-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .alert-info {
+            flex: 1;
+        }
+
+        .alert-info h4 {
+            margin: 0 0 var(--spacing-sm) 0;
+        }
+
+        .alert-info p {
+            margin: 0 0 var(--spacing-md) 0;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .alert-meta {
+            display: flex;
+            gap: var(--spacing-md);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .alert-meta span:not(:last-child)::after {
+            content: "•";
+            margin-left: var(--spacing-md);
+        }
+
+        .alert-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            flex-shrink: 0;
+        }
+
+        .alert-actions .btn {
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-size: 0.9rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .grid-4 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .service-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .performance-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .alert-item {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .alert-actions {
+                justify-content: flex-end;
+            }
+        }
+    </style>
+</body>
+</html>
