@@ -267,16 +267,6 @@ Current version is **MVP** focused on core functionality. Phase 2 adds:
 
 MIT License - see `LICENSE` file for details.
 
-## 🙏 Credits
-
-Built following the **Triangulated Perspectives Constructor** methodology:
-- ✅ **Final Features**: Simple, user-friendly interface
-- ✅ **Abstract Infrastructure**: Clean 4-step ML pipeline
-- ✅ **Implementation Details**: Modern, scalable tech stack
-
-**Total Development Time**: 1-2 weeks MVP
-**Total Investment**: $1.5K-2K MVP + $3.5K-4K Phase 2 = $5K complete platform
-
 ---
 
 **Ready to train your first model?** 
