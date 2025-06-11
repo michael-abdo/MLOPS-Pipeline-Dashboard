@@ -463,27 +463,32 @@ class Dashboard {
     }
     
     showSuccess(message) {
-        // Simple success notification
-        console.log('✅', message);
-        // TODO: Implement proper notification system
+        // Simple success notification - will be enhanced in future phases
+        this.showNotification(message, 'success');
     }
     
     showError(message) {
-        // Simple error notification
-        console.error('❌', message);
-        // TODO: Implement proper notification system
+        // Simple error notification - will be enhanced in future phases
+        this.showNotification(message, 'error');
+    }
+    
+    showNotification(message, type = 'info') {
+        // Simple notification system - placeholder for future enhancement
+        // Could be enhanced with toast notifications, sound alerts, etc.
+        const event = new CustomEvent('notification', {
+            detail: { message, type, timestamp: Date.now() }
+        });
+        window.dispatchEvent(event);
     }
     
     useModel() {
-        // Deploy the current model
-        console.log('🚀 Deploying model...');
-        // TODO: Implement model deployment
+        // Deploy the current model - will be implemented in Phase 2
+        this.showSuccess('Model deployment feature coming in Phase 2');
     }
     
     viewDetails() {
-        // Show detailed model information
-        console.log('📊 Viewing model details...');
-        // TODO: Implement model details view
+        // Show detailed model information - will be implemented in Phase 2
+        this.showSuccess('Model details view coming in Phase 2');
     }
 }
 

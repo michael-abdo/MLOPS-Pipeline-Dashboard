@@ -54,7 +54,6 @@ export class WebSocketManager {
      * Handle WebSocket open event
      */
     handleOpen() {
-        console.log('WebSocket connected');
         this.updateStatus('connected');
         this.reconnectAttempts = 0;
         
@@ -101,7 +100,6 @@ export class WebSocketManager {
      * Handle WebSocket close event
      */
     handleClose() {
-        console.log('WebSocket disconnected');
         this.ws = null;
         
         // Stop ping/pong
@@ -139,8 +137,6 @@ export class WebSocketManager {
         const maxDelay = baseDelay * Math.pow(2, Math.min(this.reconnectAttempts - 1, 5));
         const jitter = Math.random() * 0.3 * maxDelay;
         const delay = Math.min(maxDelay + jitter, 30000); // Max 30 seconds
-        
-        console.log(`Reconnecting in ${Math.round(delay / 1000)}s (attempt ${this.reconnectAttempts})`);
         
         this.reconnectTimeout = setTimeout(() => {
             this.connect();

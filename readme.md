@@ -30,6 +30,8 @@ A **simple 4-step ML pipeline** that anyone can use:
 - **WebSocket streaming** - Real-time metrics updates every 5 seconds
 - **Enterprise reliability** - Enhanced error handling, reconnection, and connection quality monitoring
 - **Connection resilience** - Automatic failover with exponential backoff and heartbeat monitoring
+- **Modular architecture** - Component-based design with shared modules for maintainability
+- **Multi-page ready** - Foundation prepared for Pipeline, Architecture, Data, and Monitoring pages
 
 ## 🚀 Quick Start (2 Minutes)
 
@@ -84,13 +86,19 @@ python backend/backend_api.py
 │                          # - Connection quality assessment
 │                          # - Memory optimization & connection limits
 ├── 🎨 static/
-│   ├── index.html         # Main dashboard with Phase 4 enhancements:
-│   │                      # - Connection timeout handling
-│   │                      # - Visual quality indicators (⚡/✓/⚠/🐌)
-│   │                      # - Graceful fallback to HTTP polling
-│   │                      # - Real-time latency tracking
-│   │                      # - Enhanced reconnection logic
-│   └── settings.html      # Settings page (API integrated)
+│   ├── css/
+│   │   ├── shared.css      # Design system and common styles
+│   │   └── dashboard.css   # Dashboard-specific styles
+│   ├── js/
+│   │   ├── common/         # Core modules (websocket, api, config, utils)
+│   │   ├── components/     # Reusable UI components (navigation, activity-feed)
+│   │   └── pages/          # Page-specific controllers (dashboard.js)
+│   ├── index.html         # Main dashboard (modular architecture):
+│   │                      # - Shared CSS and JavaScript modules
+│   │                      # - Component-based navigation
+│   │                      # - WebSocket singleton management
+│   │                      # - Real-time activity feed
+│   └── settings.html      # Settings page (modular architecture)
 ├── 📚 docs/
 │   ├── mvp/               # MVP documentation
 │   │   ├── API.md         # API documentation
