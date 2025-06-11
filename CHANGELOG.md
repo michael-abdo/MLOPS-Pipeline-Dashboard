@@ -5,7 +5,29 @@ All notable changes to the MLOps Pipeline Dashboard will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - Phase 2 System Monitoring Dashboard
+## [1.3.0] - 2025-06-11 - Phase 3 Real-Time Progress Streaming
+
+### Added - Phase 3 Features
+- 🚀 **Real-Time Training Progress** - WebSocket-based training updates without polling
+- 📊 **8-Stage Training Pipeline** - Detailed training stages with live progress
+- ⏱️ **Time Estimation** - Elapsed time and remaining time calculations
+- 📈 **Live Accuracy Updates** - Progressive accuracy tracking during training
+- 🔔 **Activity Feed Streaming** - Real-time activity updates via WebSocket
+- 🏥 **Health Change Notifications** - System health alerts and broadcasts
+- 🎯 **Deployment Events** - Real-time model deployment notifications
+- 💾 **Enhanced State Tracking** - Comprehensive training job state management
+- 🔄 **Graceful Fallback** - HTTP polling as backup when WebSocket unavailable
+- 📁 **Documentation Organization** - Moved Phase 3 docs to proper directories
+
+### Technical Implementation
+- **Broadcast Functions** - Added `broadcast_training_progress()`, `log_activity_with_broadcast()`, `broadcast_system_event()`
+- **Enhanced Training** - Modified `train_model_background()` with real-time broadcasting
+- **Frontend Handlers** - Added `handleTrainingProgress()`, `handleTrainingCompletion()`, `handleTrainingFailure()`, `handleActivityUpdate()`
+- **Detailed UI** - Training stages timeline with visual indicators
+- **Code Cleanup** - Removed all console.log/print statements for production
+- **File Organization** - Moved test files and documentation to appropriate directories
+
+## [1.2.0] - 2025-06-10 - Phase 2 System Monitoring Dashboard
 
 ### Added - Phase 2 Features
 - ⚡ **System Performance Monitor** - Real-time CPU, memory, disk usage tracking

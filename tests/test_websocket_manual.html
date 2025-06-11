@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Streaming Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .message {
+            background-color: #e8f4f8;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 20px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebSocket Real-Time Streaming Test</h1>
+        
+        <div id="status" class="status disconnected">
+            WebSocket: Disconnected
+        </div>
+        
+        <div>
+            <button onclick="connectWebSocket()">Connect WebSocket</button>
+            <button onclick="testUpload()">Test Upload</button>
+            <button onclick="testTraining()">Test Training</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+        
+        <h3>Real-Time Messages:</h3>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        let websocket = null;
+        let messageCount = 0;
+        
+        function updateStatus(connected) {
+            const status = document.getElementById('status');
+            if (connected) {
+                status.className = 'status connected';
+                status.textContent = 'WebSocket: Connected';
+            } else {
+                status.className = 'status disconnected';
+                status.textContent = 'WebSocket: Disconnected';
+            }
+        }
+        
+        function addMessage(type, data) {
+            messageCount++;
+            const log = document.getElementById('log');
+            const message = document.createElement('div');
+            message.className = 'message';
+            message.innerHTML = `
+                <strong>[${new Date().toLocaleTimeString()}] Message #${messageCount} - ${type}</strong><br>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            log.insertBefore(message, log.firstChild);
+        }
+        
+        function connectWebSocket() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                console.log('WebSocket already connected');
+                return;
+            }
+            
+            websocket = new WebSocket('ws://localhost:8000/ws');
+            
+            websocket.onopen = () => {
+                console.log('WebSocket connected');
+                updateStatus(true);
+                addMessage('CONNECTION', { status: 'Connected to WebSocket' });
+            };
+            
+            websocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('WebSocket message:', data);
+                
+                // Handle different message types
+                if (data.type === 'system_metrics') {
+                    addMessage('SYSTEM_METRICS', {
+                        cpu: data.cpu_percent + '%',
+                        memory: data.memory_percent + '%',
+                        disk: data.disk_percent + '%',
+                        health: data.system_health
+                    });
+                } else if (data.type === 'training_progress') {
+                    addMessage('TRAINING_PROGRESS', {
+                        stage: data.current_stage,
+                        progress: data.progress + '%',
+                        message: data.message,
+                        accuracy: data.live_accuracy
+                    });
+                } else if (data.type === 'training_completed') {
+                    addMessage('TRAINING_COMPLETED', {
+                        accuracy: data.final_accuracy,
+                        modelId: data.model_id,
+                        totalTime: data.total_time
+                    });
+                } else if (data.type === 'activity_update') {
+                    addMessage('ACTIVITY_UPDATE', data.activity);
+                } else {
+                    addMessage(data.type || 'UNKNOWN', data);
+                }
+            };
+            
+            websocket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                updateStatus(false);
+                addMessage('ERROR', { error: 'WebSocket error occurred' });
+            };
+            
+            websocket.onclose = () => {
+                console.log('WebSocket closed');
+                updateStatus(false);
+                addMessage('DISCONNECTION', { status: 'WebSocket disconnected' });
+            };
+        }
+        
+        async function testUpload() {
+            try {
+                const formData = new FormData();
+                const csvContent = 'col1,col2,col3,col4,target\\n1,2,3,4,0';
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                formData.append('file', blob, 'test.csv');
+                
+                const response = await fetch('http://localhost:8000/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                addMessage('UPLOAD_RESULT', result);
+            } catch (error) {
+                addMessage('UPLOAD_ERROR', { error: error.message });
+            }
+        }
+        
+        async function testTraining() {
+            try {
+                const response = await fetch('http://localhost:8000/api/train', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model_type: 'automatic',
+                        file_path: '/Users/Mike/Desktop/programming/2_proposals/upwork/communication/mlops_021929016736789551311/mlops/development/uploads/simple_test_data.csv'
+                    })
+                });
+                
+                const result = await response.json();
+                addMessage('TRAINING_STARTED', result);
+            } catch (error) {
+                addMessage('TRAINING_ERROR', { error: error.message });
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            messageCount = 0;
+        }
+        
+        // Auto-connect on page load
+        setTimeout(connectWebSocket, 1000);
+    </script>
+</body>
+</html>

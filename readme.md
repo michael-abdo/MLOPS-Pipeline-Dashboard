@@ -98,16 +98,21 @@ python backend/backend_api.py
 │   │   ├── PHASE1_SPECIFICATION_ANALYSIS.md  # Spec compliance
 │   │   ├── phase1_dashboard.html          # Expected dashboard UI
 │   │   └── phase1_spec.md                 # Phase 1 specifications
-│   └── retired/           # Archived documentation
-│       ├── IMPLEMENTATION_SUMMARY.md  # Legacy implementation details
-│       └── project_structure.md       # Legacy technical documentation
+│   ├── retired/           # Archived documentation
+│   │   ├── IMPLEMENTATION_SUMMARY.md  # Legacy implementation details
+│   │   └── project_structure.md       # Legacy technical documentation
+│   ├── BACKEND_REORGANIZATION.md   # Backend refactoring details
+│   ├── PHASE3_IMPLEMENTATION_COMPARISON.md  # Phase 3 requirements analysis
+│   ├── PHASE3_TESTING_REPORT.md    # Phase 3 testing results
+│   └── PHASE3_VERIFICATION_REPORT.md # Phase 3 comprehensive verification
 ├── 🧪 tests/
 │   ├── test_api.py        # Comprehensive API tests
 │   ├── test_simple.py     # Basic endpoint tests
 │   ├── test_pipeline.py   # Complete pipeline test
 │   ├── test_websocket.py  # WebSocket connectivity tests
 │   ├── test_websocket_client.py    # WebSocket client tests
-│   └── test_websocket_only.py      # Isolated WebSocket tests
+│   ├── test_websocket_only.py      # Isolated WebSocket tests
+│   └── test_websocket_manual.html  # Manual WebSocket testing tool
 ├── 🤖 automation/         # Frontend automation framework
 │   ├── core/              # Base automation classes
 │   ├── pages/             # Page object models
