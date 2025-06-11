@@ -476,6 +476,42 @@ async def settings():
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Settings not found</h1><p>Please ensure static files are properly set up.</p>", status_code=404)
 
+@app.get("/pipeline", response_class=HTMLResponse)
+async def pipeline():
+    """Serve the pipeline page"""
+    try:
+        with open(PROJECT_ROOT / "static" / "pipeline.html", "r") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Pipeline page coming soon</h1><p>This feature is under development.</p>", status_code=404)
+
+@app.get("/architecture", response_class=HTMLResponse)
+async def architecture():
+    """Serve the architecture page"""
+    try:
+        with open(PROJECT_ROOT / "static" / "architecture.html", "r") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Architecture page coming soon</h1><p>This feature is under development.</p>", status_code=404)
+
+@app.get("/data", response_class=HTMLResponse)
+async def data():
+    """Serve the data management page"""
+    try:
+        with open(PROJECT_ROOT / "static" / "data.html", "r") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Data management page coming soon</h1><p>This feature is under development.</p>", status_code=404)
+
+@app.get("/monitoring", response_class=HTMLResponse)
+async def monitoring():
+    """Serve the monitoring page"""
+    try:
+        with open(PROJECT_ROOT / "static" / "monitoring.html", "r") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Monitoring page coming soon</h1><p>This feature is under development.</p>", status_code=404)
+
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
     """Upload and validate data file"""

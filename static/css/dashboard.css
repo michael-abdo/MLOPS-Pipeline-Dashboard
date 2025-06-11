@@ -1,0 +1,217 @@
+/* Dashboard-specific styles */
+
+/* 4-Step Workflow Display */
+.workflow-steps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.step {
+    text-align: center;
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    border: 2px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.step.active {
+    border-color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.step.completed {
+    border-color: var(--success-color);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.step.error {
+    border-color: var(--danger-color);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--border-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--spacing-sm);
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.step.active .step-number {
+    background: var(--primary-color);
+    animation: pulse 2s infinite;
+}
+
+.step.completed .step-number {
+    background: var(--success-color);
+}
+
+.step.error .step-number {
+    background: var(--danger-color);
+}
+
+.step-title {
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+}
+
+.step-description {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* File Upload Area */
+.upload-area {
+    border: 3px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    background: var(--surface-color);
+}
+
+.upload-area:hover, .upload-area.dragover {
+    border-color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.upload-icon {
+    font-size: 3rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-md);
+}
+
+/* Training Stages Styling */
+.stage-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+}
+
+.stage-item.completed {
+    background: rgba(16, 185, 129, 0.1);
+    border-left: 3px solid var(--success-color);
+}
+
+.stage-item.active {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 3px solid var(--primary-color);
+    animation: pulse 2s infinite;
+}
+
+.stage-item.pending {
+    background: rgba(156, 163, 175, 0.1);
+    border-left: 3px solid var(--text-secondary);
+    opacity: 0.7;
+}
+
+.stage-icon {
+    font-size: 1.1rem;
+    min-width: 20px;
+}
+
+.stage-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.stage-time {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    min-width: 50px;
+    text-align: right;
+}
+
+/* Advanced Options */
+.advanced-options {
+    display: none;
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+}
+
+.show-advanced .advanced-options {
+    display: block;
+}
+
+/* Activity Feed */
+.activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+}
+
+.activity-status.success {
+    background: var(--success-color);
+}
+
+.activity-status.warning {
+    background: var(--warning-color);
+}
+
+.activity-status.error {
+    background: var(--danger-color);
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-title {
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.activity-description {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.activity-timestamp {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* Dashboard-specific responsive */
+@media (max-width: 768px) {
+    .workflow-steps {
+        grid-template-columns: 1fr;
+    }
+    
+    .upload-area {
+        padding: var(--spacing-md);
+    }
+    
+    .upload-icon {
+        font-size: 2rem;
+    }
+}
