@@ -22,7 +22,8 @@ class DashboardPage extends BaseAutomation {
             uploadArea: '.upload-area',
             fileInput: '#fileInput',
             uploadIcon: '.upload-icon',
-            uploadStatus: '.upload-area h4',
+            uploadStatus: '.upload-status',
+            uploadTitle: '.upload-area h4',
             
             // Buttons
             trainButton: '#trainButton',
@@ -126,24 +127,18 @@ class DashboardPage extends BaseAutomation {
     async waitForUploadSuccess() {
         this.logger.debug('Waiting for upload success indication');
         
-        // Wait for upload icon to change to checkmark
+        // Wait for the upload icon to change to checkmark AND title to show success
         await this.page.waitForFunction(
-            selector => {
-                const icon = document.querySelector(selector);
-                return icon && icon.textContent.includes('✅');
+            (iconSel, titleSel) => {
+                const icon = document.querySelector(iconSel);
+                const title = document.querySelector(titleSel);
+                // Look for success icon and success message
+                return icon && icon.textContent.includes('✅') && 
+                       title && title.textContent.toLowerCase().includes('success');
             },
             { timeout: 10000 },
-            this.selectors.uploadIcon
-        );
-        
-        // Wait for file ready message
-        await this.page.waitForFunction(
-            selector => {
-                const status = document.querySelector(selector);
-                return status && status.textContent.includes('File Ready');
-            },
-            { timeout: 5000 },
-            this.selectors.uploadStatus
+            this.selectors.uploadIcon,
+            this.selectors.uploadTitle
         );
         
         this.logger.debug('Upload success indicators detected');
@@ -159,9 +154,12 @@ class DashboardPage extends BaseAutomation {
         const rowsMatch = statusText.match(/(\d+)\s*rows/);
         const columnsMatch = statusText.match(/(\d+)\s*columns/);
         
+        // Extract filename from success message
+        const filenameMatch = statusText.match(/([^\/\\]+\.csv)/i);
+        
         return {
-            success: statusText.includes('File Ready'),
-            filename: statusText.match(/File Ready:\s*(.+?)\s*\d/)?.[1] || 'unknown',
+            success: statusText.toLowerCase().includes('success'),
+            filename: filenameMatch ? filenameMatch[1] : 'unknown',
             rows: rowsMatch ? parseInt(rowsMatch[1]) : 0,
             columns: columnsMatch ? parseInt(columnsMatch[1]) : 0,
             fullText: statusText
