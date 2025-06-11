@@ -54,6 +54,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- 🔧 **Backend Organization**: Moved backend files to dedicated `backend/` directory
+  - `backend_api.py` → `backend/backend_api.py`
+  - `backend_simple.py` → `backend/backend_simple.py`
+  - Updated all relative path references and imports
+  - Updated documentation and deployment instructions
+  - Improved project structure for better maintainability
+
 ### Planned for v1.1.0
 - [ ] User authentication and authorization
 - [ ] Database persistence (PostgreSQL/MongoDB)

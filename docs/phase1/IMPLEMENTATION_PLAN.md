@@ -4,12 +4,12 @@
 
 ### Add WebSocket Infrastructure
 - Add psutil==5.9.6 to requirements.txt
-- Create ConnectionManager class in backend_api.py after line 38
+- Create ConnectionManager class in backend/backend_api.py after line 38
   - Add active_connections list
   - Add connect() method
   - Add disconnect() method
   - Add broadcast_json() method
-- Add WebSocket endpoint /ws in backend_api.py after line 448
+- Add WebSocket endpoint /ws in backend/backend_api.py after line 448
   - Accept WebSocket connection
   - Send system metrics every 5 seconds
   - Handle disconnections
@@ -61,7 +61,7 @@
 ## Phase 3: Real-Time Progress Streaming (Week 3)
 
 ### Training Progress Broadcasting
-- Modify train_model_background() function in backend_api.py
+- Modify train_model_background() function in backend/backend_api.py
   - Add WebSocket broadcasting for progress updates
   - Send training_progress messages with job_id and progress
   - Add detailed training stage messages
@@ -142,11 +142,11 @@
 
 ### Files to Modify
 - requirements.txt (add psutil)
-- backend_api.py (WebSocket endpoint and broadcasting)
+- backend/backend_api.py (WebSocket endpoint and broadcasting)
 - static/index.html (WebSocket client and real-time UI)
 
 ### Key Integration Points
-- WebSocket endpoint: /ws in backend_api.py after line 448
+- WebSocket endpoint: /ws in backend/backend_api.py after line 448
 - Frontend WebSocket client: static/index.html after line 577
 - System metrics display: static/index.html after line 530
 - Training progress: Modify train_model_background() function

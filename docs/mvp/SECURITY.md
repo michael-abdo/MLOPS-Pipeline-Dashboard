@@ -23,7 +23,7 @@ This document outlines security best practices and implementation guidelines for
 
 #### JWT Authentication
 ```python
-# backend_api.py additions
+# backend/backend_api.py additions
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -495,7 +495,7 @@ safety check
 
 # Code security scanning
 pip install bandit
-bandit -r backend_api.py
+bandit -r backend/
 
 # Container scanning (if using Docker)
 docker scan your-image:tag

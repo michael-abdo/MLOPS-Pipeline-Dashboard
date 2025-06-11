@@ -80,10 +80,10 @@ For new features:
 ### Backend Development
 ```bash
 # Start development server
-python backend_simple.py
+python backend/backend_simple.py
 
 # Start full ML backend
-python backend_api.py
+python backend/backend_api.py
 ```
 
 ### Frontend Development

@@ -56,7 +56,7 @@ nproc
    kill -9 <PID>
    
    # Or use different port
-   uvicorn backend_api:app --port 8001
+   uvicorn backend.backend_api:app --port 8001
    ```
 
 2. **Check permissions:**
@@ -65,7 +65,7 @@ nproc
    sudo ufw allow 8000
    
    # For ports < 1024, run as root (not recommended)
-   sudo python backend_api.py
+   sudo python backend/backend_api.py
    ```
 
 3. **Install missing dependencies:**
@@ -409,7 +409,7 @@ nproc
 
 1. **Check CORS configuration:**
    ```python
-   # In backend_api.py
+   # In backend/backend_api.py
    from fastapi.middleware.cors import CORSMiddleware
    
    app.add_middleware(
@@ -520,7 +520,7 @@ export DEBUG=True
 DEBUG=True
 
 # Run with verbose logging
-python backend_api.py --log-level debug
+python backend/backend_api.py --log-level debug
 ```
 
 ### Log Analysis

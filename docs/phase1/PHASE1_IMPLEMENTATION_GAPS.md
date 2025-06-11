@@ -303,6 +303,123 @@ Based on the specifications, Phase 1 should have delivered:
 
 ---
 
+## ✅ TODO-BASED ACTION PLAN
+
+### Phase 1 Dashboard Implementation (Priority Order)
+
+Based on the gap analysis above, here are the specific actionable steps to complete Phase 1 requirements:
+
+#### **🔥 HIGH PRIORITY: Missing Core Dashboard Components**
+
+1. **✅ Add Live System Status Card to index.html**
+   - **Action**: Copy the Live System Status card structure from `docs/phase1/phase1_dashboard.html` lines 408-453
+   - **Location**: Insert after existing content in `static/index.html`
+   - **Elements**: Real-time CPU/Memory bars, health indicators, training progress display
+   - **Integration**: Wire to existing WebSocket metrics data
+
+2. **✅ Implement Real-Time Activity Feed Display**
+   - **Action**: Copy the Real-Time Activity Feed from `docs/phase1/phase1_dashboard.html` lines 553-593
+   - **Location**: Add as new card section in `static/index.html`
+   - **WebSocket Integration**: Stream activity updates in real-time
+   - **Data Flow**: Backend activity events → WebSocket → Live feed display
+
+3. **✅ Add Detailed Training Progress with Live Stages**
+   - **Action**: Implement detailed training stages from phase1_spec.md
+   - **Stages**: "📥 Uploading data", "🔍 Validating data", "⚙️ Preprocessing", "🧠 Training", "📊 Evaluating", "✅ Complete"
+   - **Integration**: Modify `train_model_background()` to broadcast training progress
+   - **UI Updates**: Real-time progress bar, stage display, estimated time remaining
+
+4. **✅ Create System Health Indicators and Metrics**
+   - **Action**: Add visual health indicators with color coding (Green/Yellow/Red)
+   - **Metrics**: CPU usage bars, memory indicators, system status badges
+   - **Thresholds**: Green (<70%), Yellow (70-85%), Red (>85%)
+   - **Real-time**: Update every 5 seconds via WebSocket
+
+5. **✅ Integrate Dashboard Components with WebSocket Data**
+   - **Action**: Replace `console.log()` in `updateSystemMetrics()` with UI updates
+   - **Data Flow**: WebSocket metrics → Live dashboard elements
+   - **Elements**: Update metric values, progress bars, health indicators in real-time
+   - **Error Handling**: Graceful fallback when WebSocket disconnected
+
+#### **🔶 MEDIUM PRIORITY: Polish and Testing**
+
+6. **✅ Test Complete Dashboard Functionality**
+   - **Action**: Verify all dashboard components update in real-time
+   - **Test Cases**: WebSocket connection, metrics display, activity feed, training progress
+   - **Validation**: Compare against `docs/phase1/phase1_dashboard.html` expected behavior
+
+### Implementation Specification Reference
+
+#### **Copy These Exact Elements from phase1_dashboard.html:**
+
+**Live System Status Card** (lines 408-453):
+```html
+<!-- Real-Time System Status -->
+<div class="card">
+    <h3 style="margin-bottom: var(--spacing-lg);">🔧 Live System Status</h3>
+    
+    <!-- Current Model Status -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+        <div>
+            <strong>Customer Prediction Model v2.1</strong>
+            <p style="color: var(--text-secondary); margin-top: var(--spacing-sm);">Last trained 2 hours ago • 1,247 predictions made</p>
+        </div>
+        <div class="status-indicator status-good">
+            <div class="status-dot"></div>
+            Live & Healthy
+        </div>
+    </div>
+    
+    <!-- Real-Time Metrics Grid -->
+    <div class="grid grid-3" style="margin-top: var(--spacing-lg);">
+        <div class="metric">
+            <div class="metric-value" id="liveAccuracy">94.2%</div>
+            <div class="metric-label">Current Accuracy</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value" id="livePredictions">23/min</div>
+            <div class="metric-label">Predictions/Min</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value" id="systemHealth">✅</div>
+            <div class="metric-label">System Health</div>
+        </div>
+    </div>
+</div>
+```
+
+**Real-Time Activity Feed** (lines 553-593):
+```html
+<!-- Real-Time Activity Feed -->
+<div class="card">
+    <h3 style="margin-bottom: var(--spacing-lg);">🔍 Live Activity Feed</h3>
+    <div id="activityFeed" style="max-height: 300px; overflow-y: auto;">
+        <!-- Dynamic activity items will be inserted here -->
+    </div>
+</div>
+```
+
+### Success Criteria for Phase 1 Completion
+
+✅ **Dashboard UI Complete**: All visual elements from phase1_dashboard.html implemented  
+✅ **Real-time Updates**: WebSocket data flowing to UI elements, not just console  
+✅ **Live Activity Feed**: Streaming system events and activities  
+✅ **Training Progress**: Detailed stages with real-time updates  
+✅ **System Health**: Visual indicators updating in real-time  
+✅ **No Console Logging**: All metrics displayed in UI, not console.log  
+
+### Expected Outcome
+
+After completing these todos, the dashboard will match the Phase 1 specification:
+- **"Simple In, Rich Feedback Out"** principle fully implemented
+- **Live monitoring dashboard** as the core value proposition
+- **Real-time system status** visible to users
+- **Rich feedback** during all operations
+- **Complete Phase 1 requirements** satisfied
+
+---
+
 **Analysis Date**: January 20, 2024  
 **Implementation Status**: Infrastructure Complete, Dashboard Missing  
-**Compliance Level**: Infrastructure 100%, User Experience 0%
+**Compliance Level**: Infrastructure 100%, User Experience 0%  
+**Action Plan**: TODO-based implementation steps defined above

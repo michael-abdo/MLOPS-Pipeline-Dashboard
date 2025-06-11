@@ -45,7 +45,7 @@ Paste error logs here
 Add any other context about the problem here.
 
 **Troubleshooting Attempted**
-- [ ] Checked the troubleshooting guide (`docs/TROUBLESHOOTING.md`)
+- [ ] Checked the troubleshooting guide (`docs/mvp/TROUBLESHOOTING.md`)
 - [ ] Verified system requirements
 - [ ] Tested with sample data
 - [ ] Checked browser console for errors

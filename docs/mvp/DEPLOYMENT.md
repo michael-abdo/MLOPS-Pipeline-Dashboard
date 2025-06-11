@@ -32,8 +32,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
-COPY backend_api.py .
-COPY backend_simple.py .
+COPY backend/ ./backend/
 COPY static/ ./static/
 
 # Create necessary directories
@@ -47,7 +46,7 @@ ENV PYTHONUNBUFFERED=1
 ENV ML_ENV=production
 
 # Run the application
-CMD ["uvicorn", "backend_api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.backend_api:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 ### 2. Create docker-compose.yml
@@ -171,7 +170,7 @@ docker-compose down
    Group=ubuntu
    WorkingDirectory=/home/ubuntu/mlops/development
    Environment="PATH=/home/ubuntu/mlops/development/venv/bin"
-   ExecStart=/home/ubuntu/mlops/development/venv/bin/gunicorn -w 4 -k uvicorn.workers.UvicornWorker backend_api:app --bind 0.0.0.0:8000
+   ExecStart=/home/ubuntu/mlops/development/venv/bin/gunicorn -w 4 -k uvicorn.workers.UvicornWorker backend.backend_api:app --bind 0.0.0.0:8000
    Restart=always
    
    [Install]
@@ -187,7 +186,7 @@ docker-compose down
 
 1. **Create Procfile**
    ```
-   web: uvicorn backend_api:app --host 0.0.0.0 --port $PORT
+   web: uvicorn backend.backend_api:app --host 0.0.0.0 --port $PORT
    ```
 
 2. **Create runtime.txt**
@@ -311,7 +310,7 @@ CREATE USER mlops_user WITH PASSWORD 'secure_password';
 GRANT ALL PRIVILEGES ON DATABASE mlops_db TO mlops_user;
 
 -- Create tables (run from application)
-python -c "from backend_api import create_tables; create_tables()"
+python -c "from backend.backend_api import create_tables; create_tables()"
 ```
 
 #### MongoDB

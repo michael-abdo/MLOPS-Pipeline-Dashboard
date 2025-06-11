@@ -1,5 +1,5 @@
 # Simple version for testing without ML dependencies
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
@@ -10,6 +10,11 @@ import json
 import os
 from datetime import datetime
 import asyncio
+import psutil
+from pathlib import Path
+
+# Get the project root directory (parent of backend/)
+PROJECT_ROOT = Path(__file__).parent.parent
 
 app = FastAPI(title="ML Pipeline API", description="Simplified MLOps Dashboard Backend")
 
@@ -23,12 +28,34 @@ app.add_middleware(
 )
 
 # Serve static files (frontend)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=str(PROJECT_ROOT / "static")), name="static")
 
 # Simple in-memory storage (replace with database in production)
 models_store = {}
 training_jobs = {}
 activity_log = []
+
+# WebSocket Connection Manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast_json(self, data: dict):
+        for connection in self.active_connections[:]:
+            try:
+                await connection.send_json(data)
+            except Exception:
+                self.disconnect(connection)
+
+manager = ConnectionManager()
 
 # Data Models
 class TrainingRequestWithFile(BaseModel):
@@ -122,7 +149,7 @@ async def train_model_background(job_id: str, file_path: str, model_type: str):
 async def root():
     """Serve the main dashboard"""
     try:
-        with open("static/index.html", "r") as f:
+        with open(PROJECT_ROOT / "static" / "index.html", "r") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Dashboard not found</h1><p>Please ensure static files are properly set up.</p>", status_code=404)
@@ -131,7 +158,7 @@ async def root():
 async def settings():
     """Serve the settings page"""
     try:
-        with open("static/settings.html", "r") as f:
+        with open(PROJECT_ROOT / "static" / "settings.html", "r") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
         return HTMLResponse(content="<h1>Settings not found</h1><p>Please ensure static files are properly set up.</p>", status_code=404)
@@ -144,9 +171,9 @@ async def upload_file(file: UploadFile = File(...)):
         content = await file.read()
         
         # Save file temporarily
-        upload_dir = "uploads"
+        upload_dir = PROJECT_ROOT / "uploads"
         os.makedirs(upload_dir, exist_ok=True)
-        file_path = f"{upload_dir}/{file.filename}"
+        file_path = upload_dir / file.filename
         
         with open(file_path, "wb") as f:
             f.write(content)
@@ -175,7 +202,7 @@ async def upload_file(file: UploadFile = File(...)):
             "filename": file.filename,
             "rows": rows,
             "columns": columns,
-            "file_path": file_path
+            "file_path": str(file_path)
         }
         
     except Exception as e:
@@ -336,6 +363,36 @@ async def get_settings():
     """Get current system settings"""
     return current_settings
 
+# WebSocket endpoint for real-time updates
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Send system metrics every 5 seconds
+            await asyncio.sleep(5)
+            
+            # Collect system metrics
+            cpu_percent = psutil.cpu_percent(interval=None)
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
+            
+            metrics = {
+                "type": "system_metrics",
+                "cpu_percent": round(cpu_percent, 1),
+                "memory_percent": round(memory.percent, 1),
+                "disk_percent": round((disk.used / disk.total) * 100, 1),
+                "active_connections": len(manager.active_connections),
+                "total_models": len(models_store),
+                "active_training_jobs": len([j for j in training_jobs.values() if j["status"] == "training"]),
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            await websocket.send_json(metrics)
+            
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
 # Health check
 @app.get("/health")
 async def health_check():
@@ -345,9 +402,9 @@ if __name__ == "__main__":
     import uvicorn
     
     # Create necessary directories
-    os.makedirs("uploads", exist_ok=True)
-    os.makedirs("models", exist_ok=True)
-    os.makedirs("static", exist_ok=True)
+    os.makedirs(PROJECT_ROOT / "uploads", exist_ok=True)
+    os.makedirs(PROJECT_ROOT / "models", exist_ok=True)
+    os.makedirs(PROJECT_ROOT / "static", exist_ok=True)
     
     # Add some sample activity log entries
     log_activity("System started", "ML Pipeline backend initialized", "success")

@@ -46,8 +46,8 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # 4. Start the server
-python backend_api.py
-# Or for testing: python backend_simple.py
+python backend/backend_api.py
+# Or for testing: python backend/backend_simple.py
 ```
 
 ### First Use
@@ -63,36 +63,54 @@ python backend_api.py
 
 ```
 📦 mlops/development/
-├── backend_api.py          # FastAPI server with full ML capabilities
-├── backend_simple.py       # Simplified server for testing
 ├── requirements.txt        # Python dependencies
-├── simple_test_data.csv    # Sample data for testing
 ├── readme.md              # This file
 ├── LICENSE                # MIT License
-├── CONTRIBUTING.md        # Contribution guidelines
+├── CONTRIBUTING.md        # Contribution guidelines  
+├── CHANGELOG.md           # Version history and changes
+├── 🔧 backend/
+│   ├── backend_api.py     # FastAPI server with full ML capabilities
+│   └── backend_simple.py  # Simplified server for testing
 ├── 🎨 static/
-│   ├── index.html         # Main dashboard (fully integrated)
+│   ├── index.html         # Main dashboard with real-time WebSocket updates
 │   └── settings.html      # Settings page (API integrated)
 ├── 📚 docs/
-│   ├── IMPLEMENTATION_SUMMARY.md  # Implementation details
-│   ├── project_structure.md       # Technical documentation
-│   └── AUTOMATION_GUIDE.md        # Frontend automation guide
+│   ├── mvp/               # MVP documentation
+│   │   ├── API.md         # API documentation
+│   │   ├── AUTOMATION_GUIDE.md     # Frontend automation guide
+│   │   ├── DATA_FORMAT.md          # Data format specifications
+│   │   ├── DEPLOYMENT.md           # Deployment instructions
+│   │   ├── SECURITY.md            # Security guidelines
+│   │   └── TROUBLESHOOTING.md     # Common issues and fixes
+│   ├── phase1/            # Phase 1 implementation docs
+│   │   ├── IMPLEMENTATION_PLAN.md         # Phase 1 roadmap
+│   │   ├── PHASE1_IMPLEMENTATION_GAPS.md  # Gap analysis and todos
+│   │   ├── PHASE1_SPECIFICATION_ANALYSIS.md  # Spec compliance
+│   │   ├── phase1_dashboard.html          # Expected dashboard UI
+│   │   └── phase1_spec.md                 # Phase 1 specifications
+│   └── retired/           # Archived documentation
+│       ├── IMPLEMENTATION_SUMMARY.md  # Legacy implementation details
+│       └── project_structure.md       # Legacy technical documentation
 ├── 🧪 tests/
 │   ├── test_api.py        # Comprehensive API tests
 │   ├── test_simple.py     # Basic endpoint tests
-│   └── test_pipeline.py   # Complete pipeline test
+│   ├── test_pipeline.py   # Complete pipeline test
+│   ├── test_websocket.py  # WebSocket connectivity tests
+│   ├── test_websocket_client.py    # WebSocket client tests
+│   └── test_websocket_only.py      # Isolated WebSocket tests
 ├── 🤖 automation/         # Frontend automation framework
 │   ├── core/              # Base automation classes
 │   ├── pages/             # Page object models
 │   ├── tests/             # UI automation tests
 │   ├── utils/             # Logging and utilities
-│   ├── logs/              # Test execution logs
-│   ├── screenshots/       # Visual test records
+│   ├── logs/              # Test execution logs (auto-generated)
+│   ├── screenshots/       # Visual test records (auto-generated)
 │   ├── config/            # Automation configuration
 │   ├── package.json       # Node.js dependencies
 │   ├── run-automation-demo.sh  # Demo script
 │   └── README.md          # Automation documentation
-├── 📁 uploads/            # File upload storage (.gitkeep)
+├── 📁 uploads/            # File upload storage
+│   └── simple_test_data.csv   # Sample data for testing
 ├── 📁 models/             # Trained model storage (.gitkeep)
 └── 🐍 venv/               # Python virtual environment
 ```
@@ -172,14 +190,14 @@ Advanced settings available for technical users.
 ### Development (Local)
 ```bash
 source venv/bin/activate
-python backend_api.py
+python backend/backend_api.py
 # Access at http://localhost:8000
 ```
 
 ### Testing (Simplified)
 ```bash
 source venv/bin/activate
-python backend_simple.py
+python backend/backend_simple.py
 # Access at http://localhost:8000
 ```
 
@@ -272,6 +290,6 @@ MIT License - see `LICENSE` file for details.
 **Ready to train your first model?** 
 ```bash
 source venv/bin/activate
-python backend_simple.py
+python backend/backend_simple.py
 ```
 Then open `http://localhost:8000` and upload your data! 🎉
