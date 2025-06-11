@@ -104,6 +104,68 @@
             font-size: 1.1rem;
         }
 
+        /* Connection Status Indicator */
+        .connection-status {
+            padding: 0.3rem 0.8rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            border: 2px solid transparent;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .connection-status.connecting {
+            background: linear-gradient(45deg, #fbbf24, #f59e0b);
+            color: white;
+            animation: pulse 2s infinite;
+        }
+
+        .connection-status.connected {
+            background: linear-gradient(45deg, #10b981, #059669);
+            color: white;
+        }
+
+        .connection-status.connected[data-quality="excellent"]::after {
+            content: " ⚡";
+        }
+
+        .connection-status.connected[data-quality="good"]::after {
+            content: " ✓";
+        }
+
+        .connection-status.connected[data-quality="fair"]::after {
+            content: " ⚠";
+        }
+
+        .connection-status.connected[data-quality="poor"]::after {
+            content: " 🐌";
+        }
+
+        .connection-status.connection-error,
+        .connection-status.connection-lost,
+        .connection-status.connection-timeout {
+            background: linear-gradient(45deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .connection-status.disconnected {
+            background: linear-gradient(45deg, #6b7280, #4b5563);
+            color: white;
+        }
+
+        .connection-status.reconnecting {
+            background: linear-gradient(45deg, #8b5cf6, #7c3aed);
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
         /* Simple Card Design */
         .card {
             background: var(--surface-color);
@@ -513,7 +575,12 @@
     <div class="main-content">
         <!-- Page Header -->
         <div class="page-header">
-            <h1 class="page-title">Machine Learning Pipeline</h1>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: var(--spacing-sm);">
+                <h1 class="page-title" style="margin: 0;">Machine Learning Pipeline</h1>
+                <div id="connectionStatus" class="connection-status disconnected" title="WebSocket connection status">
+                    Connecting...
+                </div>
+            </div>
             <p class="page-subtitle">Train and deploy models with simple 4-step process</p>
         </div>
 
@@ -897,61 +964,223 @@
         let currentFile = null;
         let currentJobId = null;
         let isTraining = false;
+        // Enhanced WebSocket management with Phase 4 improvements
         let websocket = null;
         let reconnectAttempts = 0;
-        const maxReconnectAttempts = 5;
+        let connectionAttemptTimeout = null;
+        let heartbeatInterval = null;
+        let lastPongReceived = Date.now();
+        let connectionQuality = 'unknown';
+        let messageLatencies = [];
+        let connectionStartTime = null;
+        
+        const wsConfig = {
+            maxReconnectAttempts: 10,
+            reconnectBaseDelay: 1000,
+            maxReconnectDelay: 30000,
+            connectionTimeout: 10000,
+            heartbeatInterval: 30000,
+            pongTimeout: 5000,
+            latencyHistorySize: 10
+        };
 
-        // WebSocket initialization and management
+        // Connection quality assessment
+        function assessConnectionQuality(latency) {
+            if (latency < 50) return 'excellent';
+            if (latency < 150) return 'good';
+            if (latency < 300) return 'fair';
+            return 'poor';
+        }
+
+        // Update connection status UI
+        function updateConnectionStatus(status, quality = null) {
+            const statusElement = document.getElementById('connectionStatus');
+            if (statusElement) {
+                statusElement.textContent = status;
+                statusElement.className = 'connection-status ' + status.toLowerCase().replace(' ', '-');
+                
+                if (quality) {
+                    statusElement.setAttribute('data-quality', quality);
+                }
+            }
+            
+            // Emit custom event for other components
+            window.dispatchEvent(new CustomEvent('websocketStatusChange', { 
+                detail: { status, quality } 
+            }));
+        }
+
+        // Enhanced WebSocket initialization with timeout and quality monitoring
         function initWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws`;
             
+            updateConnectionStatus('Connecting...');
+            connectionStartTime = Date.now();
+            
             try {
                 websocket = new WebSocket(wsUrl);
                 
+                // Connection timeout handler
+                connectionAttemptTimeout = setTimeout(() => {
+                    if (websocket && websocket.readyState === WebSocket.CONNECTING) {
+                        websocket.close();
+                        updateConnectionStatus('Connection timeout');
+                        scheduleReconnect();
+                    }
+                }, wsConfig.connectionTimeout);
+                
                 websocket.onopen = function(event) {
-                    reconnectAttempts = 0; // Reset attempts on successful connection
+                    clearTimeout(connectionAttemptTimeout);
+                    reconnectAttempts = 0;
+                    const connectionTime = Date.now() - connectionStartTime;
+                    
+                    updateConnectionStatus('Connected', assessConnectionQuality(connectionTime));
+                    
+                    // Start heartbeat mechanism
+                    startHeartbeat();
+                    
+                    // Request immediate system metrics
+                    if (websocket.readyState === WebSocket.OPEN) {
+                        websocket.send(JSON.stringify({ type: 'request_metrics' }));
+                    }
                 };
                 
                 websocket.onmessage = function(event) {
+                    const receiveTime = Date.now();
                     const data = JSON.parse(event.data);
                     
-                    if (data.type === 'system_metrics') {
-                        updateSystemMetrics(data);
-                    } else if (data.type === 'training_progress') {
-                        handleTrainingProgress(data);
-                    } else if (data.type === 'training_completed') {
-                        handleTrainingCompletion(data);
-                    } else if (data.type === 'training_failed') {
-                        handleTrainingFailure(data);
-                    } else if (data.type === 'activity_update') {
-                        handleActivityUpdate(data);
-                    } else if (data.type === 'health_change') {
-                        handleHealthChange(data);
-                    } else if (data.type === 'model_deployed') {
-                        handleModelDeployment(data);
-                    } else if (data.type === 'prediction_volume') {
-                        handlePredictionVolumeUpdate(data);
+                    // Handle pong messages for heartbeat
+                    if (data.type === 'pong') {
+                        lastPongReceived = receiveTime;
+                        const latency = receiveTime - data.timestamp;
+                        updateLatencyMetrics(latency);
+                        return;
+                    }
+                    
+                    // Track message latency if timestamp provided
+                    if (data.timestamp) {
+                        const latency = receiveTime - new Date(data.timestamp).getTime();
+                        updateLatencyMetrics(latency);
+                    }
+                    
+                    // Route messages by type
+                    const messageHandlers = {
+                        'system_metrics': updateSystemMetrics,
+                        'training_progress': handleTrainingProgress,
+                        'training_completed': handleTrainingCompletion,
+                        'training_failed': handleTrainingFailure,
+                        'activity_update': handleActivityUpdate,
+                        'health_change': handleHealthChange,
+                        'model_deployed': handleModelDeployment,
+                        'prediction_volume': handlePredictionVolumeUpdate
+                    };
+                    
+                    const handler = messageHandlers[data.type];
+                    if (handler) {
+                        handler(data);
                     }
                 };
                 
                 websocket.onclose = function(event) {
+                    clearTimeout(connectionAttemptTimeout);
+                    stopHeartbeat();
                     websocket = null;
                     
-                    // Attempt to reconnect with exponential backoff
-                    if (reconnectAttempts < maxReconnectAttempts) {
-                        const delay = Math.pow(2, reconnectAttempts) * 1000; // 1s, 2s, 4s, 8s, 16s
-                        reconnectAttempts++;
-                        setTimeout(initWebSocket, delay);
+                    // Determine close reason
+                    let closeReason = 'Connection closed';
+                    if (event.code === 1006) {
+                        closeReason = 'Connection lost';
+                    } else if (event.code === 1000) {
+                        closeReason = 'Normal closure';
+                    }
+                    
+                    updateConnectionStatus(closeReason);
+                    
+                    // Schedule reconnection if not at max attempts
+                    if (reconnectAttempts < wsConfig.maxReconnectAttempts) {
+                        scheduleReconnect();
+                    } else {
+                        updateConnectionStatus('Disconnected - Max retries reached');
+                        // Activate fallback to HTTP polling
+                        activateFallbackPolling();
                     }
                 };
                 
                 websocket.onerror = function(error) {
-                    // WebSocket error occurred
+                    updateConnectionStatus('Connection error');
                 };
                 
             } catch (error) {
+                clearTimeout(connectionAttemptTimeout);
+                updateConnectionStatus('Failed to create connection');
+                scheduleReconnect();
             }
+        }
+        
+        // Enhanced reconnection with exponential backoff and jitter
+        function scheduleReconnect() {
+            const baseDelay = wsConfig.reconnectBaseDelay;
+            const delay = Math.min(
+                baseDelay * Math.pow(2, reconnectAttempts) + Math.random() * 1000,
+                wsConfig.maxReconnectDelay
+            );
+            
+            reconnectAttempts++;
+            updateConnectionStatus(`Reconnecting in ${Math.round(delay/1000)}s (${reconnectAttempts}/${wsConfig.maxReconnectAttempts})`);
+            
+            setTimeout(initWebSocket, delay);
+        }
+        
+        // Heartbeat mechanism
+        function startHeartbeat() {
+            heartbeatInterval = setInterval(() => {
+                if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    // Send ping
+                    websocket.send(JSON.stringify({ 
+                        type: 'ping', 
+                        timestamp: Date.now() 
+                    }));
+                    
+                    // Check for pong timeout
+                    setTimeout(() => {
+                        if (Date.now() - lastPongReceived > wsConfig.pongTimeout + wsConfig.heartbeatInterval) {
+                            // Connection seems dead, force reconnect
+                            if (websocket) {
+                                websocket.close();
+                            }
+                        }
+                    }, wsConfig.pongTimeout);
+                }
+            }, wsConfig.heartbeatInterval);
+        }
+        
+        function stopHeartbeat() {
+            if (heartbeatInterval) {
+                clearInterval(heartbeatInterval);
+                heartbeatInterval = null;
+            }
+        }
+        
+        // Track connection quality metrics
+        function updateLatencyMetrics(latency) {
+            messageLatencies.push(latency);
+            if (messageLatencies.length > wsConfig.latencyHistorySize) {
+                messageLatencies.shift();
+            }
+            
+            // Calculate average latency
+            const avgLatency = messageLatencies.reduce((a, b) => a + b, 0) / messageLatencies.length;
+            connectionQuality = assessConnectionQuality(avgLatency);
+            
+            // Update UI with quality indicator
+            updateConnectionStatus('Connected', connectionQuality);
+        }
+        
+        // Fallback to HTTP polling when WebSocket fails
+        function activateFallbackPolling() {
+            window.fallbackPollingActive = true;
+            window.dispatchEvent(new Event('activateFallbackPolling'));
         }
         
         // Update system metrics display with real-time data

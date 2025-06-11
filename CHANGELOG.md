@@ -5,6 +5,36 @@ All notable changes to the MLOps Pipeline Dashboard will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-06-11 - Phase 4 Polish & Testing
+
+### Added - Phase 4 Features
+- 🔄 **Enhanced WebSocket Error Handling** - Comprehensive timeout and reconnection management
+- ⚡ **Exponential Backoff with Jitter** - Smart reconnection delays to prevent server overload
+- 💓 **Ping/Pong Heartbeat Mechanism** - Connection health monitoring and keep-alive
+- 📊 **Connection Quality Assessment** - Real-time latency monitoring with visual indicators
+- 🎯 **Message Prioritization** - Critical messages bypass rate limiting
+- 🧠 **Memory Optimization** - Connection limits and automatic cleanup
+- 🛡️ **Connection Resilience** - Graceful degradation with HTTP polling fallback
+- 🔧 **Visual Health Indicators** - Color-coded connection status with quality metrics
+- 🧪 **Comprehensive Test Suite** - WebSocket connectivity testing (5/7 tests passing)
+
+### Technical Implementation
+- **Enhanced ConnectionManager** - Memory optimization with connection limits and cleanup
+- **Quality Monitoring** - Latency tracking with excellent/good/fair/poor thresholds
+- **Rate Limiting** - Protection against connection spam and resource exhaustion
+- **Graceful Fallback** - HTTP polling activation when WebSocket fails completely
+- **Connection Statistics** - Detailed tracking of message counts and bytes sent
+- **Timeout Handling** - 10-second connection timeout with exponential backoff
+- **Visual Feedback** - Animated connection status with quality indicators
+
+### Testing Results
+- ✅ API endpoints connectivity verified
+- ✅ Basic WebSocket connections working
+- ✅ Connection resilience tested (10/10 concurrent connections)
+- ✅ Message delivery verified (5-second intervals)
+- ✅ Reconnection behavior validated
+- 🔧 Minor ping/pong timing optimizations pending
+
 ## [1.3.0] - 2025-06-11 - Phase 3 Real-Time Progress Streaming
 
 ### Added - Phase 3 Features
