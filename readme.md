@@ -249,11 +249,19 @@ Current version is **MVP** focused on core functionality. Phase 2 adds:
 - **Low accuracy**: Try cleaning data or adding more examples
 - **Page won't load**: Check `http://localhost:8000/health`
 
-### Get Help
+### Documentation
 - 📖 **Implementation Guide**: `docs/IMPLEMENTATION_SUMMARY.md`
-- 🔧 **Technical Docs**: `docs/project_structure.md`  
-- 🐛 **Issues**: Create GitHub issue with error details
-- 📧 **Email**: [your-support-email]
+- 🔧 **Technical Docs**: `docs/project_structure.md`
+- 📡 **API Reference**: `docs/API.md`
+- 🚀 **Deployment Guide**: `docs/DEPLOYMENT.md`
+- 🔒 **Security Guide**: `docs/SECURITY.md`
+- 📊 **Data Format Specs**: `docs/DATA_FORMAT.md`
+- 🔧 **Troubleshooting**: `docs/TROUBLESHOOTING.md`
+- 🤖 **Automation Guide**: `docs/AUTOMATION_GUIDE.md`
+
+### Get Help
+- 🐛 **Common Issues**: See `docs/TROUBLESHOOTING.md`
+- 📧 **Support**: Create GitHub issue with error details
 
 ## 📝 License
 

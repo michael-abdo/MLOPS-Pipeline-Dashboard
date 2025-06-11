@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Pipeline Dashboard</title>
+    <style>
+        /* Simplified Design System for MVP */
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --background-color: #f8fafc;
+            --surface-color: #ffffff;
+            --border-color: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --spacing-sm: 0.5rem;
+            --spacing-md: 1rem;
+            --spacing-lg: 1.5rem;
+            --spacing-xl: 2rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--background-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Simple Navigation - Only 2 sections */
+        .main-nav {
+            background: var(--surface-color);
+            border-bottom: 2px solid var(--border-color);
+            padding: var(--spacing-md) var(--spacing-xl);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand h1 {
+            color: var(--primary-color);
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: var(--spacing-xl);
+        }
+
+        .nav-link {
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            color: var(--primary-color);
+            background: rgba(37, 99, 235, 0.1);
+        }
+
+        /* Main Container */
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: var(--spacing-xl);
+        }
+
+        /* Page Header */
+        .page-header {
+            text-align: center;
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .page-title {
+            font-size: 2rem;
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* Simple Card Design */
+        .card {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            margin-bottom: var(--spacing-lg);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 4-Step Workflow Display */
+        .workflow-steps {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-lg);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .step {
+            text-align: center;
+            padding: var(--spacing-lg);
+            border-radius: var(--radius-lg);
+            border: 2px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .step.active {
+            border-color: var(--primary-color);
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        .step.completed {
+            border-color: var(--success-color);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .step.error {
+            border-color: var(--danger-color);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--border-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--spacing-sm);
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .step.active .step-number {
+            background: var(--primary-color);
+            animation: pulse 2s infinite;
+        }
+
+        .step.completed .step-number {
+            background: var(--success-color);
+        }
+
+        .step.error .step-number {
+            background: var(--danger-color);
+        }
+
+        .step-title {
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .step-description {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* Simple Status Indicators */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: var(--radius-md);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .status-good {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+
+        .status-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+        }
+
+        .status-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Simple Progress Bar */
+        .progress-container {
+            margin: var(--spacing-lg) 0;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-sm);
+            font-weight: 500;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: var(--border-color);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--success-color);
+            transition: width 0.5s ease;
+            border-radius: var(--radius-md);
+        }
+
+        .progress-fill.active {
+            background: var(--primary-color);
+        }
+
+        /* Large, Simple Buttons */
+        .btn {
+            padding: var(--spacing-md) var(--spacing-xl);
+            border-radius: var(--radius-md);
+            font-weight: 600;
+            font-size: 1rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+
+        .btn-large {
+            padding: var(--spacing-lg) var(--spacing-xl);
+            font-size: 1.2rem;
+            min-width: 200px;
+        }
+
+        /* Simple Grid */
+        .grid {
+            display: grid;
+            gap: var(--spacing-lg);
+        }
+
+        .grid-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        /* File Upload Area */
+        .upload-area {
+            border: 3px dashed var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: var(--surface-color);
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--primary-color);
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-md);
+        }
+
+        /* Simple Metrics Display */
+        .metric {
+            text-align: center;
+            padding: var(--spacing-lg);
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .metric-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Loading State */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Hide complexity by default */
+        .advanced-options {
+            display: none;
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .show-advanced .advanced-options {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Simple Navigation - Only 2 sections -->
+    <nav class="main-nav">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <h1>ML Pipeline</h1>
+            </div>
+            <div class="nav-menu">
+                <a href="#dashboard" class="nav-link active">Dashboard</a>
+                <a href="#settings" class="nav-link">Settings</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Machine Learning Pipeline</h1>
+            <p class="page-subtitle">Train and deploy models with simple 4-step process</p>
+        </div>
+
+        <!-- Real-Time System Status -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">🔧 Live System Status</h3>
+            
+            <!-- Current Model Status -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+                <div>
+                    <strong>Customer Prediction Model v2.1</strong>
+                    <p style="color: var(--text-secondary); margin-top: var(--spacing-sm);">Last trained 2 hours ago • 1,247 predictions made</p>
+                </div>
+                <div class="status-indicator status-good">
+                    <div class="status-dot"></div>
+                    Live & Healthy
+                </div>
+            </div>
+            
+            <!-- Live Training Progress -->
+            <div class="progress-container">
+                <div class="progress-label">
+                    <span id="trainingStage">🚀 Ready for New Training</span>
+                    <span id="trainingPercent">100%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="mainProgressBar" style="width: 100%"></div>
+                </div>
+                <div style="margin-top: var(--spacing-sm); font-size: 0.9rem; color: var(--text-secondary);" id="trainingDetails">
+                    System ready • Last training: 94.2% accuracy in 3m 45s
+                </div>
+            </div>
+
+            <!-- Real-Time Metrics Grid -->
+            <div class="grid grid-3" style="margin-top: var(--spacing-lg);">
+                <div class="metric">
+                    <div class="metric-value" id="liveAccuracy">94.2%</div>
+                    <div class="metric-label">Current Accuracy</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="livePredictions">23/min</div>
+                    <div class="metric-label">Predictions/Min</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value" id="systemHealth">✅</div>
+                    <div class="metric-label">System Health</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4-Step Workflow -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">Training Workflow</h3>
+            <div class="workflow-steps">
+                <div class="step completed">
+                    <div class="step-number">1</div>
+                    <div class="step-title">Upload Data</div>
+                    <div class="step-description">Add your data file</div>
+                </div>
+                <div class="step completed">
+                    <div class="step-number">2</div>
+                    <div class="step-title">Train Model</div>
+                    <div class="step-description">AI learns patterns</div>
+                </div>
+                <div class="step completed">
+                    <div class="step-number">3</div>
+                    <div class="step-title">View Results</div>
+                    <div class="step-description">Check accuracy</div>
+                </div>
+                <div class="step completed">
+                    <div class="step-number">4</div>
+                    <div class="step-title">Deploy</div>
+                    <div class="step-description">Start using model</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Actions - Maximum 3 primary buttons -->
+        <div class="grid grid-2">
+            <!-- Start New Training -->
+            <div class="card">
+                <h3 style="margin-bottom: var(--spacing-lg);">Start New Training</h3>
+                
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📊</div>
+                    <h4>Upload Your Data</h4>
+                    <p style="color: var(--text-secondary); margin-top: var(--spacing-sm);">
+                        Click here or drag & drop your CSV file
+                    </p>
+                    <input type="file" id="fileInput" accept=".csv" style="display: none;" onchange="handleFileUpload(event)">
+                </div>
+
+                <div style="text-align: center; margin-top: var(--spacing-lg);">
+                    <button class="btn btn-primary btn-large" onclick="startTraining()" id="trainButton" disabled>
+                        Start Training
+                    </button>
+                </div>
+
+                <!-- Advanced Options (Hidden by default) -->
+                <div style="text-align: center; margin-top: var(--spacing-md);">
+                    <a href="#" onclick="toggleAdvanced()" style="color: var(--text-secondary); font-size: 0.9rem;">
+                        Show Advanced Options
+                    </a>
+                </div>
+                
+                <div class="advanced-options">
+                    <label style="display: block; margin-bottom: var(--spacing-sm);">
+                        Model Type:
+                        <select style="width: 100%; padding: var(--spacing-sm); margin-top: var(--spacing-sm);">
+                            <option>Automatic (Recommended)</option>
+                            <option>Classification</option>
+                            <option>Prediction</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Current Model Results -->
+            <div class="card">
+                <h3 style="margin-bottom: var(--spacing-lg);">Current Model Performance</h3>
+                
+                <div class="grid grid-3">
+                    <div class="metric">
+                        <div class="metric-value">94%</div>
+                        <div class="metric-label">Accuracy</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">1,247</div>
+                        <div class="metric-label">Predictions Made</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">23ms</div>
+                        <div class="metric-label">Response Time</div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: var(--spacing-lg);">
+                    <button class="btn btn-success btn-large" onclick="useModel()">
+                        Use This Model
+                    </button>
+                    <br>
+                    <button class="btn btn-secondary" onclick="viewDetails()" style="margin-top: var(--spacing-md);">
+                        View Details
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-Time Activity Feed -->
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">🔍 Live Activity Feed</h3>
+            <div id="activityFeed" style="max-height: 300px; overflow-y: auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md) 0; border-bottom: 1px solid var(--border-color);">
+                    <div>
+                        <strong>🔮 Prediction request processed</strong>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem;">Input: [age=34, income=75000] → Output: 89% likely to buy</p>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">2 sec ago</div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md) 0; border-bottom: 1px solid var(--border-color);">
+                    <div>
+                        <strong>📊 System health check completed</strong>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem;">All services healthy • Response time: 23ms</p>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">15 sec ago</div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md) 0; border-bottom: 1px solid var(--border-color);">
+                    <div>
+                        <strong>🔮 Batch predictions completed</strong>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem;">Processed 45 records in 1.2 seconds</p>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">1 min ago</div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md) 0; border-bottom: 1px solid var(--border-color);">
+                    <div>
+                        <strong>📈 Model performance updated</strong>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem;">Accuracy: 94.2% • Processed 1,247 predictions today</p>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">2 min ago</div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md) 0;">
+                    <div>
+                        <strong>🚀 Model deployed successfully</strong>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem;">Customer Prediction Model v2.1 is now live</p>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">2 hours ago</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Enhanced state management with real-time monitoring
+        let currentFile = null;
+        let isTraining = false;
+        let currentJobId = null;
+        let realTimeInterval = null;
+
+        // Real-time activity feed data
+        const activityTypes = [
+            "🔮 Prediction request processed",
+            "📊 System health check completed", 
+            "🧠 Model performance evaluated",
+            "📈 Metrics updated",
+            "🔄 Cache refreshed",
+            "📡 API response optimized"
+        ];
+
+        // Enhanced file upload with real-time feedback
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                currentFile = file;
+                
+                // Show immediate feedback
+                updateTrainingStage("📥 File uploaded successfully");
+                
+                const uploadArea = document.querySelector('.upload-area');
+                uploadArea.innerHTML = `
+                    <div class="upload-icon">✅</div>
+                    <h4>File Ready: ${file.name}</h4>
+                    <p style="color: var(--text-secondary); margin-top: var(--spacing-sm);">
+                        ${(file.size / 1024 / 1024).toFixed(2)} MB • Ready for training
+                    </p>
+                `;
+                document.getElementById('trainButton').disabled = false;
+                
+                // Add to activity feed
+                addActivityFeedItem("📁 Data file uploaded", `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+            }
+        }
+
+        // Enhanced training with detailed real-time progress
+        function startTraining() {
+            if (!currentFile || isTraining) return;
+            
+            isTraining = true;
+            const button = document.getElementById('trainButton');
+            button.innerHTML = '<span class="spinner"></span> Training in Progress...';
+            button.disabled = true;
+            
+            // Update workflow steps
+            updateWorkflowSteps('training');
+            
+            // Start detailed training simulation with real-time updates
+            simulateDetailedTraining();
+        }
+
+        // Detailed training simulation with rich feedback
+        function simulateDetailedTraining() {
+            const stages = [
+                { name: "📥 Loading and validating data", duration: 3000 },
+                { name: "🔍 Analyzing data patterns", duration: 4000 },
+                { name: "⚙️ Engineering features", duration: 5000 },
+                { name: "🧠 Training model algorithms", duration: 8000 },
+                { name: "📊 Evaluating model performance", duration: 3000 },
+                { name: "✅ Finalizing model", duration: 2000 }
+            ];
+            
+            let currentStageIndex = 0;
+            let totalDuration = stages.reduce((sum, stage) => sum + stage.duration, 0);
+            let elapsedTime = 0;
+            
+            function runStage() {
+                if (currentStageIndex >= stages.length) {
+                    trainingComplete();
+                    return;
+                }
+                
+                const stage = stages[currentStageIndex];
+                updateTrainingStage(stage.name);
+                addActivityFeedItem("🔄 Training update", stage.name.replace(/📥|🔍|⚙️|🧠|📊|✅/g, '').trim());
+                
+                let stageProgress = 0;
+                const stageInterval = setInterval(() => {
+                    stageProgress += 100 / (stage.duration / 200); // Update every 200ms
+                    elapsedTime += 200;
+                    
+                    const overallProgress = (elapsedTime / totalDuration) * 100;
+                    updateTrainingProgress(Math.min(overallProgress, 100));
+                    
+                    // Simulate live accuracy updates during training
+                    if (currentStageIndex >= 3) { // During model training
+                        const liveAccuracy = 85 + (Math.random() * 10);
+                        updateLiveMetrics(liveAccuracy);
+                    }
+                    
+                    if (stageProgress >= 100) {
+                        clearInterval(stageInterval);
+                        currentStageIndex++;
+                        setTimeout(runStage, 500); // Brief pause between stages
+                    }
+                }, 200);
+            }
+            
+            runStage();
+        }
+
+        // Update training stage and progress
+        function updateTrainingStage(stageName) {
+            document.getElementById('trainingStage').textContent = stageName;
+        }
+
+        function updateTrainingProgress(percentage) {
+            const progressBar = document.getElementById('mainProgressBar');
+            const progressPercent = document.getElementById('trainingPercent');
+            const details = document.getElementById('trainingDetails');
+            
+            progressBar.style.width = percentage + '%';
+            progressPercent.textContent = Math.round(percentage) + '%';
+            
+            if (percentage < 100) {
+                progressBar.className = 'progress-fill active';
+                const remaining = ((100 - percentage) / 100) * 25; // Assume 25 total minutes
+                details.textContent = `Training in progress • Estimated ${Math.ceil(remaining)}m remaining`;
+            }
+        }
+
+        // Update live metrics during training
+        function updateLiveMetrics(accuracy) {
+            document.getElementById('liveAccuracy').textContent = accuracy.toFixed(1) + '%';
+            document.getElementById('livePredictions').textContent = Math.floor(15 + Math.random() * 20) + '/min';
+        }
+
+        // Training completion with enhanced feedback
+        function trainingComplete() {
+            isTraining = false;
+            const button = document.getElementById('trainButton');
+            button.innerHTML = 'Start Training';
+            button.disabled = false;
+            
+            // Update workflow and progress
+            updateWorkflowSteps('results');
+            document.getElementById('mainProgressBar').className = 'progress-fill';
+            
+            // Final metrics update
+            const finalAccuracy = 92 + Math.random() * 6;
+            updateTrainingStage('✅ Training completed successfully!');
+            document.getElementById('trainingPercent').textContent = '100%';
+            document.getElementById('trainingDetails').textContent = `Training complete • Final accuracy: ${finalAccuracy.toFixed(1)}% in 3m 45s`;
+            
+            // Update performance metrics
+            updateMetrics(finalAccuracy);
+            
+            // Add completion to activity feed
+            addActivityFeedItem("🎉 Training completed", `Model achieved ${finalAccuracy.toFixed(1)}% accuracy`);
+            
+            // Show success notification
+            showNotification('✅ Training Complete!', `Model accuracy: ${finalAccuracy.toFixed(1)}%\nReady to deploy`, 'success');
+        }
+
+        // Add item to real-time activity feed
+        function addActivityFeedItem(title, description) {
+            const feed = document.getElementById('activityFeed');
+            const item = document.createElement('div');
+            item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-md) 0; border-bottom: 1px solid var(--border-color);';
+            item.innerHTML = `
+                <div>
+                    <strong>${title}</strong>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">${description}</p>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">Just now</div>
+            `;
+            
+            feed.insertBefore(item, feed.firstChild);
+            
+            // Keep only last 10 items
+            while (feed.children.length > 10) {
+                feed.removeChild(feed.lastChild);
+            }
+        }
+
+        // Enhanced notification system
+        function showNotification(title, message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed; top: 20px; right: 20px; z-index: 1000;
+                background: white; border: 2px solid var(--primary-color);
+                border-radius: var(--radius-md); padding: var(--spacing-lg);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                max-width: 300px; animation: slideIn 0.3s ease;
+            `;
+            
+            if (type === 'success') {
+                notification.style.borderColor = 'var(--secondary-color)';
+            }
+            
+            notification.innerHTML = `
+                <h4 style="margin: 0 0 var(--spacing-sm) 0;">${title}</h4>
+                <p style="margin: 0; white-space: pre-line;">${message}</p>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => document.body.removeChild(notification), 300);
+            }, 4000);
+        }
+
+        // Start real-time updates when page loads
+        function startRealTimeUpdates() {
+            realTimeInterval = setInterval(() => {
+                // Simulate live system activity
+                if (!isTraining && Math.random() < 0.3) { // 30% chance every 5 seconds
+                    const activity = activityTypes[Math.floor(Math.random() * activityTypes.length)];
+                    let description = "System monitoring and optimization";
+                    
+                    if (activity.includes("Prediction")) {
+                        description = `Processed request in ${15 + Math.floor(Math.random() * 20)}ms`;
+                    } else if (activity.includes("health")) {
+                        description = "All services healthy • Response time: 23ms";
+                    }
+                    
+                    addActivityFeedItem(activity, description);
+                }
+                
+                // Update live prediction counter
+                if (!isTraining) {
+                    const current = parseInt(document.getElementById('livePredictions').textContent);
+                    const variance = Math.floor(Math.random() * 10) - 5;
+                    const newValue = Math.max(10, Math.min(50, current + variance));
+                    document.getElementById('livePredictions').textContent = newValue + '/min';
+                }
+            }, 5000); // Update every 5 seconds
+        }
+
+        // Update workflow visual state
+        function updateWorkflowSteps(stage) {
+            const steps = document.querySelectorAll('.step');
+            steps.forEach(step => {
+                step.className = 'step'; // Reset
+            });
+            
+            switch(stage) {
+                case 'upload':
+                    steps[0].className = 'step active';
+                    break;
+                case 'training':
+                    steps[0].className = 'step completed';
+                    steps[1].className = 'step active';
+                    break;
+                case 'results':
+                    steps[0].className = 'step completed';
+                    steps[1].className = 'step completed';
+                    steps[2].className = 'step active';
+                    break;
+                case 'deployed':
+                    steps.forEach(step => step.className = 'step completed');
+                    break;
+            }
+        }
+
+        // Enhanced model usage
+        function useModel() {
+            updateWorkflowSteps('deployed');
+            addActivityFeedItem("🚀 Model deployed", "Model is now live and accepting prediction requests");
+            showNotification('🚀 Model Deployed!', 'Your model is now live and ready for predictions.\n\nAPI endpoint available for integration.', 'success');
+        }
+
+        // Enhanced details view
+        function viewDetails() {
+            const details = `📊 Model Performance Details:
+
+• Algorithm: Auto-selected Random Forest
+• Training Data: ${currentFile ? currentFile.name : 'customer_data.csv'}
+• Training Time: 3 minutes 45 seconds
+• Final Accuracy: 94.2%
+• Cross-validation Score: 93.8%
+• Features Used: 12 columns
+• Training Samples: 1,847 rows
+• Validation Samples: 463 rows
+
+🔧 Technical Metrics:
+• Precision: 93.1%
+• Recall: 95.3%
+• F1-Score: 94.2%
+• ROC-AUC: 0.967
+
+🚀 Performance:
+• Avg Response Time: 23ms
+• Predictions Today: 1,247
+• Success Rate: 99.8%`;
+
+            showNotification('📊 Model Details', details, 'info');
+        }
+
+        // Enhanced performance metrics update
+        function updateMetrics(accuracy = null) {
+            if (accuracy) {
+                document.getElementById('liveAccuracy').textContent = accuracy.toFixed(1) + '%';
+            }
+            
+            const predictions = Math.floor(1000 + Math.random() * 500);
+            const responseTime = Math.floor(15 + Math.random() * 15);
+            
+            // Update other metrics in the grid
+            const metricValues = document.querySelectorAll('.metric-value');
+            if (metricValues.length >= 3) {
+                metricValues[1].textContent = Math.floor(15 + Math.random() * 25) + '/min';
+                metricValues[2].textContent = '✅';
+            }
+        }
+
+        // Enhanced advanced options toggle
+        function toggleAdvanced() {
+            const container = document.querySelector('.card');
+            container.classList.toggle('show-advanced');
+            const link = event.target;
+            link.textContent = container.classList.contains('show-advanced') ? 
+                'Hide Advanced Options' : 'Show Advanced Options';
+            return false;
+        }
+
+        // Enhanced drag and drop
+        const uploadArea = document.querySelector('.upload-area');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('fileInput').files = files;
+                handleFileUpload({ target: { files: files } });
+            }
+        });
+
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Initialize page with real-time features
+        document.addEventListener('DOMContentLoaded', function() {
+            updateWorkflowSteps('deployed'); // Show completed state by default
+            startRealTimeUpdates(); // Start real-time monitoring
+            updateMetrics(); // Initialize metrics
+            
+            // Add initial activity
+            addActivityFeedItem("🚀 System initialized", "ML Pipeline dashboard ready for use");
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (realTimeInterval) {
+                clearInterval(realTimeInterval);
+            }
+        });
+    </script>
+</body>
+</html>
