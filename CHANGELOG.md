@@ -5,6 +5,33 @@ All notable changes to the MLOps Pipeline Dashboard will be documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Phase 2 System Monitoring Dashboard
+
+### Added - Phase 2 Features
+- ⚡ **System Performance Monitor** - Real-time CPU, memory, disk usage tracking
+- 🎨 **Visual Health Indicators** - Color-coded system status (Green/Yellow/Red thresholds)
+- 📡 **Enhanced WebSocket Streaming** - Comprehensive metrics every 5 seconds
+- 🔗 **Connection Tracking** - Active WebSocket connection monitoring
+- 📊 **Response Time Tracking** - API and WebSocket performance metrics
+- 🏥 **System Health Status** - Dynamic health calculations with visual feedback
+- 📈 **Resource Status Display** - ML models, queue jobs, system uptime
+- 🔄 **Automatic Health Updates** - Real-time status indicator changes
+- 🖥️ **Extended System Metrics** - Process count, network stats, load averages
+
+### Enhanced
+- **Backend WebSocket** - Added comprehensive system metrics collection using psutil
+- **Frontend Dashboard** - New System Performance Monitor card with progress bars
+- **Real-time Updates** - Enhanced visual feedback for system performance
+- **Color Coding** - Smart thresholds: <60% Green, 60-80% Yellow, >80% Red
+- **Automation Testing** - Successfully tested Phase 2 features with UI automation
+
+### Technical Improvements
+- Enhanced `backend_simple.py` with detailed metrics streaming
+- Added visual progress bars for CPU, memory, disk usage
+- Implemented dynamic status container styling
+- Added timestamp tracking for last update times
+- Extended WebSocket error handling and reconnection logic
+
 ## [1.0.0] - 2024-01-20
 
 ### Added

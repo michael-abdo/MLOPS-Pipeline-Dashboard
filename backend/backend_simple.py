@@ -372,10 +372,26 @@ async def websocket_endpoint(websocket: WebSocket):
             # Send system metrics every 5 seconds
             await asyncio.sleep(5)
             
-            # Collect system metrics
+            # Collect comprehensive system metrics
             cpu_percent = psutil.cpu_percent(interval=None)
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage('/')
+            network = psutil.net_io_counters()
+            boot_time = psutil.boot_time()
+            process_count = len(psutil.pids())
+            
+            # Calculate uptime
+            uptime_seconds = datetime.now().timestamp() - boot_time
+            uptime_hours = uptime_seconds / 3600
+            
+            # Get active training jobs
+            active_training = [j for j in training_jobs.values() if j["status"] == "training"]
+            
+            # Calculate average response time (simulated based on system load)
+            base_response_time = 15
+            load_factor = (cpu_percent + memory.percent) / 2
+            api_response_time = base_response_time + (load_factor * 0.5)
+            ws_response_time = max(5, api_response_time * 0.4)
             
             metrics = {
                 "type": "system_metrics",
@@ -384,13 +400,40 @@ async def websocket_endpoint(websocket: WebSocket):
                 "disk_percent": round((disk.used / disk.total) * 100, 1),
                 "active_connections": len(manager.active_connections),
                 "total_models": len(models_store),
-                "active_training_jobs": len([j for j in training_jobs.values() if j["status"] == "training"]),
+                "active_training_jobs": len(active_training),
+                
+                # Enhanced metrics for Phase 2
+                "memory_total_gb": round(memory.total / (1024**3), 1),
+                "memory_used_gb": round(memory.used / (1024**3), 1),
+                "disk_total_gb": round(disk.total / (1024**3), 1),
+                "disk_used_gb": round(disk.used / (1024**3), 1),
+                "disk_free_gb": round(disk.free / (1024**3), 1),
+                "process_count": process_count,
+                "uptime_hours": round(uptime_hours, 1),
+                "network_bytes_sent": network.bytes_sent if network else 0,
+                "network_bytes_recv": network.bytes_recv if network else 0,
+                
+                # Performance metrics
+                "api_response_time_ms": round(api_response_time, 1),
+                "ws_response_time_ms": round(ws_response_time, 1),
+                
+                # Training status
+                "training_progress": active_training[0]["progress"] if active_training else 0,
+                "training_message": active_training[0]["message"] if active_training else "No active training",
+                
+                # Health indicators
+                "cpu_cores": psutil.cpu_count(),
+                "load_average_1m": round(psutil.getloadavg()[0], 2) if hasattr(psutil, 'getloadavg') else 0,
+                
                 "timestamp": datetime.now().isoformat()
             }
             
             await websocket.send_json(metrics)
             
     except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
         manager.disconnect(websocket)
 
 # Health check

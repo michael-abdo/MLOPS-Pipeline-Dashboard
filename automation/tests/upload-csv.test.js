@@ -51,8 +51,8 @@ async function testCSVUpload() {
         // Step 3: Upload CSV file
         logger.section('Step 3: Upload CSV File');
         
-        // Use the simple test data file
-        const csvPath = path.join(__dirname, '..', '..', 'simple_test_data.csv');
+        // Use the simple test data file from uploads directory
+        const csvPath = path.join(__dirname, '..', '..', 'uploads', 'simple_test_data.csv');
         
         // Verify file exists
         try {
@@ -170,7 +170,7 @@ async function testFullPipeline() {
         
         // 1. Upload CSV
         logger.section('Phase 1: Upload');
-        const csvPath = path.join(__dirname, '..', '..', 'simple_test_data.csv');
+        const csvPath = path.join(__dirname, '..', '..', 'uploads', 'simple_test_data.csv');
         const uploadResult = await dashboard.uploadCSV(csvPath);
         
         // 2. Start training

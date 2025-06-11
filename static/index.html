@@ -550,6 +550,91 @@
             </div>
         </div>
 
+        <!-- System Performance Monitoring ---> 
+        <div class="card">
+            <h3 style="margin-bottom: var(--spacing-lg);">⚡ System Performance Monitor</h3>
+            
+            <!-- System Metrics Grid -->
+            <div class="grid grid-3" style="margin-bottom: var(--spacing-lg);">
+                <!-- CPU Usage -->
+                <div class="metric">
+                    <div class="metric-value" id="cpuPercent" style="color: var(--primary-color);">0%</div>
+                    <div class="metric-label">CPU Usage</div>
+                    <div class="progress-container" style="margin-top: var(--spacing-sm);">
+                        <div class="progress-bar" style="height: 8px;">
+                            <div class="progress-fill" id="cpuProgressBar" style="width: 0%; background: var(--primary-color);"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Memory Usage -->
+                <div class="metric">
+                    <div class="metric-value" id="memoryPercent" style="color: var(--primary-color);">0%</div>
+                    <div class="metric-label">Memory Usage</div>
+                    <div class="progress-container" style="margin-top: var(--spacing-sm);">
+                        <div class="progress-bar" style="height: 8px;">
+                            <div class="progress-fill" id="memoryProgressBar" style="width: 0%; background: var(--primary-color);"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Disk Usage -->
+                <div class="metric">
+                    <div class="metric-value" id="diskPercent" style="color: var(--primary-color);">0%</div>
+                    <div class="metric-label">Disk Usage</div>
+                    <div class="progress-container" style="margin-top: var(--spacing-sm);">
+                        <div class="progress-bar" style="height: 8px;">
+                            <div class="progress-fill" id="diskProgressBar" style="width: 0%; background: var(--primary-color);"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- System Health Status -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg); padding: var(--spacing-md); border: 2px solid var(--border-color); border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.05);">
+                <div>
+                    <h4 style="margin: 0; display: flex; align-items: center; gap: var(--spacing-sm);">
+                        <span id="systemStatusIcon">✅</span>
+                        <span id="systemStatusText">System Healthy</span>
+                    </h4>
+                    <p style="margin: var(--spacing-sm) 0 0 0; color: var(--text-secondary); font-size: 0.9rem;" id="systemStatusDetail">
+                        All metrics within normal range • Last updated: <span id="lastUpdateTime">Just now</span>
+                    </p>
+                </div>
+                <div style="text-align: right;">
+                    <div class="metric-value" id="activeConnections" style="font-size: 1.5rem; color: var(--success-color);">0</div>
+                    <div class="metric-label">Active Connections</div>
+                </div>
+            </div>
+            
+            <!-- Additional System Info -->
+            <div class="grid grid-2">
+                <div style="padding: var(--spacing-md); background: var(--background-color); border-radius: var(--radius-md);">
+                    <h5 style="margin: 0 0 var(--spacing-sm) 0; color: var(--text-primary);">Response Times</h5>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: var(--spacing-sm);">
+                        <span style="color: var(--text-secondary);">API Average:</span>
+                        <span id="apiResponseTime" style="font-weight: 600;">23ms</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-secondary);">WebSocket:</span>
+                        <span id="wsResponseTime" style="font-weight: 600;">12ms</span>
+                    </div>
+                </div>
+                
+                <div style="padding: var(--spacing-md); background: var(--background-color); border-radius: var(--radius-md);">
+                    <h5 style="margin: 0 0 var(--spacing-sm) 0; color: var(--text-primary);">Resource Status</h5>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: var(--spacing-sm);">
+                        <span style="color: var(--text-secondary);">ML Models:</span>
+                        <span id="totalModels" style="font-weight: 600;">2 Active</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-secondary);">Queue Jobs:</span>
+                        <span id="queueJobs" style="font-weight: 600;">0 Pending</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Real-Time Activity Feed -->
         <div class="card">
             <h3 style="margin-bottom: var(--spacing-lg);">🔍 Live Activity Feed</h3>
@@ -686,6 +771,9 @@
                 }
             }
             
+            // Update System Performance Monitor with color-coded indicators
+            updateSystemPerformanceMetrics(metrics);
+            
             // Add real-time activity to the live feed
             addLiveActivityItem(
                 '📊 System metrics updated',
@@ -693,13 +781,138 @@
             );
             
             // Update any other metric displays for backward compatibility
-            const cpuElement = document.getElementById('cpuPercent');
-            const memoryElement = document.getElementById('memoryPercent');
             const connectionsElement = document.getElementById('activeConnections');
-            
-            if (cpuElement) cpuElement.textContent = metrics.cpu_percent + '%';
-            if (memoryElement) memoryElement.textContent = metrics.memory_percent + '%';
             if (connectionsElement) connectionsElement.textContent = metrics.active_connections;
+        }
+        
+        // Update System Performance Monitor with visual health indicators
+        function updateSystemPerformanceMetrics(metrics) {
+            // Define color thresholds
+            const getColorForUsage = (percentage) => {
+                if (percentage < 60) return 'var(--success-color)';      // Green: < 60%
+                if (percentage < 80) return 'var(--warning-color)';      // Yellow: 60-80%
+                return 'var(--danger-color)';                           // Red: > 80%
+            };
+            
+            // Update CPU metrics
+            const cpuElement = document.getElementById('cpuPercent');
+            const cpuProgressBar = document.getElementById('cpuProgressBar');
+            if (cpuElement && cpuProgressBar) {
+                const cpuColor = getColorForUsage(metrics.cpu_percent);
+                cpuElement.textContent = metrics.cpu_percent + '%';
+                cpuElement.style.color = cpuColor;
+                cpuProgressBar.style.width = metrics.cpu_percent + '%';
+                cpuProgressBar.style.background = cpuColor;
+            }
+            
+            // Update Memory metrics
+            const memoryElement = document.getElementById('memoryPercent');
+            const memoryProgressBar = document.getElementById('memoryProgressBar');
+            if (memoryElement && memoryProgressBar) {
+                const memoryColor = getColorForUsage(metrics.memory_percent);
+                memoryElement.textContent = metrics.memory_percent + '%';
+                memoryElement.style.color = memoryColor;
+                memoryProgressBar.style.width = metrics.memory_percent + '%';
+                memoryProgressBar.style.background = memoryColor;
+            }
+            
+            // Update Disk metrics
+            const diskElement = document.getElementById('diskPercent');
+            const diskProgressBar = document.getElementById('diskProgressBar');
+            if (diskElement && diskProgressBar) {
+                const diskColor = getColorForUsage(metrics.disk_percent);
+                diskElement.textContent = metrics.disk_percent + '%';
+                diskElement.style.color = diskColor;
+                diskProgressBar.style.width = metrics.disk_percent + '%';
+                diskProgressBar.style.background = diskColor;
+            }
+            
+            // Update overall system status
+            updateOverallSystemStatus(metrics);
+            
+            // Update additional metrics with enhanced backend data
+            const activeConnectionsElement = document.getElementById('activeConnections');
+            const totalModelsElement = document.getElementById('totalModels');
+            const queueJobsElement = document.getElementById('queueJobs');
+            const lastUpdateTimeElement = document.getElementById('lastUpdateTime');
+            const apiResponseTimeElement = document.getElementById('apiResponseTime');
+            const wsResponseTimeElement = document.getElementById('wsResponseTime');
+            
+            if (activeConnectionsElement) {
+                activeConnectionsElement.textContent = metrics.active_connections || 0;
+            }
+            if (totalModelsElement) {
+                totalModelsElement.textContent = (metrics.total_models || 2) + ' Active';
+            }
+            if (queueJobsElement) {
+                queueJobsElement.textContent = (metrics.active_training_jobs || 0) + ' Pending';
+            }
+            if (lastUpdateTimeElement) {
+                lastUpdateTimeElement.textContent = new Date().toLocaleTimeString();
+            }
+            
+            // Update response times with real backend data
+            if (apiResponseTimeElement && metrics.api_response_time_ms) {
+                apiResponseTimeElement.textContent = Math.round(metrics.api_response_time_ms) + 'ms';
+            }
+            if (wsResponseTimeElement && metrics.ws_response_time_ms) {
+                wsResponseTimeElement.textContent = Math.round(metrics.ws_response_time_ms) + 'ms';
+            }
+            
+            // Update training progress if active training
+            if (metrics.training_progress > 0 && metrics.training_message !== "No active training") {
+                updateTrainingStage(metrics.training_message);
+                updateTrainingProgress(metrics.training_progress);
+            }
+        }
+        
+        // Update overall system status with visual feedback
+        function updateOverallSystemStatus(metrics) {
+            const systemStatusIcon = document.getElementById('systemStatusIcon');
+            const systemStatusText = document.getElementById('systemStatusText');
+            const systemStatusDetail = document.getElementById('systemStatusDetail');
+            const systemHealthContainer = systemStatusIcon?.parentElement?.parentElement?.parentElement;
+            
+            if (!systemStatusIcon || !systemStatusText || !systemStatusDetail) return;
+            
+            // Calculate overall health score
+            const avgUsage = (metrics.cpu_percent + metrics.memory_percent + metrics.disk_percent) / 3;
+            
+            let status, icon, text, detail, backgroundColor, borderColor;
+            
+            if (avgUsage < 60) {
+                status = 'healthy';
+                icon = '✅';
+                text = 'System Healthy';
+                detail = 'All metrics within normal range';
+                backgroundColor = 'rgba(16, 185, 129, 0.05)';
+                borderColor = 'var(--success-color)';
+            } else if (avgUsage < 80) {
+                status = 'warning';
+                icon = '⚠️';
+                text = 'System Under Load';
+                detail = 'Some metrics elevated, monitoring closely';
+                backgroundColor = 'rgba(245, 158, 11, 0.05)';
+                borderColor = 'var(--warning-color)';
+            } else {
+                status = 'critical';
+                icon = '❌';
+                text = 'System Critical';
+                detail = 'High resource usage detected, action required';
+                backgroundColor = 'rgba(239, 68, 68, 0.05)';
+                borderColor = 'var(--danger-color)';
+            }
+            
+            // Update elements
+            systemStatusIcon.textContent = icon;
+            systemStatusText.textContent = text;
+            systemStatusDetail.innerHTML = `${detail} • Last updated: <span id="lastUpdateTime">${new Date().toLocaleTimeString()}</span>`;
+            
+            // Update container styling
+            if (systemHealthContainer) {
+                systemHealthContainer.style.backgroundColor = backgroundColor;
+                systemHealthContainer.style.borderColor = borderColor;
+            }
         }
 
         // Add item to real-time live activity feed

@@ -25,6 +25,9 @@ A **simple 4-step ML pipeline** that anyone can use:
 - **Single dashboard** - Everything in one place
 - **Automatic training** - AI picks the best model type
 - **Real-time progress** - Watch your model train
+- **System monitoring** - Live CPU, memory, disk usage tracking
+- **Visual health indicators** - Color-coded system status
+- **WebSocket streaming** - Real-time metrics updates every 5 seconds
 
 ## 🚀 Quick Start (2 Minutes)
 
@@ -70,9 +73,16 @@ python backend/backend_api.py
 ├── CHANGELOG.md           # Version history and changes
 ├── 🔧 backend/
 │   ├── backend_api.py     # FastAPI server with full ML capabilities
-│   └── backend_simple.py  # Simplified server for testing
+│   └── backend_simple.py  # Simplified server with Phase 2 enhancements:
+│   │                      # - Enhanced WebSocket metrics streaming
+│   │                      # - Real-time system monitoring (CPU/Memory/Disk)
+│   │                      # - Connection tracking and health indicators
 ├── 🎨 static/
-│   ├── index.html         # Main dashboard with real-time WebSocket updates
+│   ├── index.html         # Main dashboard with Phase 2 System Monitoring
+│   │                      # - Real-time CPU, memory, disk usage
+│   │                      # - Color-coded health indicators  
+│   │                      # - WebSocket streaming every 5 seconds
+│   │                      # - Live activity feed with system events
 │   └── settings.html      # Settings page (API integrated)
 ├── 📚 docs/
 │   ├── mvp/               # MVP documentation
