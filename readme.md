@@ -66,7 +66,10 @@ python backend_api.py
 ├── backend_api.py          # FastAPI server with full ML capabilities
 ├── backend_simple.py       # Simplified server for testing
 ├── requirements.txt        # Python dependencies
+├── simple_test_data.csv    # Sample data for testing
 ├── readme.md              # This file
+├── LICENSE                # MIT License
+├── CONTRIBUTING.md        # Contribution guidelines
 ├── 🎨 static/
 │   ├── index.html         # Main dashboard (fully integrated)
 │   └── settings.html      # Settings page (API integrated)
@@ -76,15 +79,21 @@ python backend_api.py
 │   └── AUTOMATION_GUIDE.md        # Frontend automation guide
 ├── 🧪 tests/
 │   ├── test_api.py        # Comprehensive API tests
-│   └── test_simple.py     # Basic endpoint tests
+│   ├── test_simple.py     # Basic endpoint tests
+│   └── test_pipeline.py   # Complete pipeline test
 ├── 🤖 automation/         # Frontend automation framework
 │   ├── core/              # Base automation classes
 │   ├── pages/             # Page object models
 │   ├── tests/             # UI automation tests
 │   ├── utils/             # Logging and utilities
+│   ├── logs/              # Test execution logs
+│   ├── screenshots/       # Visual test records
+│   ├── config/            # Automation configuration
+│   ├── package.json       # Node.js dependencies
+│   ├── run-automation-demo.sh  # Demo script
 │   └── README.md          # Automation documentation
-├── 📁 uploads/            # File upload storage
-├── 📁 models/             # Trained model storage
+├── 📁 uploads/            # File upload storage (.gitkeep)
+├── 📁 models/             # Trained model storage (.gitkeep)
 └── 🐍 venv/               # Python virtual environment
 ```
 
