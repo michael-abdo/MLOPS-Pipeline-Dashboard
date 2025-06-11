@@ -1,0 +1,34 @@
+{
+  "name": "mlops-frontend-automation",
+  "version": "1.0.0",
+  "description": "Scalable frontend automation for MLOps Dashboard with AI feedback loop",
+  "main": "index.js",
+  "scripts": {
+    "test": "node tests/upload-csv.test.js",
+    "test:debug": "node tests/upload-csv.test.js --debug",
+    "test:headed": "node tests/upload-csv.test.js --headed",
+    "test:video": "node tests/upload-csv.test.js --video",
+    "test:all": "node tests/run-all-tests.js"
+  },
+  "dependencies": {
+    "puppeteer": "^21.0.0",
+    "chalk": "^4.1.2",
+    "winston": "^3.11.0",
+    "dotenv": "^16.3.1",
+    "chai": "^4.3.10",
+    "puppeteer-screen-recorder": "^3.0.3"
+  },
+  "devDependencies": {
+    "eslint": "^8.54.0",
+    "prettier": "^3.1.0"
+  },
+  "keywords": [
+    "automation",
+    "puppeteer",
+    "mlops",
+    "testing",
+    "ai"
+  ],
+  "author": "MLOps Team",
+  "license": "MIT"
+}

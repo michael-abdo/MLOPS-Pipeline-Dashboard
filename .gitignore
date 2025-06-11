@@ -139,3 +139,12 @@ dmypy.json
 test_data/
 *.csv
 !simple_test_data.csv
+
+# Automation artifacts
+automation/logs/*.log
+automation/screenshots/*.png
+automation/screenshots/*.jpg
+automation/videos/
+automation/node_modules/
+automation/.env
+automation/package-lock.json
