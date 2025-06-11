@@ -206,6 +206,42 @@ This dashboard follows the **"Grandma Test"** - if your grandmother can't figure
 - **Storage**: 5GB+
 - **CPU**: 4+ cores for faster training
 
+## 📁 Project Structure
+
+```
+mlops/development/
+├── backend/                # Python backend services
+│   ├── backend_api.py     # Full API implementation
+│   └── backend_simple.py  # Simplified backend
+├── static/                # Frontend files
+│   ├── css/              # Stylesheets (6 files)
+│   ├── js/               # JavaScript modules
+│   │   ├── common/       # Shared utilities (5 files)
+│   │   ├── components/   # Reusable components (2 files)
+│   │   └── pages/        # Page controllers (5 files)
+│   ├── *.html            # Web pages (6 total)
+│   └── assets/           # Static assets
+├── tests/                 # Test suite
+│   ├── test_*.py         # Python tests (9 files)
+│   └── test_*.html       # Manual test pages
+├── automation/            # Browser automation tests
+│   ├── tests/            # Automated test scripts
+│   ├── screenshots/      # Test screenshots
+│   └── logs/             # Test logs
+├── docs/                  # Documentation
+│   ├── phase1_2/         # Phase 1-2 docs
+│   ├── phase3/           # Phase 3 docs
+│   └── retired/          # Archived docs
+├── claude/                # Development phases
+│   └── phases/           # Implementation reports
+├── models/                # Trained ML models
+├── uploads/               # User uploaded data
+├── venv/                  # Python virtual environment
+├── requirements.txt       # Python dependencies
+├── readme.md             # This file
+└── LICENSE               # MIT license
+```
+
 ## 🔧 Configuration
 
 Basic settings in `Settings` page:
