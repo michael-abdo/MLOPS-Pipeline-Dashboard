@@ -15,8 +15,7 @@
     "chalk": "^4.1.2",
     "winston": "^3.11.0",
     "dotenv": "^16.3.1",
-    "chai": "^4.3.10",
-    "puppeteer-screen-recorder": "^3.0.3"
+    "chai": "^4.3.10"
   },
   "devDependencies": {
     "eslint": "^8.54.0",

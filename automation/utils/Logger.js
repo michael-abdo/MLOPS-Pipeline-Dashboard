@@ -11,7 +11,7 @@ const fs = require('fs');
 class Logger {
     constructor(name = 'Automation', debug = false) {
         this.name = name;
-        this.debug = debug;
+        this.debugMode = debug;
         
         // Ensure logs directory exists
         const logsDir = path.join(__dirname, '..', 'logs');
@@ -112,7 +112,7 @@ class Logger {
      * Log debug message (only if debug mode is enabled)
      */
     debug(message, data = null) {
-        if (this.debug) {
+        if (this.debugMode) {
             console.log(this.formatMessage('debug', message, data));
         }
     }

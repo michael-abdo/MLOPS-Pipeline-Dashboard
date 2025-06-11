@@ -202,11 +202,12 @@ class BaseAutomation {
             // Ensure file exists
             await fs.access(filePath);
             
-            // Wait for file input
-            await this.waitForSelector(selector);
+            // Wait for file input (handle hidden inputs)
+            const fileInput = await this.page.waitForSelector(selector, {
+                visible: false, // Allow hidden elements
+                timeout: this.options.defaultTimeout
+            });
             
-            // Get file input element
-            const fileInput = await this.page.$(selector);
             if (!fileInput) {
                 throw new Error(`File input not found: ${selector}`);
             }

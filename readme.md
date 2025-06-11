@@ -72,10 +72,17 @@ python backend_api.py
 │   └── settings.html      # Settings page (API integrated)
 ├── 📚 docs/
 │   ├── IMPLEMENTATION_SUMMARY.md  # Implementation details
-│   └── project_structure.md       # Technical documentation
+│   ├── project_structure.md       # Technical documentation
+│   └── AUTOMATION_GUIDE.md        # Frontend automation guide
 ├── 🧪 tests/
 │   ├── test_api.py        # Comprehensive API tests
 │   └── test_simple.py     # Basic endpoint tests
+├── 🤖 automation/         # Frontend automation framework
+│   ├── core/              # Base automation classes
+│   ├── pages/             # Page object models
+│   ├── tests/             # UI automation tests
+│   ├── utils/             # Logging and utilities
+│   └── README.md          # Automation documentation
 ├── 📁 uploads/            # File upload storage
 ├── 📁 models/             # Trained model storage
 └── 🐍 venv/               # Python virtual environment
@@ -172,6 +179,7 @@ See `docs/project_structure.md` for detailed deployment instructions.
 
 ## 🧪 Testing
 
+### Backend Testing
 ```bash
 # Activate virtual environment
 source venv/bin/activate
@@ -186,6 +194,29 @@ python tests/test_api.py
 pip install pytest
 pytest tests/ -v
 ```
+
+### Frontend Automation Testing
+```bash
+# Navigate to automation directory
+cd automation
+
+# Install dependencies (first time only)
+npm install
+
+# Run CSV upload test
+npm test
+
+# Run with visible browser
+npm run test:headed
+
+# Run with debug logging
+npm run test:debug
+
+# Run complete pipeline test
+node tests/upload-csv.test.js --full --headed --debug
+```
+
+See `docs/AUTOMATION_GUIDE.md` for detailed automation documentation.
 
 ## 📈 What's Next (Phase 2)
 
