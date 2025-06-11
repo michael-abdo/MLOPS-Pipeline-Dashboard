@@ -1,5 +1,5 @@
 # main.py - Simplified MLOps Backend API
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
@@ -17,6 +17,7 @@ import json
 import os
 from datetime import datetime
 import asyncio
+import psutil
 
 app = FastAPI(title="ML Pipeline API", description="Simplified MLOps Dashboard Backend")
 
@@ -36,6 +37,31 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 models_store = {}
 training_jobs = {}
 activity_log = []
+
+# WebSocket Connection Manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+    
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+    
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+    
+    async def broadcast_json(self, data: dict):
+        """Broadcast JSON data to all connected clients"""
+        for connection in self.active_connections[:]:  # Copy list to avoid modification during iteration
+            try:
+                await connection.send_json(data)
+            except Exception:
+                # Remove disconnected clients
+                self.disconnect(connection)
+
+# Initialize connection manager
+manager = ConnectionManager()
 
 # Data Models
 class TrainingRequest(BaseModel):
@@ -433,6 +459,41 @@ async def get_settings():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time system monitoring and updates"""
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Send system metrics every 5 seconds
+            await asyncio.sleep(5)
+            
+            # Collect system metrics
+            cpu_percent = psutil.cpu_percent(interval=None)
+            memory_info = psutil.virtual_memory()
+            disk_info = psutil.disk_usage('/')
+            
+            # Prepare metrics data
+            metrics = {
+                "type": "system_metrics",
+                "timestamp": datetime.now().isoformat(),
+                "cpu_percent": round(cpu_percent, 1),
+                "memory_percent": round(memory_info.percent, 1),
+                "disk_percent": round((disk_info.used / disk_info.total) * 100, 1),
+                "active_connections": len(manager.active_connections),
+                "total_models": len(models_store),
+                "active_training_jobs": len([j for j in training_jobs.values() if j["status"] == "training"])
+            }
+            
+            # Send metrics to this specific connection
+            await websocket.send_json(metrics)
+            
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        manager.disconnect(websocket)
 
 if __name__ == "__main__":
     import uvicorn

@@ -574,6 +574,74 @@
         let currentFile = null;
         let currentJobId = null;
         let isTraining = false;
+        let websocket = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+
+        // WebSocket initialization and management
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            try {
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = function(event) {
+                    console.log('WebSocket connected');
+                    reconnectAttempts = 0; // Reset attempts on successful connection
+                };
+                
+                websocket.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'system_metrics') {
+                        updateSystemMetrics(data);
+                    }
+                };
+                
+                websocket.onclose = function(event) {
+                    console.log('WebSocket disconnected');
+                    websocket = null;
+                    
+                    // Attempt to reconnect with exponential backoff
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        const delay = Math.pow(2, reconnectAttempts) * 1000; // 1s, 2s, 4s, 8s, 16s
+                        reconnectAttempts++;
+                        console.log(`Attempting reconnection ${reconnectAttempts}/${maxReconnectAttempts} in ${delay/1000}s`);
+                        setTimeout(initWebSocket, delay);
+                    }
+                };
+                
+                websocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                };
+                
+            } catch (error) {
+                console.error('Failed to initialize WebSocket:', error);
+            }
+        }
+        
+        // Update system metrics display
+        function updateSystemMetrics(metrics) {
+            // For now, just log the metrics. We'll add UI elements in Phase 2
+            console.log('System Metrics:', {
+                CPU: metrics.cpu_percent + '%',
+                Memory: metrics.memory_percent + '%',
+                Disk: metrics.disk_percent + '%',
+                Connections: metrics.active_connections,
+                Models: metrics.total_models,
+                Training: metrics.active_training_jobs
+            });
+            
+            // Update any existing metric displays
+            const cpuElement = document.getElementById('cpuPercent');
+            const memoryElement = document.getElementById('memoryPercent');
+            const connectionsElement = document.getElementById('activeConnections');
+            
+            if (cpuElement) cpuElement.textContent = metrics.cpu_percent + '%';
+            if (memoryElement) memoryElement.textContent = metrics.memory_percent + '%';
+            if (connectionsElement) connectionsElement.textContent = metrics.active_connections;
+        }
 
         // File upload handling with real API
         async function handleFileUpload(event) {
@@ -966,6 +1034,9 @@
 
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize WebSocket connection for real-time updates
+            initWebSocket();
+            
             // Load activity log from backend
             loadActivityLog();
             
