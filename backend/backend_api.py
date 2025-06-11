@@ -15,6 +15,7 @@ import joblib
 import uuid
 import json
 import os
+import time
 from datetime import datetime
 import asyncio
 import psutil
@@ -40,27 +41,118 @@ models_store = {}
 training_jobs = {}
 activity_log = []
 
-# WebSocket Connection Manager
+# Enhanced WebSocket Connection Manager with Phase 4 optimizations
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        self.active_connections: Dict[str, dict] = {}
+        self.max_connections = 100  # Limit concurrent connections
+        self.connection_history_limit = 1000  # Limit connection history
+        self.cleanup_interval = 300  # 5 minutes
+        self.last_cleanup = time.time()
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket, client_id: str = None):
+        """Connect with enhanced tracking and limits"""
+        # Enforce connection limits
+        if len(self.active_connections) >= self.max_connections:
+            await websocket.close(code=1013, reason="Server overloaded")
+            return False
+            
+        if not client_id:
+            client_id = str(uuid.uuid4())
+            
         await websocket.accept()
-        self.active_connections.append(websocket)
+        
+        self.active_connections[client_id] = {
+            'websocket': websocket,
+            'connected_at': time.time(),
+            'last_ping': time.time(),
+            'message_count': 0,
+            'bytes_sent': 0
+        }
+        
+        # Periodic cleanup
+        await self._cleanup_if_needed()
+        return client_id
 
     def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
+        """Disconnect with cleanup"""
+        client_id = None
+        for cid, conn_info in self.active_connections.items():
+            if conn_info['websocket'] == websocket:
+                client_id = cid
+                break
+                
+        if client_id:
+            del self.active_connections[client_id]
 
-    async def broadcast_json(self, data: dict):
-        """Broadcast JSON data to all connected clients"""
-        for connection in self.active_connections[:]:  # Copy list to avoid modification during iteration
+    async def broadcast_json(self, data: dict, priority: str = 'normal'):
+        """Enhanced broadcast with message prioritization and cleanup"""
+        disconnected_clients = []
+        
+        for client_id, conn_info in self.active_connections.items():
             try:
-                await connection.send_json(data)
+                websocket = conn_info['websocket']
+                
+                # Skip slow connections for low priority messages
+                if priority == 'low' and time.time() - conn_info['last_ping'] > 30:
+                    continue
+                
+                await websocket.send_json(data)
+                
+                # Update connection stats
+                conn_info['message_count'] += 1
+                conn_info['bytes_sent'] += len(json.dumps(data))
+                
             except Exception:
-                # Remove disconnected clients
-                self.disconnect(connection)
+                disconnected_clients.append(client_id)
+        
+        # Clean up disconnected clients
+        for client_id in disconnected_clients:
+            if client_id in self.active_connections:
+                del self.active_connections[client_id]
+
+    def update_ping(self, client_id: str):
+        """Update last ping time for client"""
+        if client_id in self.active_connections:
+            self.active_connections[client_id]['last_ping'] = time.time()
+
+    async def _cleanup_if_needed(self):
+        """Periodic cleanup of stale connections"""
+        current_time = time.time()
+        if current_time - self.last_cleanup < self.cleanup_interval:
+            return
+            
+        self.last_cleanup = current_time
+        stale_clients = []
+        
+        for client_id, conn_info in self.active_connections.items():
+            # Mark clients as stale if no ping for 2 minutes
+            if current_time - conn_info['last_ping'] > 120:
+                stale_clients.append(client_id)
+        
+        # Remove stale connections
+        for client_id in stale_clients:
+            try:
+                conn_info = self.active_connections[client_id]
+                await conn_info['websocket'].close(code=1000, reason="Timeout")
+            except:
+                pass
+            finally:
+                if client_id in self.active_connections:
+                    del self.active_connections[client_id]
+
+    def get_connection_stats(self):
+        """Get connection statistics"""
+        current_time = time.time()
+        total_connections = len(self.active_connections)
+        active_connections = sum(1 for conn in self.active_connections.values() 
+                               if current_time - conn['last_ping'] < 60)
+        
+        return {
+            'total_connections': total_connections,
+            'active_connections': active_connections,
+            'max_connections': self.max_connections
+        }
 
 # Initialize connection manager
 manager = ConnectionManager()
@@ -689,32 +781,122 @@ async def get_settings():
     """Get current system settings"""
     return current_settings
 
+# Global variables for health monitoring
+previous_system_health = "healthy"
+health_change_threshold = {"cpu": 80, "memory": 80, "disk": 90}
+
+def determine_system_health(cpu_percent: float, memory_percent: float, disk_percent: float) -> str:
+    """Determine overall system health based on resource usage"""
+    if cpu_percent > 90 or memory_percent > 90 or disk_percent > 95:
+        return "critical"
+    elif cpu_percent > 80 or memory_percent > 80 or disk_percent > 90:
+        return "warning"
+    else:
+        return "healthy"
+
+async def check_and_broadcast_health_changes(current_health: str, cpu_percent: float, memory_percent: float, disk_percent: float):
+    """Check for health changes and broadcast system events"""
+    global previous_system_health
+
+    if current_health != previous_system_health:
+        # Health status changed - broadcast event
+        health_event = {
+            "type": "health_change",
+            "event": "system_health",
+            "previous_health": previous_system_health,
+            "current_health": current_health,
+            "metrics": {
+                "cpu_percent": round(cpu_percent, 1),
+                "memory_percent": round(memory_percent, 1),
+                "disk_percent": round(disk_percent, 1)
+            },
+            "timestamp": datetime.now().isoformat(),
+            "priority": "high" if current_health == "critical" else "medium"
+        }
+
+        # Determine message based on health change
+        if current_health == "critical":
+            message = "🚨 System Critical: High resource usage detected"
+            description = f"CPU: {cpu_percent:.1f}%, Memory: {memory_percent:.1f}%, Disk: {disk_percent:.1f}%"
+        elif current_health == "warning":
+            message = "⚠️ System Warning: Resource usage elevated"
+            description = f"CPU: {cpu_percent:.1f}%, Memory: {memory_percent:.1f}%, Disk: {disk_percent:.1f}%"
+        else:
+            message = "✅ System Healthy: Resource usage normalized"
+            description = f"CPU: {cpu_percent:.1f}%, Memory: {memory_percent:.1f}%, Disk: {disk_percent:.1f}%"
+
+        # Broadcast health change event
+        await manager.broadcast_json(health_event)
+
+        # Log activity
+        log_activity(message, description, "info")
+
+        # Update previous health state
+        previous_system_health = current_health
+
 # Health check
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
+# Enhanced WebSocket endpoint with Phase 4 improvements
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for real-time system monitoring and updates with Phase 3 health monitoring"""
     global previous_system_health
-
-    await manager.connect(websocket)
-    try:
-        while True:
-            # Send system metrics every 5 seconds
-            await asyncio.sleep(5)
-
+    
+    client_id = str(uuid.uuid4())
+    last_metrics_time = 0
+    
+    client_id = await manager.connect(websocket, client_id)
+    if not client_id:
+        return  # Connection was rejected
+    
+    async def handle_client_message():
+        """Handle incoming messages from client"""
+        try:
+            while True:
+                message = await websocket.receive_text()
+                data = json.loads(message)
+                
+                # Handle ping messages for heartbeat
+                if data.get('type') == 'ping':
+                    manager.update_ping(client_id)
+                    await websocket.send_json({
+                        'type': 'pong',
+                        'timestamp': data.get('timestamp', time.time() * 1000)
+                    })
+                
+                # Handle immediate metrics request
+                elif data.get('type') == 'request_metrics':
+                    await send_system_metrics()
+                    
+        except WebSocketDisconnect:
+            pass
+        except Exception:
+            pass
+    
+    async def send_system_metrics():
+        """Send system metrics with optimized frequency"""
+        nonlocal last_metrics_time
+        current_time = time.time()
+        
+        # Rate limit to every 5 seconds
+        if current_time - last_metrics_time < 5:
+            return
+            
+        last_metrics_time = current_time
+        
+        try:
             # Collect comprehensive system metrics
             cpu_percent = psutil.cpu_percent(interval=None)
-            memory_info = psutil.virtual_memory()
-            disk_info = psutil.disk_usage('/')
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
             network = psutil.net_io_counters()
             boot_time = psutil.boot_time()
             process_count = len(psutil.pids())
 
             # Calculate uptime
-            uptime_seconds = datetime.now().timestamp() - boot_time
+            uptime_seconds = current_time - boot_time
             uptime_hours = uptime_seconds / 3600
 
             # Get active training jobs
@@ -722,58 +904,80 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # Calculate average response time (simulated based on system load)
             base_response_time = 15
-            load_factor = (cpu_percent + memory_info.percent) / 2
+            load_factor = (cpu_percent + memory.percent) / 2
             api_response_time = base_response_time + (load_factor * 0.5)
             ws_response_time = max(5, api_response_time * 0.4)
 
             # Monitor system health changes
-            current_health = determine_system_health(cpu_percent, memory_info.percent, disk_info.used / disk_info.total * 100)
-            await check_and_broadcast_health_changes(current_health, cpu_percent, memory_info.percent, disk_info.used / disk_info.total * 100)
+            current_health = determine_system_health(cpu_percent, memory.percent, disk.used / disk.total * 100)
+            await check_and_broadcast_health_changes(current_health, cpu_percent, memory.percent, disk.used / disk.total * 100)
 
-            # Prepare enhanced metrics data for Phase 3
+            # Create optimized metrics payload
             metrics = {
                 "type": "system_metrics",
                 "timestamp": datetime.now().isoformat(),
+                "client_id": client_id,
+                
+                # Core metrics
                 "cpu_percent": round(cpu_percent, 1),
-                "memory_percent": round(memory_info.percent, 1),
-                "disk_percent": round((disk_info.used / disk_info.total) * 100, 1),
-                "active_connections": len(manager.active_connections),
+                "memory_percent": round(memory.percent, 1),
+                "disk_percent": round((disk.used / disk.total) * 100, 1),
+                
+                # Connection stats
+                "active_connections": manager.get_connection_stats()['active_connections'],
                 "total_models": len(models_store),
                 "active_training_jobs": len(active_training),
-
-                # Enhanced metrics for Phase 3
-                "memory_total_gb": round(memory_info.total / (1024**3), 1),
-                "memory_used_gb": round(memory_info.used / (1024**3), 1),
-                "disk_total_gb": round(disk_info.total / (1024**3), 1),
-                "disk_used_gb": round(disk_info.used / (1024**3), 1),
-                "disk_free_gb": round(disk_info.free / (1024**3), 1),
+                
+                # Extended metrics
+                "memory_total_gb": round(memory.total / (1024**3), 1),
+                "memory_used_gb": round(memory.used / (1024**3), 1),
+                "disk_total_gb": round(disk.total / (1024**3), 1),
+                "disk_used_gb": round(disk.used / (1024**3), 1),
+                "disk_free_gb": round(disk.free / (1024**3), 1),
                 "process_count": process_count,
                 "uptime_hours": round(uptime_hours, 1),
+                
+                # Network stats
                 "network_bytes_sent": network.bytes_sent if network else 0,
                 "network_bytes_recv": network.bytes_recv if network else 0,
-
+                
                 # Performance metrics
                 "api_response_time_ms": round(api_response_time, 1),
                 "ws_response_time_ms": round(ws_response_time, 1),
-
+                
                 # Training status
                 "training_progress": active_training[0]["progress"] if active_training else 0,
                 "training_message": active_training[0]["message"] if active_training else "No active training",
-
-                # Health indicators
+                
+                # System info
                 "cpu_cores": psutil.cpu_count(),
                 "load_average_1m": round(psutil.getloadavg()[0], 2) if hasattr(psutil, 'getloadavg') else 0,
                 "system_health": current_health
             }
 
-            # Send metrics to this specific connection
             await websocket.send_json(metrics)
-
+            
+        except Exception:
+            pass
+    
+    # Start background tasks
+    try:
+        # Create concurrent tasks for message handling and metrics sending
+        message_task = asyncio.create_task(handle_client_message())
+        
+        # Metrics sending loop
+        while True:
+            await asyncio.sleep(5)  # 5-second interval
+            await send_system_metrics()
+            
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-    except Exception as e:
-        pass  # Silently handle WebSocket errors
+    except Exception:
         manager.disconnect(websocket)
+    finally:
+        # Clean up tasks
+        if 'message_task' in locals():
+            message_task.cancel()
 
 if __name__ == "__main__":
     import uvicorn

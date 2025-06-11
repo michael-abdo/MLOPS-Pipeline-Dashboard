@@ -30,7 +30,7 @@ def test_complete_pipeline():
     # Step 2: Upload Dataset
     print("\n📤 Step 2: Upload Simple Dataset")
     try:
-        with open('simple_test_data.csv', 'rb') as f:
+        with open('../uploads/simple_test_data.csv', 'rb') as f:
             files = {'file': ('simple_test_data.csv', f, 'text/csv')}
             response = requests.post(f"{BASE_URL}/api/upload", files=files, timeout=10)
         

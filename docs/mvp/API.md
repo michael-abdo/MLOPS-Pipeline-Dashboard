@@ -5,8 +5,9 @@
 The MLOps Dashboard provides a RESTful API for managing machine learning workflows. All endpoints return JSON responses and follow standard HTTP status codes.
 
 **Base URL**: `http://localhost:8000`  
-**API Version**: `1.0.0`  
-**Content-Type**: `application/json` (except file uploads)
+**API Version**: `1.4.0`  
+**Content-Type**: `application/json` (except file uploads)  
+**WebSocket Endpoint**: `ws://localhost:8000/ws` (Phase 4 real-time features)
 
 ## 🔑 Authentication
 
@@ -418,6 +419,77 @@ All endpoints use standard HTTP status codes and return consistent error respons
 - `MODEL_NOT_FOUND` - Model does not exist
 - `INVALID_PARAMETERS` - Invalid request parameters
 - `DEPLOYMENT_FAILED` - Model deployment failed
+
+## 🔄 WebSocket API (Phase 4)
+
+### Real-Time Connection
+```
+WebSocket: ws://localhost:8000/ws
+```
+
+### Message Types
+
+#### Client → Server Messages
+```json
+{
+  "type": "ping",
+  "timestamp": 1640000000000
+}
+```
+
+```json
+{
+  "type": "request_metrics"
+}
+```
+
+#### Server → Client Messages
+
+**System Metrics** (every 5 seconds):
+```json
+{
+  "type": "system_metrics",
+  "timestamp": "2024-01-20T10:30:00Z",
+  "cpu_percent": 23.4,
+  "memory_percent": 45.2,
+  "disk_percent": 67.8,
+  "active_connections": 5,
+  "total_models": 3,
+  "active_training_jobs": 1,
+  "system_health": "healthy",
+  "api_response_time_ms": 15.2,
+  "ws_response_time_ms": 8.1
+}
+```
+
+**Training Progress** (real-time during training):
+```json
+{
+  "type": "training_progress",
+  "job_id": "job_abc123",
+  "status": "training",
+  "progress": 75,
+  "current_stage": "Model validation",
+  "message": "Model validation - 75% complete",
+  "live_accuracy": 0.847,
+  "estimated_remaining": "2m 15s"
+}
+```
+
+**Connection Status**:
+```json
+{
+  "type": "pong",
+  "timestamp": 1640000000000
+}
+```
+
+### Connection Features
+- **Heartbeat**: Ping/pong every 30 seconds
+- **Reconnection**: Exponential backoff with jitter
+- **Quality Monitoring**: Latency-based connection quality assessment  
+- **Fallback**: Automatic HTTP polling if WebSocket fails
+- **Connection Limits**: Maximum 100 concurrent connections
 
 ## 📝 Notes
 
