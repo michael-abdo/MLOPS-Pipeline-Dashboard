@@ -1,7 +1,7 @@
 import { wsManager } from '../common/websocket.js';
 import { API } from '../common/api.js';
 import { ActivityFeed } from '../components/activity-feed.js';
-import { Card, Metric, ProgressBar, Grid, initializeUIComponents } from '../components/ui-components.js';
+import { Card, Metric, ProgressBar, Grid, ButtonGroup, UploadArea, ChartContainer, initializeUIComponents } from '../components/ui-components.js';
 
 /**
  * Data Management Page Controller
@@ -40,8 +40,7 @@ class DataManager {
             this.activityFeed = new ActivityFeed('activityFeed');
         }
         
-        // Setup drag and drop
-        this.setupDragAndDrop();
+        // Note: Drag and drop is now handled by UploadArea component
         
         // Replace static cards with dynamic components
         this.renderDynamicCards();
@@ -102,33 +101,7 @@ class DataManager {
         });
     }
     
-    setupDragAndDrop() {
-        const uploadArea = document.getElementById('uploadArea');
-        if (!uploadArea) return;
-        
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-        
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
-            
-            const files = Array.from(e.dataTransfer.files);
-            if (files.length > 0) {
-                this.handleFileUpload(files[0]);
-            }
-        });
-        
-        uploadArea.addEventListener('click', () => {
-            document.getElementById('fileInput').click();
-        });
-    }
+    // setupDragAndDrop method removed - now handled by UploadArea component
     
     setupWebSocketListeners() {
         // Dataset upload progress
@@ -289,9 +262,15 @@ class DataManager {
         this.showNotification(`Uploading ${file.name}...`, 'info');
         
         // Show upload progress
-        const uploadProgress = document.getElementById('uploadProgress');
-        if (uploadProgress) {
-            uploadProgress.style.display = 'flex';
+        const uploadProgressContainer = document.getElementById('uploadProgressContainer');
+        if (uploadProgressContainer) {
+            uploadProgressContainer.style.display = 'block';
+        }
+        
+        // Set UploadArea to uploading state
+        const uploadArea = document.getElementById('modernUploadArea');
+        if (uploadArea) {
+            UploadArea.setState(uploadArea, 'uploading', 'Uploading...');
         }
         
         try {
@@ -303,10 +282,10 @@ class DataManager {
             this.showNotification(`${file.name} uploaded successfully!`, 'success');
             
             // Hide upload progress
-            if (uploadProgress) {
+            if (uploadProgressContainer) {
                 setTimeout(() => {
-                    uploadProgress.style.display = 'none';
-                }, 1000);
+                    uploadProgressContainer.style.display = 'none';
+                }, 2000);
             }
             
             // Reload datasets to show the new upload
@@ -316,8 +295,13 @@ class DataManager {
             console.error('Upload failed:', error);
             this.showNotification(`Upload failed: ${error.message}`, 'error');
             
-            if (uploadProgress) {
-                uploadProgress.style.display = 'none';
+            // Set error state
+            if (uploadArea) {
+                UploadArea.setState(uploadArea, 'error', `Upload failed: ${error.message}`);
+            }
+            
+            if (uploadProgressContainer) {
+                uploadProgressContainer.style.display = 'none';
             }
         }
     }
@@ -515,23 +499,9 @@ class DataManager {
         const uploadCard = document.querySelector('.card:first-of-type');
         if (!uploadCard) return;
         
-        const uploadContent = `
-            <div class="upload-area" id="uploadArea">
-                <input type="file" id="fileInput" accept=".csv,.json,.parquet" style="display: none;">
-                <div class="upload-content">
-                    <div class="upload-icon">📁</div>
-                    <h4>Drop files here or click to browse</h4>
-                    <p>Supported formats: CSV, JSON, Parquet</p>
-                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
-                        Choose File
-                    </button>
-                </div>
-            </div>
-            
-            <div class="upload-progress" id="uploadProgress" style="display: none;">
-                <div id="uploadProgressContainer"></div>
-            </div>
-        `;
+        // Create content div to hold the UploadArea component
+        const uploadContent = document.createElement('div');
+        uploadContent.id = 'uploadContainer';
         
         const newCard = Card.create({
             title: 'Upload Dataset',
@@ -540,22 +510,35 @@ class DataManager {
             id: 'uploadCard'
         });
         
-        // Add progress bar
-        const progressContainer = newCard.querySelector('#uploadProgressContainer');
-        if (progressContainer) {
-            const progressBar = ProgressBar.create({
-                progress: 0,
-                label: 'Uploading...',
-                showPercentage: true,
-                id: 'uploadProgressBar'
-            });
-            progressContainer.appendChild(progressBar);
-        }
+        // Create modern UploadArea component
+        const uploadArea = UploadArea.create({
+            accept: ['.csv', '.json', '.parquet'],
+            multiple: false,
+            maxSize: 100,
+            placeholder: 'Drop your dataset files here or click to browse',
+            onUpload: (file) => this.handleFileUpload(file),
+            onError: (errors) => this.showNotification(errors.join('\n'), 'error'),
+            id: 'modernUploadArea'
+        });
+        
+        uploadContent.appendChild(uploadArea);
+        
+        // Add progress bar container
+        const progressContainer = document.createElement('div');
+        progressContainer.id = 'uploadProgressContainer';
+        progressContainer.style.marginTop = 'var(--spacing-md)';
+        progressContainer.style.display = 'none';
+        
+        const progressBar = ProgressBar.create({
+            progress: 0,
+            label: 'Uploading...',
+            showPercentage: true,
+            id: 'uploadProgressBar'
+        });
+        progressContainer.appendChild(progressBar);
+        uploadContent.appendChild(progressContainer);
         
         uploadCard.parentNode.replaceChild(newCard, uploadCard);
-        
-        // Re-setup drag and drop after card replacement
-        this.setupDragAndDrop();
     }
     
     replaceDatasetLibraryCard() {
@@ -571,18 +554,37 @@ class DataManager {
         
         if (!datasetCard) return;
         
-        // Create header actions
+        // Create header actions with modern components
         const headerActions = document.createElement('div');
         headerActions.className = 'card-actions';
-        headerActions.innerHTML = `
-            <select class="select" id="datasetFilter">
-                <option value="all">All Datasets</option>
-                <option value="training">Training Data</option>
-                <option value="validation">Validation Data</option>
-                <option value="test">Test Data</option>
-            </select>
-            <button class="btn btn-secondary" id="refreshDatasets">Refresh</button>
+        headerActions.style.display = 'flex';
+        headerActions.style.gap = 'var(--spacing-md)';
+        headerActions.style.alignItems = 'center';
+        
+        const filterSelect = document.createElement('select');
+        filterSelect.id = 'datasetFilter';
+        filterSelect.className = 'select';
+        filterSelect.innerHTML = `
+            <option value="all">All Datasets</option>
+            <option value="training">Training Data</option>
+            <option value="validation">Validation Data</option>
+            <option value="test">Test Data</option>
         `;
+        
+        const refreshButtonGroup = ButtonGroup.create({
+            buttons: [
+                {
+                    text: 'Refresh',
+                    icon: '🔄',
+                    variant: 'secondary',
+                    onClick: () => this.loadDatasets()
+                }
+            ],
+            id: 'refreshButtonGroup'
+        });
+        
+        headerActions.appendChild(filterSelect);
+        headerActions.appendChild(refreshButtonGroup);
         
         const datasetContent = `<div class="dataset-grid" id="datasetGrid"></div>`;
         
@@ -708,11 +710,17 @@ class DataManager {
         
         if (!jobsCard) return;
         
-        const headerActions = document.createElement('button');
-        headerActions.className = 'btn btn-primary';
-        headerActions.id = 'createJobBtn';
-        headerActions.textContent = 'Create Job';
-        headerActions.onclick = () => this.createProcessingJob();
+        const headerActions = ButtonGroup.create({
+            buttons: [
+                {
+                    text: 'Create Job',
+                    icon: '➕',
+                    variant: 'primary',
+                    onClick: () => this.createProcessingJob()
+                }
+            ],
+            id: 'createJobButtonGroup'
+        });
         
         const jobsContent = `<div class="job-list" id="jobList"></div>`;
         
@@ -795,9 +803,23 @@ class DataManager {
         });
         
         // Show/hide upload progress container
-        const uploadProgress = document.getElementById('uploadProgress');
-        if (uploadProgress) {
-            uploadProgress.style.display = data.progress < 100 ? 'flex' : 'none';
+        const uploadProgressContainer = document.getElementById('uploadProgressContainer');
+        if (uploadProgressContainer) {
+            uploadProgressContainer.style.display = data.progress < 100 ? 'block' : 'none';
+        }
+        
+        // Update UploadArea state
+        const uploadArea = document.getElementById('modernUploadArea');
+        if (uploadArea) {
+            if (data.progress < 100) {
+                UploadArea.setState(uploadArea, 'uploading', `Uploading... ${data.progress}%`);
+            } else {
+                UploadArea.setState(uploadArea, 'success', 'Upload completed successfully!');
+                // Reset to ready state after 2 seconds
+                setTimeout(() => {
+                    UploadArea.setState(uploadArea, 'ready');
+                }, 2000);
+            }
         }
     }
     

@@ -1,7 +1,7 @@
 import { wsManager } from '../common/websocket.js';
 import { API } from '../common/api.js';
 import { ActivityFeed } from '../components/activity-feed.js';
-import { Card, Metric, ProgressBar, Grid, initializeUIComponents } from '../components/ui-components.js';
+import { Card, Metric, ProgressBar, Grid, ButtonGroup, UploadArea, ChartContainer, initializeUIComponents } from '../components/ui-components.js';
 
 /**
  * System Monitoring Page Controller
@@ -52,28 +52,8 @@ class SystemMonitor {
     }
     
     initializeCharts() {
-        // Initialize resource usage chart
-        const resourceChart = document.getElementById('resourceChart');
-        if (resourceChart) {
-            // Placeholder for chart initialization
-            // In a real implementation, this would use Chart.js or similar
-            resourceChart.style.background = 'var(--background-color)';
-            resourceChart.style.display = 'flex';
-            resourceChart.style.alignItems = 'center';
-            resourceChart.style.justifyContent = 'center';
-            resourceChart.innerHTML = '<div style="color: var(--text-secondary);">Real-time CPU & Memory Chart</div>';
-        }
-        
-        // Initialize network chart
-        const networkChart = document.getElementById('networkChart');
-        if (networkChart) {
-            // Placeholder for chart initialization
-            networkChart.style.background = 'var(--background-color)';
-            networkChart.style.display = 'flex';
-            networkChart.style.alignItems = 'center';
-            networkChart.style.justifyContent = 'center';
-            networkChart.innerHTML = '<div style="color: var(--text-secondary);">Real-time Network Chart</div>';
-        }
+        // Charts are now handled by ChartContainer components in replaceChartCards()
+        // This method is kept for any future chart-specific initialization
     }
     
     setupEventListeners() {
@@ -387,7 +367,7 @@ class SystemMonitor {
         // Simulate chart data updates
         // In a real implementation, this would update actual chart data
         const timestamp = new Date().toLocaleTimeString();
-        console.log(`📊 Chart update at ${timestamp}`);
+        // Chart updates are handled by ChartContainer components
     }
     
     updateSystemMetrics(data) {
@@ -416,12 +396,20 @@ class SystemMonitor {
     updateChartData(data) {
         // Update chart data based on WebSocket data
         if (data.chartType === 'resource' && this.charts.resource) {
-            // Update resource chart
-            // In a real implementation, this would update the actual chart
+            ChartContainer.updateData(this.charts.resource, data.data, { type: 'resource' });
         } else if (data.chartType === 'network' && this.charts.network) {
-            // Update network chart
-            // In a real implementation, this would update the actual chart
+            ChartContainer.updateData(this.charts.network, data.data, { type: 'network' });
         }
+    }
+    
+    updateResourceChart(data) {
+        // Handle resource chart updates
+        // Implementation would update Chart.js instance here
+    }
+    
+    updateNetworkChart(data) {
+        // Handle network chart updates
+        // Implementation would update Chart.js instance here
     }
     
     handleNewAlert(data) {
@@ -542,15 +530,8 @@ class SystemMonitor {
         });
         window.dispatchEvent(event);
         
-        // Simple console logging for development
-        const emoji = {
-            info: 'ℹ️',
-            success: '✅',
-            warning: '⚠️',
-            error: '❌'
-        };
-        
-        console.log(`${emoji[type] || 'ℹ️'} Monitor: ${message}`);
+        // Visual notification implementation removed for production
+        // Notifications are now handled by the notification event system
     }
     
     renderDynamicCards() {
@@ -635,68 +616,38 @@ class SystemMonitor {
             }
         });
         
-        // Replace CPU & Memory card
+        // Replace CPU & Memory card with ChartContainer
         if (cpuMemoryCard) {
-            const chartContent = document.createElement('div');
-            chartContent.innerHTML = `
-                <div class="chart-container">
-                    <canvas id="resourceChart" width="400" height="200"></canvas>
-                </div>
-                <div class="chart-legend">
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: var(--primary-color);"></div>
-                        <span>CPU Usage</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: var(--success-color);"></div>
-                        <span>Memory Usage</span>
-                    </div>
-                </div>
-            `;
-            
-            const newCpuCard = Card.create({
+            const cpuMemoryChart = ChartContainer.create({
                 title: 'CPU & Memory Usage',
-                icon: '📊',
-                content: chartContent,
-                id: 'cpuMemoryCard'
+                type: 'line',
+                height: '250px',
+                loading: false,
+                onUpdate: (data) => this.updateResourceChart(data),
+                id: 'resourceChartContainer'
             });
             
-            cpuMemoryCard.parentNode.replaceChild(newCpuCard, cpuMemoryCard);
+            cpuMemoryCard.parentNode.replaceChild(cpuMemoryChart, cpuMemoryCard);
             
-            // Re-initialize chart after replacement
-            this.initializeCharts();
+            // Store chart reference for updates
+            this.charts.resource = cpuMemoryChart;
         }
         
-        // Replace Network card
+        // Replace Network card with ChartContainer
         if (networkCard) {
-            const networkContent = document.createElement('div');
-            networkContent.innerHTML = `
-                <div class="chart-container">
-                    <canvas id="networkChart" width="400" height="200"></canvas>
-                </div>
-                <div class="chart-legend">
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: var(--warning-color);"></div>
-                        <span>Incoming</span>
-                    </div>
-                    <div class="legend-item">
-                        <div class="legend-color" style="background: var(--danger-color);"></div>
-                        <span>Outgoing</span>
-                    </div>
-                </div>
-            `;
-            
-            const newNetworkCard = Card.create({
+            const networkChart = ChartContainer.create({
                 title: 'Network Activity',
-                icon: '🌐',
-                content: networkContent,
-                id: 'networkCard'
+                type: 'area',
+                height: '250px',
+                loading: false,
+                onUpdate: (data) => this.updateNetworkChart(data),
+                id: 'networkChartContainer'
             });
             
-            networkCard.parentNode.replaceChild(newNetworkCard, networkCard);
+            networkCard.parentNode.replaceChild(networkChart, networkCard);
             
-            // Re-initialize chart after replacement
-            this.initializeCharts();
+            // Store chart reference for updates
+            this.charts.network = networkChart;
         }
     }
     
@@ -777,13 +728,24 @@ class SystemMonitor {
         
         if (!alertsCard) return;
         
-        // Create header actions
-        const headerActions = document.createElement('div');
-        headerActions.className = 'card-actions';
-        headerActions.innerHTML = `
-            <button class="btn btn-secondary" id="clearAlertsBtn">Clear All</button>
-            <button class="btn btn-primary" id="configureAlertsBtn">Configure</button>
-        `;
+        // Create header actions with ButtonGroup
+        const headerActions = ButtonGroup.create({
+            buttons: [
+                {
+                    text: 'Clear All',
+                    icon: '🗑️',
+                    variant: 'secondary',
+                    onClick: () => this.clearAllAlerts()
+                },
+                {
+                    text: 'Configure',
+                    icon: '⚙️',
+                    variant: 'primary',
+                    onClick: () => this.configureAlerts()
+                }
+            ],
+            id: 'alertsButtonGroup'
+        });
         
         const alertsContent = document.createElement('div');
         alertsContent.className = 'alerts-list';
@@ -804,16 +766,7 @@ class SystemMonitor {
         
         alertsCard.parentNode.replaceChild(newCard, alertsCard);
         
-        // Re-attach event listeners
-        const clearBtn = newCard.querySelector('#clearAlertsBtn');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', () => this.clearAllAlerts());
-        }
-        
-        const configureBtn = newCard.querySelector('#configureAlertsBtn');
-        if (configureBtn) {
-            configureBtn.addEventListener('click', () => this.configureAlerts());
-        }
+        // Event listeners are now handled by ButtonGroup component
     }
     
     replaceActivityCard() {

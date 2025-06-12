@@ -2,7 +2,7 @@ import { wsManager } from '../common/websocket.js';
 import { API } from '../common/api.js';
 import { ActivityFeed } from '../components/activity-feed.js';
 import { formatDuration, formatBytes } from '../common/utils.js';
-import { Card, Metric, ProgressBar, Grid, initializeUIComponents } from '../components/ui-components.js';
+import { Card, Metric, ProgressBar, Grid, ButtonGroup, UploadArea, ChartContainer, initializeUIComponents } from '../components/ui-components.js';
 
 /**
  * Dashboard Page Controller
@@ -343,7 +343,6 @@ class Dashboard {
             // Enable training button
             if (trainButton) {
                 trainButton.disabled = false;
-                trainButton.textContent = 'Start Training';
             }
             
         } catch (error) {
@@ -408,8 +407,7 @@ class Dashboard {
         // Update training button
         const trainButton = document.getElementById('trainButton');
         if (trainButton) {
-            trainButton.disabled = true;
-            trainButton.textContent = 'Training in Progress...';
+            ButtonGroup.setLoading(trainButton, true);
         }
     }
     
@@ -488,8 +486,8 @@ class Dashboard {
         // Reset training button
         const trainButton = document.getElementById('trainButton');
         if (trainButton) {
+            ButtonGroup.setLoading(trainButton, false);
             trainButton.disabled = false;
-            trainButton.textContent = 'Start Training';
         }
         
         // Hide detailed training card after a delay
@@ -513,8 +511,8 @@ class Dashboard {
         // Reset UI
         const trainButton = document.getElementById('trainButton');
         if (trainButton) {
+            ButtonGroup.setLoading(trainButton, false);
             trainButton.disabled = false;
-            trainButton.textContent = 'Start Training';
         }
         
         const detailedCard = document.getElementById('detailedTrainingCard');
@@ -694,6 +692,12 @@ class Dashboard {
         
         // Replace Activity Feed card
         this.replaceActivityFeedCard();
+        
+        // Replace main action buttons with ButtonGroups
+        this.replaceActionButtons();
+        
+        // Replace upload area with UploadArea component
+        this.replaceUploadArea();
     }
     
     replaceLiveSystemStatusCard() {
@@ -958,6 +962,113 @@ class Dashboard {
         const activityContainer = newCard.querySelector('#activityFeed');
         if (activityContainer && this.activityFeed) {
             this.activityFeed = new ActivityFeed('activityFeed');
+        }
+    }
+    
+    replaceActionButtons() {
+        // Replace training button with ButtonGroup
+        const trainButton = document.getElementById('trainButton');
+        if (trainButton) {
+            const buttonGroup = ButtonGroup.create({
+                buttons: [
+                    {
+                        text: 'Start Training',
+                        icon: '🚀',
+                        variant: 'primary',
+                        size: 'lg',
+                        id: 'trainButton',
+                        disabled: !this.currentFile,
+                        onClick: () => this.startTraining()
+                    }
+                ],
+                alignment: 'center',
+                id: 'trainingButtonGroup'
+            });
+            
+            trainButton.parentNode.replaceChild(buttonGroup, trainButton);
+        }
+        
+        // Replace model action buttons with ButtonGroup
+        const useModelButton = document.getElementById('useModelButton');
+        if (useModelButton) {
+            const modelButtons = ButtonGroup.create({
+                buttons: [
+                    {
+                        text: 'Use This Model',
+                        icon: '✅',
+                        variant: 'success',
+                        size: 'lg',
+                        onClick: () => this.useModel()
+                    },
+                    {
+                        text: 'View Details',
+                        icon: '📊',
+                        variant: 'secondary',
+                        size: 'md',
+                        onClick: () => this.viewDetails()
+                    }
+                ],
+                alignment: 'center',
+                id: 'modelActionButtonGroup'
+            });
+            
+            // Replace both buttons and their container
+            const buttonContainer = useModelButton.parentNode;
+            buttonContainer.innerHTML = '';
+            buttonContainer.appendChild(modelButtons);
+        }
+    }
+    
+    replaceUploadArea() {
+        // Find existing upload area
+        const existingUploadArea = document.querySelector('.upload-area');
+        if (existingUploadArea) {
+            const newUploadArea = UploadArea.create({
+                accept: ['.csv', '.xlsx'],
+                multiple: false,
+                maxSize: 50,
+                placeholder: 'Drag & drop your CSV file here or click to browse',
+                onUpload: (file) => this.handleUploadAreaFile(file),
+                onError: (errors) => this.showError(errors.join('\n')),
+                id: 'modernUploadArea'
+            });
+            
+            existingUploadArea.parentNode.replaceChild(newUploadArea, existingUploadArea);
+        }
+    }
+    
+    handleUploadAreaFile(file) {
+        // Handle file from new UploadArea component
+        this.processFileUpload(file);
+    }
+    
+    processFileUpload(file) {
+        // Process uploaded file - this method handles the file upload logic
+        // Set state and call existing upload handling
+        this.currentFile = { name: file.name, size: file.size };
+        
+        // Create FormData and call existing API upload logic
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Call the existing handleFileUpload method logic
+        this.uploadFileToServer(formData);
+    }
+    
+    async uploadFileToServer(formData) {
+        try {
+            const result = await API.uploadFile(formData);
+            this.currentFile = result;
+            this.showFileUploadSuccess(result);
+            
+            // Enable training button
+            const trainButton = document.getElementById('trainButton');
+            if (trainButton) {
+                trainButton.disabled = false;
+            }
+        } catch (error) {
+            console.error('Upload failed:', error);
+            this.showError(`Upload failed: ${error.message}`);
         }
     }
 }

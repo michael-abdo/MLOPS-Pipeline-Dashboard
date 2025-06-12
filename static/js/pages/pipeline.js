@@ -1,7 +1,7 @@
 import { wsManager } from '../common/websocket.js';
 import { API } from '../common/api.js';
 import { ActivityFeed } from '../components/activity-feed.js';
-import { Card, Metric, ProgressBar, Grid, initializeUIComponents } from '../components/ui-components.js';
+import { Card, Metric, ProgressBar, Grid, ButtonGroup, UploadArea, ChartContainer, initializeUIComponents } from '../components/ui-components.js';
 
 /**
  * Pipeline Page Controller
