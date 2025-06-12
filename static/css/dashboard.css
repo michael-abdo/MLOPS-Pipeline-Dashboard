@@ -1,8 +1,28 @@
 /* Dashboard-specific styles */
 
-/* Ensure sections are visible */
+/* Ensure sections are visible and have proper dimensions */
 .card {
-    display: block;
+    display: block !important;
+    min-height: 100px;
+    visibility: visible !important;
+}
+
+section.card {
+    display: block !important;
+    min-height: 200px;
+    visibility: visible !important;
+}
+
+/* Ensure grid containers don't collapse */
+.grid {
+    min-height: 200px;
+}
+
+.grid-2 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+    min-height: 400px;
 }
 
 /* Upload Area Styles */
@@ -16,11 +36,17 @@
     background: var(--surface-color);
     margin: 2rem 0;
     height: auto;
-    min-height: 200px;
+    min-height: 200px !important;
     width: 100%;
-    display: block;
+    display: block !important;
     box-sizing: border-box;
     position: relative;
+    visibility: visible !important;
+}
+
+/* Override any inline display: none */
+#detailedTrainingCard {
+    display: none !important; /* Keep this hidden as intended */
 }
 
 .upload-area:hover {

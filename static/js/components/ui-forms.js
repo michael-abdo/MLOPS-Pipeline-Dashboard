@@ -162,6 +162,11 @@ class UploadArea {
         const uploadArea = document.createElement('div');
         uploadArea.className = `upload-area ${className}`.trim();
         if (id) uploadArea.id = id;
+        
+        // Add accessibility attributes
+        uploadArea.setAttribute('role', 'button');
+        uploadArea.setAttribute('tabindex', '0');
+        uploadArea.setAttribute('aria-label', 'Upload data file. Supported formats: CSV, XLSX. Use Enter or Space to select file.');
 
         // Hidden file input
         const fileInput = document.createElement('input');
@@ -169,6 +174,7 @@ class UploadArea {
         fileInput.accept = accept.join(',');
         fileInput.multiple = multiple;
         fileInput.style.display = 'none';
+        fileInput.setAttribute('aria-label', 'File input for upload area');
         // Use provided ID or generate unique ID, but maintain fileInput compatibility if specified
         if (id === 'modernUploadArea') {
             fileInput.id = 'fileInput'; // For main dashboard compatibility
@@ -229,6 +235,25 @@ class UploadArea {
         // Click to browse
         uploadArea.addEventListener('click', () => {
             fileInput.click();
+        });
+        
+        // Keyboard accessibility
+        uploadArea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                fileInput.click();
+            }
+        });
+        
+        // Focus styles
+        uploadArea.addEventListener('focus', function() {
+            this.style.outline = '3px solid var(--primary-color)';
+            this.style.outlineOffset = '2px';
+        });
+        
+        uploadArea.addEventListener('blur', function() {
+            this.style.outline = '';
+            this.style.outlineOffset = '';
         });
 
         fileInput.addEventListener('change', (e) => {

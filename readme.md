@@ -41,6 +41,7 @@ A **simple 4-step ML pipeline** that anyone can use:
 - **Advanced UI components** - ButtonGroup, UploadArea, and ChartContainer for enhanced user interactions
 - **Component-based architecture** - Standardized UI elements with real-time update capabilities
 - **Modern upload experience** - Drag & drop file handling with validation and visual feedback
+- **Accessibility compliant** - Full keyboard navigation, screen reader support, and ARIA attributes
 - **Chart preparation** - Chart.js integration infrastructure with loading states and error handling
 - **Enterprise memory management** - Automatic cleanup of timers, event listeners, and WebSocket handlers
 - **Centralized state management** - StateStore with caching and API request deduplication
@@ -365,6 +366,13 @@ npm run test:debug
 
 # Run complete pipeline test
 node tests/upload-csv.test.js --full --headed --debug
+
+# Run accessibility tests
+node test-keyboard-navigation.js
+node test-screen-reader.js
+
+# Run ultimate test suite (3x repetition)
+node ultimate-test.js
 ```
 
 See `docs/AUTOMATION_GUIDE.md` for detailed automation documentation.

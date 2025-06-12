@@ -280,6 +280,7 @@
                 </div>
             </div>
         </div>
+        </section><!-- Close detailedTrainingCard -->
 
         <!-- Main Actions - Maximum 3 primary buttons -->
         <div class="grid grid-2">
@@ -312,9 +313,9 @@
                 </div>
                 
                 <div class="advanced-options">
-                    <label style="display: block; margin-bottom: var(--spacing-sm);">
+                    <label for="modelTypeSelect" style="display: block; margin-bottom: var(--spacing-sm);">
                         Model Type:
-                        <select style="width: 100%; padding: var(--spacing-sm); margin-top: var(--spacing-sm);">
+                        <select id="modelTypeSelect" style="width: 100%; padding: var(--spacing-sm); margin-top: var(--spacing-sm);">
                             <option>Automatic (Recommended)</option>
                             <option>Classification</option>
                             <option>Prediction</option>
@@ -455,7 +456,6 @@
     <script>
         // Check if ES6 modules are supported
         const supportsModules = 'noModule' in HTMLScriptElement.prototype;
-        console.log('ES6 modules supported:', supportsModules);
         
         // Add error handler for module loading
         window.addEventListener('error', function(e) {

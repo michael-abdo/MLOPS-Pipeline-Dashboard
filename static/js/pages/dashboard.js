@@ -12,7 +12,6 @@ import { demoData } from '../common/demo-data.js';
 import { CONFIG } from '../common/config.js';
 // Import centralized error handling system
 import { errorHandler, ErrorSeverity, ErrorCategory, RecoveryStrategy } from '../common/error-handler.js';
-import { withErrorHandling } from '../common/error-utils.js';
 
 /**
  * Dashboard Page Controller
@@ -126,13 +125,10 @@ class Dashboard extends BasePageController {
             this.addEventListener(fileInput, 'change', (e) => this.handleFileUpload(e));
         }
         
-        // Upload area click and drag and drop - using managed event listeners
+        // Upload area drag and drop - using managed event listeners (click handled by UploadArea component)
         const uploadArea = document.querySelector('.upload-area');
         if (uploadArea) {
-            this.addEventListener(uploadArea, 'click', () => {
-                const fileInput = document.getElementById('fileInput');
-                if (fileInput) fileInput.click();
-            });
+            // Don't add click listener here - UploadArea component handles clicks
             this.addEventListener(uploadArea, 'dragover', (e) => this.handleDragOver(e));
             this.addEventListener(uploadArea, 'dragleave', (e) => this.handleDragLeave(e));
             this.addEventListener(uploadArea, 'drop', (e) => this.handleFileDrop(e));
@@ -268,7 +264,7 @@ class Dashboard extends BasePageController {
                     this.updateCurrentModelDisplay(demoModel);
                     this.updateModelPerformanceSection(demoModel);
                 } catch (demoError) {
-                    console.error('Failed to load demo model data:', demoError);
+                    // Failed to load demo model data - continue with empty state
                 }
             }
         }
@@ -348,7 +344,7 @@ class Dashboard extends BasePageController {
                     this.setState('system_status', demoStatus);
                     this.updateSystemStatusDisplay(demoStatus);
                 } catch (demoError) {
-                    console.error('Failed to load demo system status:', demoError);
+                    // Failed to load demo system status - continue with empty state
                 }
             }
         }
@@ -1229,7 +1225,6 @@ class Dashboard extends BasePageController {
                 trainButton.disabled = false;
             }
         } catch (error) {
-            console.error('Upload failed:', error);
             this.showError(`Upload failed: ${error.message}`);
         }
     }
@@ -1253,7 +1248,7 @@ class Dashboard extends BasePageController {
         this.currentFile = null;
         this.currentJobId = null;
         
-        console.log('Dashboard: Custom cleanup completed');
+        // Dashboard custom cleanup completed
     }
 }
 
