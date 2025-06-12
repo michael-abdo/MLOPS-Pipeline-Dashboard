@@ -83,6 +83,11 @@ class ConnectionManager:
     async def broadcast_json(self, data: dict, priority: str = 'normal'):
         """Enhanced broadcast with message prioritization and cleanup"""
         disconnected_clients = []
+        event_type = data.get('type', 'unknown')
+        
+        # Only log non-routine events to reduce noise
+        if event_type not in ['system_metrics', 'chart_data', 'integration_status']:
+            print(f"📡 Broadcasting {event_type} to {len(self.active_connections)} clients")
         
         for client_id, conn_info in self.active_connections.items():
             try:
@@ -98,7 +103,9 @@ class ConnectionManager:
                 conn_info['message_count'] += 1
                 conn_info['bytes_sent'] += len(json.dumps(data))
                 
-            except Exception:
+            except Exception as e:
+                if event_type not in ['system_metrics', 'chart_data', 'integration_status']:
+                    print(f"   ❌ Failed to send {event_type} to client {client_id}: {e}")
                 disconnected_clients.append(client_id)
         
         # Clean up disconnected clients
@@ -182,6 +189,11 @@ class Pipeline(BaseModel):
     updated_at: Optional[datetime] = None
     steps: List[Dict[str, Any]] = []
     
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
+    
 class PipelineCreate(BaseModel):
     name: str
     description: Optional[str] = None
@@ -198,12 +210,22 @@ class Dataset(BaseModel):
     status: str = "available"  # available, processing, error
     file_type: str = "csv"
     
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
+    
 class ComponentHealth(BaseModel):
     name: str
     status: str  # healthy, warning, critical, unknown
     last_check: datetime
     metrics: Dict[str, Any] = {}
     message: Optional[str] = None
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
     
 class Alert(BaseModel):
     id: Optional[str] = None
@@ -214,9 +236,85 @@ class Alert(BaseModel):
     acknowledged: bool = False
     acknowledged_by: Optional[str] = None
     acknowledged_at: Optional[datetime] = None
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
 
 # In-memory storage for new entities
 pipelines_store: Dict[str, Pipeline] = {}
+
+async def execute_pipeline_background(pipeline_id: str):
+    """Execute a pipeline in the background with progress broadcasting"""
+    try:
+        pipeline = pipelines_store[pipeline_id]
+        pipeline.status = "running"
+        
+        print(f"🔧 Starting pipeline execution: {pipeline_id}")
+        
+        # Send initial status
+        await manager.broadcast_json({
+            "type": "pipeline_progress",
+            "pipeline_id": pipeline_id,
+            "progress": 0,
+            "status": "starting",
+            "current_step": "Initializing"
+        })
+        
+        total_steps = len(pipeline.steps)
+        for i, step in enumerate(pipeline.steps):
+            progress = int((i / total_steps) * 100)
+            
+            print(f"🔧 Pipeline {pipeline_id} progress: {progress}% - {step.get('name', f'Step {i+1}')}")
+            
+            await manager.broadcast_json({
+                "type": "pipeline_progress",
+                "pipeline_id": pipeline_id,
+                "progress": progress,
+                "status": "running",
+                "current_step": step.get("name", f"Step {i+1}")
+            })
+            
+            # Simulate step execution
+            await asyncio.sleep(2)
+        
+        # Pipeline completed
+        pipeline.status = "completed"
+        pipeline.updated_at = datetime.now()
+        
+        print(f"✅ Pipeline {pipeline_id} completed successfully")
+        
+        await manager.broadcast_json({
+            "type": "pipeline_completed",
+            "pipeline_id": pipeline_id,
+            "status": "completed",
+            "message": "Pipeline executed successfully"
+        })
+        
+        await log_activity_with_broadcast(
+            "Pipeline completed",
+            f"Pipeline '{pipeline.name}' executed successfully",
+            "success"
+        )
+        
+    except Exception as e:
+        print(f"❌ Pipeline {pipeline_id} failed: {str(e)}")
+        if pipeline_id in pipelines_store:
+            pipeline = pipelines_store[pipeline_id]
+            pipeline.status = "failed"
+            
+            await manager.broadcast_json({
+                "type": "pipeline_failed",
+                "pipeline_id": pipeline_id,
+                "error": str(e)
+            })
+            
+            await log_activity_with_broadcast(
+                "Pipeline failed",
+                f"Pipeline '{pipeline.name}' failed: {str(e)}",
+                "error"
+            )
 datasets_store: Dict[str, Dataset] = {}
 alerts_store: Dict[str, Alert] = {}
 components_health: Dict[str, ComponentHealth] = {
@@ -239,6 +337,44 @@ components_health: Dict[str, ComponentHealth] = {
         metrics={"active_connections": 0, "messages_per_second": 0}
     )
 }
+
+# Alert creation and broadcasting
+async def create_system_alert(title: str, message: str, priority: str = "medium", alert_type: str = "warning", source: str = "system"):
+    """Create a new system alert and broadcast it via WebSocket"""
+    alert_id = str(uuid.uuid4())
+    alert = Alert(
+        id=alert_id,
+        type=alert_type,
+        message=f"{title}: {message}",
+        source=source,
+        timestamp=datetime.now()
+    )
+    
+    alerts_store[alert_id] = alert
+    
+    # Broadcast system alert via WebSocket
+    await manager.broadcast_json({
+        "type": "system_alert",
+        "alert": {
+            "id": alert_id,
+            "title": title,
+            "message": alert.message,
+            "priority": priority,
+            "alert_type": alert.type,
+            "source": source,
+            "timestamp": alert.timestamp.isoformat(),
+            "acknowledged": False
+        }
+    })
+    
+    # Log activity
+    await log_activity_with_broadcast(
+        f"Alert: {title}",
+        message,
+        "warning" if priority == "high" else "info"
+    )
+    
+    return alert
 
 # Helper Functions
 def log_activity(title: str, description: str, status: str = "success"):
@@ -502,6 +638,24 @@ async def check_and_broadcast_health_changes(current_health: str, cpu_percent: f
 
         # Broadcast health change event
         await broadcast_system_event(health_event)
+        
+        # Create system alerts for critical and warning conditions
+        if current_health == "critical":
+            await create_system_alert(
+                "Critical System Alert",
+                f"System resources critically high - CPU: {cpu_percent:.1f}%, Memory: {memory_percent:.1f}%, Disk: {disk_percent:.1f}%",
+                priority="high",
+                alert_type="system",
+                source="health_monitor"
+            )
+        elif current_health == "warning":
+            await create_system_alert(
+                "System Warning",
+                f"System resources elevated - CPU: {cpu_percent:.1f}%, Memory: {memory_percent:.1f}%, Disk: {disk_percent:.1f}%", 
+                priority="medium",
+                alert_type="system",
+                source="health_monitor"
+            )
 
         # Log activity with broadcast
         await log_activity_with_broadcast(message, description, "info")
@@ -582,15 +736,50 @@ async def monitoring():
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
-    """Upload and validate data file"""
+    """Upload and validate data file with progress tracking"""
     try:
-        # Read file content
-        content = await file.read()
+        # Get file size for progress calculation
+        file_size = 0
+        content = b""
+        
+        # Read file in chunks with progress tracking
+        chunk_size = 8192  # 8KB chunks
+        total_read = 0
+        
+        await manager.broadcast_json({
+            "type": "upload_progress",
+            "filename": file.filename,
+            "progress": 0,
+            "status": "starting"
+        })
+        
+        # Read file content in chunks
+        while chunk := await file.read(chunk_size):
+            content += chunk
+            total_read += len(chunk)
+            
+            # Broadcast progress (estimate total size during read)
+            if total_read > 0:
+                await manager.broadcast_json({
+                    "type": "upload_progress",
+                    "filename": file.filename,
+                    "progress": min(50, (total_read / (total_read + 1000)) * 50),  # First 50% for reading
+                    "status": "reading"
+                })
+        
+        file_size = len(content)
 
         # Save file temporarily
         upload_dir = PROJECT_ROOT / "uploads"
         os.makedirs(upload_dir, exist_ok=True)
         file_path = upload_dir / file.filename
+
+        await manager.broadcast_json({
+            "type": "upload_progress",
+            "filename": file.filename,
+            "progress": 75,
+            "status": "saving"
+        })
 
         with open(file_path, "wb") as f:
             f.write(content)
@@ -606,6 +795,16 @@ async def upload_file(file: UploadFile = File(...)):
         # Simulated file info
         rows = max(1, file_size // 100)  # Rough estimate
         columns = 5  # Simulated
+
+        # Final upload progress
+        await manager.broadcast_json({
+            "type": "upload_progress",
+            "filename": file.filename,
+            "progress": 100,
+            "status": "completed",
+            "rows": rows,
+            "columns": columns
+        })
 
         # Log activity with broadcast
         await log_activity_with_broadcast(
@@ -693,6 +892,11 @@ async def predict(model_id: str, data: Dict[str, Any]):
 
         # Update model stats
         models_store[model_id]["predictions_made"] += 1
+        
+        # Check if we should broadcast prediction volume update
+        total_predictions = sum(m["predictions_made"] for m in models_store.values())
+        if total_predictions > 0 and total_predictions % 100 == 0:
+            await broadcast_prediction_volume_update()
 
         return {
             "prediction": int(prediction),
@@ -825,12 +1029,22 @@ async def create_pipeline(pipeline: PipelineCreate):
         "success"
     )
     
-    # Send WebSocket update
+    # Send WebSocket update - create serializable pipeline data
+    pipeline_data = {
+        "id": new_pipeline.id,
+        "name": new_pipeline.name,
+        "description": new_pipeline.description,
+        "status": new_pipeline.status,
+        "created_at": new_pipeline.created_at.isoformat(),
+        "updated_at": new_pipeline.updated_at.isoformat(),
+        "steps": new_pipeline.steps
+    }
+    
     await manager.broadcast_json({
         "type": "pipeline_status",
         "pipeline_id": pipeline_id,
         "status": "created",
-        "data": new_pipeline.dict()
+        "data": pipeline_data
     })
     
     return new_pipeline
@@ -888,59 +1102,24 @@ async def run_pipeline(pipeline_id: str, background_tasks: BackgroundTasks):
     pipeline = pipelines_store[pipeline_id]
     pipeline.status = "running"
     
-    # Simulate pipeline execution
-    async def execute_pipeline():
-        try:
-            # Send initial status
-            await manager.broadcast_json({
-                "type": "pipeline_progress",
-                "pipeline_id": pipeline_id,
-                "progress": 0,
-                "status": "starting",
-                "current_step": "Initializing"
-            })
-            
-            total_steps = len(pipeline.steps)
-            for i, step in enumerate(pipeline.steps):
-                progress = int((i / total_steps) * 100)
-                
-                await manager.broadcast_json({
-                    "type": "pipeline_progress",
-                    "pipeline_id": pipeline_id,
-                    "progress": progress,
-                    "status": "running",
-                    "current_step": step.get("name", f"Step {i+1}")
-                })
-                
-                # Simulate step execution
-                await asyncio.sleep(2)
-            
-            # Pipeline completed
-            pipeline.status = "completed"
-            pipeline.updated_at = datetime.now()
-            
-            await manager.broadcast_json({
-                "type": "pipeline_completed",
-                "pipeline_id": pipeline_id,
-                "status": "completed",
-                "message": "Pipeline executed successfully"
-            })
-            
-            await log_activity_with_broadcast(
-                "Pipeline completed",
-                f"Pipeline '{pipeline.name}' executed successfully",
-                "success"
-            )
-            
-        except Exception as e:
-            pipeline.status = "failed"
-            await manager.broadcast_json({
-                "type": "pipeline_failed",
-                "pipeline_id": pipeline_id,
-                "error": str(e)
-            })
+    # Start pipeline execution in background using the dedicated function
+    print(f"🔧 Creating background task for pipeline {pipeline_id}")
+    task = asyncio.create_task(execute_pipeline_background(pipeline_id))
     
-    background_tasks.add_task(execute_pipeline)
+    # Store task to prevent garbage collection
+    if 'active_tasks' not in globals():
+        global active_tasks
+        active_tasks = {}
+    active_tasks[f"pipeline_{pipeline_id}"] = task
+    
+    # Add callback to clean up task when done
+    def cleanup_pipeline_task(task_ref):
+        print(f"🧹 Cleaning up completed pipeline task for {pipeline_id}")
+        task_key = f"pipeline_{pipeline_id}"
+        if task_key in active_tasks:
+            del active_tasks[task_key]
+    
+    task.add_done_callback(cleanup_pipeline_task)
     
     return {
         "message": "Pipeline execution started",
@@ -958,7 +1137,7 @@ async def get_pipeline_status(pipeline_id: str):
     return {
         "pipeline_id": pipeline_id,
         "status": pipeline.status,
-        "updated_at": pipeline.updated_at
+        "updated_at": pipeline.updated_at.isoformat() if pipeline.updated_at else None
     }
 
 # ==================== Dataset Management APIs ====================
@@ -991,11 +1170,24 @@ async def upload_dataset(file: UploadFile = File(...)):
     )
     datasets_store[dataset_id] = dataset
     
+    # Create serializable dataset data
+    dataset_data = {
+        "id": dataset.id,
+        "name": dataset.name,
+        "file_path": dataset.file_path,
+        "size": dataset.size,
+        "rows": dataset.rows,
+        "columns": dataset.columns,
+        "created_at": dataset.created_at.isoformat(),
+        "status": dataset.status,
+        "file_type": dataset.file_type
+    }
+    
     await manager.broadcast_json({
         "type": "dataset_processed",
         "dataset_id": dataset_id,
         "status": "completed",
-        "data": dataset.dict()
+        "data": dataset_data
     })
     
     return dataset
@@ -1116,6 +1308,171 @@ async def validate_dataset(dataset_id: str):
     
     return validation_result
 
+# ==================== Data Processing Jobs ====================
+
+# In-memory storage for processing jobs
+processing_jobs = {}
+# Store for active background tasks to prevent garbage collection
+active_tasks = {}
+
+async def execute_processing_job(job_id: str, dataset_id: str, job_name: str):
+    """Execute a processing job in the background with progress broadcasting"""
+    try:
+        job = processing_jobs[job_id]
+        job.status = "running"
+        job.started_at = datetime.now()
+        job.updated_at = datetime.now()
+        
+        print(f"🎯 Starting processing job: {job_id} for dataset: {dataset_id}")
+        
+        # Simulate processing steps
+        steps = [
+            ("Data Validation", 20),
+            ("Data Cleaning", 40), 
+            ("Feature Extraction", 60),
+            ("Quality Analysis", 80),
+            ("Finalizing Results", 100)
+        ]
+        
+        for step_name, progress in steps:
+            job.progress = progress
+            job.updated_at = datetime.now()
+            
+            print(f"📊 Job {job_id} progress: {progress}% - {step_name}")
+            
+            await manager.broadcast_json({
+                "type": "job_progress",
+                "job_id": job_id,
+                "progress": progress,
+                "status": "running",
+                "current_step": step_name,
+                "dataset_id": dataset_id
+            })
+            
+            # Simulate processing time
+            await asyncio.sleep(2)
+        
+        # Job completed successfully
+        job.status = "completed"
+        job.completed_at = datetime.now()
+        job.updated_at = datetime.now()
+        job.result = {
+            "processed_rows": 1000,
+            "quality_score": 92,
+            "features_extracted": 15,
+            "anomalies_detected": 3
+        }
+        
+        print(f"✅ Job {job_id} completed successfully")
+        
+        await manager.broadcast_json({
+            "type": "job_completed",
+            "job_id": job_id,
+            "status": "completed",
+            "result": job.result,
+            "dataset_id": dataset_id,
+            "duration": "10s"
+        })
+        
+        await log_activity_with_broadcast(
+            "Processing job completed",
+            f"Data processing for '{job.name}' completed successfully",
+            "success"
+        )
+        
+    except Exception as e:
+        print(f"❌ Job {job_id} failed: {str(e)}")
+        if job_id in processing_jobs:
+            job = processing_jobs[job_id]
+            job.status = "failed"
+            job.error = str(e)
+            job.updated_at = datetime.now()
+            
+            await manager.broadcast_json({
+                "type": "job_completed",
+                "job_id": job_id,
+                "status": "failed",
+                "error": str(e),
+                "dataset_id": dataset_id
+            })
+            
+            await log_activity_with_broadcast(
+                "Processing job failed",
+                f"Data processing for job {job_id} failed: {str(e)}",
+                "error"
+            )
+
+class ProcessingJob(BaseModel):
+    id: str
+    name: str
+    description: str
+    status: str = "pending"  # pending, running, completed, failed
+    progress: int = 0
+    dataset_id: str
+    created_at: datetime
+    updated_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    result: Optional[dict] = None
+    error: Optional[str] = None
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat() if v else None
+        }
+
+@app.post("/api/datasets/{dataset_id}/process")
+async def create_processing_job(dataset_id: str, background_tasks: BackgroundTasks, job_name: str = "Data Processing"):
+    """Create and start a data processing job"""
+    if dataset_id not in datasets_store:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    job_id = str(uuid.uuid4())
+    job = ProcessingJob(
+        id=job_id,
+        name=job_name,
+        description=f"Processing dataset {datasets_store[dataset_id].name}",
+        dataset_id=dataset_id,
+        created_at=datetime.now(),
+        updated_at=datetime.now()
+    )
+    processing_jobs[job_id] = job
+    
+    # Start processing job in background using asyncio task
+    print(f"🚀 Creating background task for job {job_id}")
+    task = asyncio.create_task(execute_processing_job(job_id, dataset_id, job_name))
+    active_tasks[job_id] = task
+    
+    # Add callback to clean up task when done
+    def cleanup_task(task_ref):
+        print(f"🧹 Cleaning up completed task for job {job_id}")
+        if job_id in active_tasks:
+            del active_tasks[job_id]
+    
+    task.add_done_callback(cleanup_task)
+    
+    return {
+        "job_id": job_id,
+        "message": "Processing job started",
+        "status": "running"
+    }
+
+@app.get("/api/processing-jobs")
+async def get_processing_jobs():
+    """Get all processing jobs"""
+    return {
+        "jobs": list(processing_jobs.values()),
+        "total": len(processing_jobs)
+    }
+
+@app.get("/api/processing-jobs/{job_id}")
+async def get_processing_job(job_id: str):
+    """Get specific processing job status"""
+    if job_id not in processing_jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    return processing_jobs[job_id]
+
 # ==================== Component Health APIs ====================
 
 @app.get("/api/components/health")
@@ -1159,7 +1516,7 @@ async def get_component_metrics(component_name: str):
     # Mock detailed metrics
     metrics = {
         "component": component_name,
-        "timestamp": datetime.now(),
+        "timestamp": datetime.now().isoformat(),
         "metrics": components_health[component_name].metrics,
         "history": [
             {
@@ -1219,7 +1576,7 @@ async def get_performance_metrics():
             "bytes_sent": psutil.net_io_counters().bytes_sent,
             "bytes_recv": psutil.net_io_counters().bytes_recv
         },
-        "timestamp": datetime.now()
+        "timestamp": datetime.now().isoformat()
     }
     
     await manager.broadcast_json({
@@ -1375,6 +1732,60 @@ async def websocket_endpoint(websocket: WebSocket):
 
             await websocket.send_json(metrics)
             
+            # Send chart data for real-time visualizations
+            chart_data = {
+                "type": "chart_data",
+                "timestamp": datetime.now().isoformat(),
+                "charts": {
+                    "resource": {
+                        "cpu": round(cpu_percent, 1),
+                        "memory": round(memory.percent, 1),
+                        "disk": round((disk.used / disk.total) * 100, 1)
+                    },
+                    "network": {
+                        "bytes_sent": network.bytes_sent if network else 0,
+                        "bytes_recv": network.bytes_recv if network else 0,
+                        "packets_sent": network.packets_sent if network else 0,
+                        "packets_recv": network.packets_recv if network else 0
+                    },
+                    "performance": {
+                        "api_latency": round(api_response_time, 1),
+                        "ws_latency": round(ws_response_time, 1),
+                        "throughput": len(manager.active_connections) * 10  # Simulated throughput
+                    }
+                }
+            }
+            await websocket.send_json(chart_data)
+            
+            # Send integration status for architecture page
+            integration_status = {
+                "type": "integration_status",
+                "timestamp": datetime.now().isoformat(),
+                "integrations": {
+                    "websocket": {
+                        "status": "connected",
+                        "latency": round(ws_response_time, 1),
+                        "connections": len(manager.active_connections)
+                    },
+                    "api": {
+                        "status": "healthy",
+                        "response_time": round(api_response_time, 1),
+                        "endpoints_active": 25
+                    },
+                    "database": {
+                        "status": "connected",
+                        "pool_size": 10,
+                        "active_connections": 3
+                    },
+                    "ml_engine": {
+                        "status": "ready" if models_store else "inactive",
+                        "models_loaded": len(models_store),
+                        "processing_queue": len(active_training)
+                    }
+                }
+            }
+            await websocket.send_json(integration_status)
+            
         except Exception:
             pass
     
@@ -1401,6 +1812,55 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+# Debug endpoint to manually create system alerts
+@app.post("/debug/create-alert")
+async def debug_create_alert(title: str = "Test Alert", message: str = "This is a test system alert", priority: str = "medium"):
+    """Debug endpoint to manually create and broadcast system alerts"""
+    print(f"🚨 Debug: Creating manual system alert - {title}")
+    
+    try:
+        alert = await create_system_alert(title, message, priority, "warning", "debug")
+        return {"message": "Alert created successfully", "alert_id": alert.id}
+    except Exception as e:
+        print(f"🔥 Debug: Error creating alert: {str(e)}")
+        return {"error": str(e)}
+
+# Enhanced endpoint to trigger high CPU simulation for health alerts
+@app.post("/debug/trigger-high-cpu")
+async def debug_trigger_high_cpu():
+    """Debug endpoint to simulate high CPU and trigger health alerts"""
+    print(f"💻 Debug: Simulating high CPU usage to trigger health alerts")
+    
+    # Simulate high resource usage by creating alerts
+    await create_system_alert(
+        "High CPU Usage Detected",
+        "System CPU usage is critically high at 95%",
+        priority="high",
+        alert_type="error",
+        source="cpu_monitor"
+    )
+    
+    await create_system_alert(
+        "Memory Warning",
+        "System memory usage is elevated at 85%",
+        priority="medium", 
+        alert_type="warning",
+        source="memory_monitor"
+    )
+    
+    return {"message": "High resource alerts triggered"}
+
+# Endpoint to test health change events
+@app.post("/debug/trigger-health-change")
+async def debug_trigger_health_change():
+    """Debug endpoint to trigger health change events"""
+    print(f"💓 Debug: Triggering health change events")
+    
+    # Manually trigger health change
+    await check_and_broadcast_health_changes("critical", 95.0, 90.0, 88.0)
+    
+    return {"message": "Health change events triggered"}
 
 if __name__ == "__main__":
     import uvicorn

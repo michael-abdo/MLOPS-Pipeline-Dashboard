@@ -146,74 +146,171 @@ class SystemMonitor {
     }
     
     async loadSystemMetrics() {
-        // Simulate loading system metrics
-        const metrics = {
-            uptime: '99.8%',
-            cpuUsage: 34,
-            memoryUsage: '2.1GB',
-            diskUsage: 45
-        };
-        
-        this.metrics.system = metrics;
-        this.updateSystemMetricsDisplay(metrics);
+        try {
+            // Load real system metrics from backend API
+            const metricsData = await API.getMonitoringMetrics();
+            
+            // Transform backend data to frontend format
+            const metrics = {
+                uptime: metricsData.uptime || '0%',
+                cpuUsage: metricsData.cpu_usage || 0,
+                memoryUsage: metricsData.memory_usage ? `${metricsData.memory_usage}GB` : '0GB',
+                diskUsage: metricsData.disk_usage || 0
+            };
+            
+            this.metrics.system = metrics;
+            this.updateSystemMetricsDisplay(metrics);
+            
+        } catch (error) {
+            console.error('Failed to load system metrics:', error);
+            // Fallback to default metrics on error
+            const metrics = {
+                uptime: '0%',
+                cpuUsage: 0,
+                memoryUsage: '0GB',
+                diskUsage: 0
+            };
+            
+            this.metrics.system = metrics;
+            this.updateSystemMetricsDisplay(metrics);
+        }
     }
     
     async loadServiceHealth() {
-        // Simulate loading service health data
-        const services = {
-            fastapi: {
-                status: 'healthy',
-                responseTime: 23,
-                requestsPerMin: 142,
-                errorRate: 0.1
-            },
-            websocket: {
-                status: 'connected',
-                activeConnections: 3,
-                messagesPerSec: 8,
-                latency: 12
-            },
-            mlEngine: {
-                status: 'ready',
-                modelsLoaded: 2,
-                queueSize: 0,
-                avgProcessing: 1.2
-            },
-            storage: {
-                status: 'warning',
-                freeSpace: '156GB',
-                readSpeed: '450MB/s',
-                writeSpeed: '320MB/s'
-            }
-        };
+        try {
+            // Load real service health from backend API
+            const serviceData = await API.getServices();
+            const backendServices = serviceData.services || [];
+            
+            // Transform backend data to frontend format
+            const services = {};
+            
+            backendServices.forEach(service => {
+                switch (service.name) {
+                    case 'API Server':
+                        services.fastapi = {
+                            status: service.status === 'running' ? 'healthy' : 'unhealthy',
+                            responseTime: parseInt(service.response_time) || 0,
+                            requestsPerMin: service.requests_per_minute || 0,
+                            errorRate: 0.1 // TODO: Get from real metrics
+                        };
+                        break;
+                    case 'Model Service':
+                        services.mlEngine = {
+                            status: service.status === 'running' ? 'ready' : 'error',
+                            modelsLoaded: 1, // TODO: Get from real data
+                            predictionsPerMin: service.predictions_per_minute || 0,
+                            accuracy: 89.2 // TODO: Get from real data
+                        };
+                        break;
+                    case 'Data Processor':
+                        services.dataProcessor = {
+                            status: service.status === 'running' ? 'active' : 'error',
+                            queueSize: service.queue_size || 0,
+                            processingRate: parseInt(service.processing_rate) || 0
+                        };
+                        break;
+                }
+            });
+            
+            // Add WebSocket status from connection manager
+            services.websocket = {
+                status: wsManager.isConnected() ? 'connected' : 'disconnected',
+                activeConnections: wsManager.getConnectionCount ? wsManager.getConnectionCount() : 1,
+                messagesPerSec: 8, // TODO: Get from real metrics
+                latency: wsManager.getConnectionQuality().latency || 0
+            };
+            
+            this.metrics.services = services;
+            this.updateServiceHealthDisplay(services);
+            
+        } catch (error) {
+            console.error('Failed to load service health:', error);
+            // Fallback to error state
+            const services = {
+                fastapi: { status: 'error', responseTime: 0, requestsPerMin: 0, errorRate: 100 },
+                websocket: { status: 'disconnected', activeConnections: 0, messagesPerSec: 0, latency: 0 },
+                mlEngine: { 
+                    status: 'error',
+                    modelsLoaded: 0,
+                    predictionsPerMin: 0,
+                    accuracy: 0
+                },
+                dataProcessor: {
+                    status: 'error',
+                    queueSize: 0,
+                    processingRate: 0
+                }
+            };
         
         this.metrics.services = services;
         this.updateServiceHealthDisplay(services);
     }
     
     async loadPerformanceMetrics() {
-        // Simulate loading performance metrics
-        const performance = {
-            training: {
-                avgTrainingTime: '14.2 seconds',
-                modelAccuracy: '94.7%',
-                inferenceSpeed: '45ms'
-            },
-            pipeline: {
-                successRate: '97.3%',
-                avgDuration: '8m 42s',
-                queueWaitTime: '23s'
-            }
-        };
-        
-        this.metrics.performance = performance;
-        this.updatePerformanceMetricsDisplay(performance);
+        try {
+            // Load real performance metrics from backend API
+            const metricsData = await API.getMonitoringMetrics();
+            
+            // Transform backend data to frontend format
+            const performance = {
+                training: {
+                    avgTrainingTime: metricsData.avg_training_time || '0 seconds',
+                    modelAccuracy: metricsData.model_accuracy ? `${metricsData.model_accuracy}%` : '0%',
+                    inferenceSpeed: metricsData.inference_speed || '0ms'
+                },
+                pipeline: {
+                    successRate: metricsData.pipeline_success_rate ? `${metricsData.pipeline_success_rate}%` : '0%',
+                    avgDuration: metricsData.avg_pipeline_duration || '0m 0s',
+                    queueWaitTime: metricsData.queue_wait_time || '0s'
+                }
+            };
+            
+            this.metrics.performance = performance;
+            this.updatePerformanceMetricsDisplay(performance);
+            
+        } catch (error) {
+            console.error('Failed to load performance metrics:', error);
+            // Fallback to default metrics on error
+            const performance = {
+                training: {
+                    avgTrainingTime: '0 seconds',
+                    modelAccuracy: '0%',
+                    inferenceSpeed: '0ms'
+                },
+                pipeline: {
+                    successRate: '0%',
+                    avgDuration: '0m 0s',
+                    queueWaitTime: '0s'
+                }
+            };
+            
+            this.metrics.performance = performance;
+            this.updatePerformanceMetricsDisplay(performance);
+        }
     }
     
     async loadAlerts() {
-        // Alerts are already rendered in HTML as static examples
-        // In a real implementation, this would load alerts from backend
-        this.showNotification('System alerts loaded', 'info');
+        try {
+            // Load real alerts from backend API
+            const alertsData = await API.getAlerts();
+            const alerts = alertsData.alerts || [];
+            
+            // Store alerts for future use
+            this.alerts = alerts;
+            
+            // Update alerts display
+            this.updateAlertsDisplay(alerts);
+            
+            this.showNotification(`Loaded ${alerts.length} system alerts`, 'info');
+            
+        } catch (error) {
+            console.error('Failed to load alerts:', error);
+            // Fallback to empty alerts list
+            this.alerts = [];
+            this.updateAlertsDisplay([]);
+            this.showNotification('Failed to load alerts', 'error');
+        }
     }
     
     updateSystemMetricsDisplay(metrics) {
@@ -243,6 +340,12 @@ class SystemMonitor {
         // Performance metrics are already rendered in HTML
         // In a real implementation, this would update performance indicators
         this.showNotification('Performance metrics updated', 'info');
+    }
+    
+    updateAlertsDisplay(alerts) {
+        // Alerts are already rendered in HTML as static examples
+        // In a real implementation, this would dynamically render alert items
+        this.showNotification('System alerts updated', 'info');
     }
     
     startRealTimeUpdates() {
@@ -322,15 +425,27 @@ class SystemMonitor {
         this.loadAlerts();
     }
     
-    clearAllAlerts() {
+    async clearAllAlerts() {
         if (confirm('Are you sure you want to clear all alerts?')) {
             this.showNotification('Clearing all system alerts...', 'info');
             
-            // In a real implementation, this would call the backend API
-            // to clear all alerts and update the UI
-            setTimeout(() => {
+            try {
+                // Clear all alerts by acknowledging each one
+                const clearPromises = this.alerts.map(alert => 
+                    API.acknowledgeAlert(alert.id, 'system_admin')
+                );
+                
+                await Promise.all(clearPromises);
+                
+                // Reload alerts to show updated state
+                await this.loadAlerts();
+                
                 this.showNotification('All alerts cleared', 'success');
-            }, 1000);
+                
+            } catch (error) {
+                console.error('Failed to clear alerts:', error);
+                this.showNotification('Failed to clear alerts', 'error');
+            }
         }
     }
     
@@ -360,17 +475,33 @@ class SystemMonitor {
         }
     }
     
-    acknowledgeAlert(title, alertItem) {
+    async acknowledgeAlert(title, alertItem) {
         this.showNotification(`Acknowledging alert: ${title}`, 'info');
         
         // Fade out the alert
         alertItem.style.opacity = '0.5';
         alertItem.style.pointerEvents = 'none';
         
-        // In a real implementation, this would call the backend API
-        setTimeout(() => {
-            this.showNotification(`Alert acknowledged: ${title}`, 'success');
-        }, 500);
+        try {
+            // Find the alert ID from the stored alerts
+            const alert = this.alerts.find(a => a.title === title || a.message === title);
+            if (alert) {
+                await API.acknowledgeAlert(alert.id, 'user');
+                this.showNotification(`Alert acknowledged: ${title}`, 'success');
+                
+                // Reload alerts to show updated state
+                await this.loadAlerts();
+            } else {
+                this.showNotification(`Alert acknowledged: ${title}`, 'success');
+            }
+        } catch (error) {
+            console.error('Failed to acknowledge alert:', error);
+            this.showNotification(`Failed to acknowledge alert: ${title}`, 'error');
+            
+            // Restore alert state on error
+            alertItem.style.opacity = '1';
+            alertItem.style.pointerEvents = 'auto';
+        }
     }
     
     dismissAlert(title, alertItem) {

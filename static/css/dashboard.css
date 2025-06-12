@@ -215,3 +215,34 @@
         font-size: 2rem;
     }
 }
+
+/* Deployed model styles */
+.metric-card.deployed {
+    border-color: var(--success-color);
+    box-shadow: 0 0 10px rgba(40, 167, 69, 0.2);
+}
+
+.model-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.model-status.deployed {
+    background-color: var(--success-color);
+    color: white;
+}
+
+/* Prediction milestone animation */
+@keyframes milestoneReached {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.milestone-animation {
+    animation: milestoneReached 0.5s ease-in-out;
+}

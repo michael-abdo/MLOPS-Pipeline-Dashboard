@@ -168,47 +168,44 @@ class DataManager {
     }
     
     async loadDatasets() {
-        // Simulate loading datasets from backend
-        // In real implementation, this would call the backend API
-        const datasets = [
-            {
-                id: 'dataset-001',
-                name: 'simple_test_data.csv',
-                description: 'Training dataset for basic model testing',
-                status: 'ready',
-                type: 'CSV',
-                size: '89.2 KB',
-                rows: 1250,
-                columns: 8,
-                uploadedAt: Date.now() - 86400000, // 1 day ago
-            },
-            {
-                id: 'dataset-002',
-                name: 'customer_segments.json',
-                description: 'Customer segmentation analysis results',
-                status: 'processing',
-                type: 'JSON',
-                size: '2.3 MB',
-                rows: 45680,
-                columns: 15,
-                uploadedAt: Date.now() - 3600000, // 1 hour ago
-            },
-            {
-                id: 'dataset-003',
-                name: 'large_dataset.parquet',
-                description: 'Large-scale production dataset',
-                status: 'error',
-                type: 'Parquet',
-                size: '156.8 MB',
-                rows: null,
-                columns: null,
-                error: 'File format validation failed',
-                uploadedAt: Date.now() - 7200000, // 2 hours ago
-            }
-        ];
-        
-        this.datasets = datasets;
-        this.renderDatasets();
+        try {
+            // Load real datasets from backend API
+            const response = await API.getDatasets();
+            const backendDatasets = response.datasets || [];
+            
+            // Transform backend data to match frontend expectations
+            const datasets = backendDatasets.map(dataset => ({
+                id: dataset.id,
+                name: dataset.name,
+                description: `Dataset with ${dataset.rows} rows and ${dataset.columns} columns`,
+                status: dataset.status === 'available' ? 'ready' : dataset.status,
+                type: dataset.file_type ? dataset.file_type.toUpperCase() : 'CSV',
+                size: this.formatFileSize(dataset.size || 0),
+                rows: dataset.rows,
+                columns: dataset.columns,
+                uploadedAt: dataset.created_at ? new Date(dataset.created_at).getTime() : Date.now(),
+                error: dataset.status === 'error' ? 'Processing failed' : null
+            }));
+            
+            this.datasets = datasets;
+            this.renderDatasetList();
+            this.updateDatasetStats();
+            
+        } catch (error) {
+            console.error('Failed to load datasets:', error);
+            // Fallback to empty list on error
+            this.datasets = [];
+            this.renderDatasetList();
+            this.showNotification('Failed to load datasets', 'error');
+        }
+    }
+    
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     }
     
     async loadProcessingJobs() {
@@ -291,12 +288,10 @@ class DataManager {
         }
         
         try {
-            // Simulate file upload
-            // In real implementation, this would upload to backend
-            for (let progress = 0; progress <= 100; progress += 10) {
-                await new Promise(resolve => setTimeout(resolve, 200));
+            // Upload file using real backend API
+            const result = await API.uploadDataset(file, (progress) => {
                 this.updateUploadProgress({ progress });
-            }
+            });
             
             this.showNotification(`${file.name} uploaded successfully!`, 'success');
             
@@ -307,7 +302,7 @@ class DataManager {
                 }, 1000);
             }
             
-            // Reload datasets
+            // Reload datasets to show the new upload
             await this.loadDatasets();
             
         } catch (error) {

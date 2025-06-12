@@ -111,6 +111,16 @@ class Dashboard {
         wsManager.on('health_change', (data) => {
             this.updateSystemHealth(data);
         });
+        
+        // Prediction volume milestones
+        wsManager.on('prediction_volume', (data) => {
+            this.handlePredictionVolume(data);
+        });
+        
+        // Model deployed
+        wsManager.on('model_deployed', (data) => {
+            this.handleModelDeployed(data);
+        });
     }
     
     async loadInitialData() {
@@ -446,6 +456,72 @@ class Dashboard {
                 default:
                     healthEl.textContent = '✅';
             }
+        }
+    }
+    
+    handlePredictionVolume(data) {
+        // Show notification for prediction milestones
+        const message = data.message || `Prediction milestone reached: ${data.total_predictions} predictions!`;
+        
+        // Use global notifications object
+        if (window.notifications) {
+            window.notifications.show(message, 'info', 7000);
+        }
+        
+        // Update prediction counter in the dashboard
+        const totalPredictionsEl = document.getElementById('totalPredictions');
+        if (totalPredictionsEl) {
+            totalPredictionsEl.textContent = data.total_predictions.toLocaleString();
+        }
+        
+        // Also update any model-specific prediction counters
+        if (data.model_id) {
+            const modelCard = document.querySelector(`[data-model-id="${data.model_id}"]`);
+            if (modelCard) {
+                const predCountEl = modelCard.querySelector('.prediction-count');
+                if (predCountEl) {
+                    predCountEl.textContent = `${data.total_predictions} predictions`;
+                }
+            }
+        }
+    }
+    
+    handleModelDeployed(data) {
+        // Show notification for model deployment
+        const modelName = data.model_name || 'Model';
+        const accuracy = data.model_accuracy ? ` (${(data.model_accuracy * 100).toFixed(1)}% accuracy)` : '';
+        const message = `🚀 ${modelName} has been deployed successfully${accuracy}!`;
+        
+        // Use global notifications object
+        if (window.notifications) {
+            window.notifications.show(message, 'success', 8000);
+        }
+        
+        // Refresh models list to show updated deployment status
+        this.loadCurrentModelMetrics();
+        
+        // Update deployment status if this model is currently displayed
+        const modelCards = document.querySelectorAll('.metric-card');
+        modelCards.forEach(card => {
+            const modelNameEl = card.querySelector('.model-name');
+            if (modelNameEl && modelNameEl.textContent === modelName) {
+                // Add visual indicator for deployed status
+                card.classList.add('deployed');
+                
+                // Update any status indicator
+                const statusEl = card.querySelector('.model-status');
+                if (statusEl) {
+                    statusEl.textContent = 'Deployed';
+                    statusEl.className = 'model-status deployed';
+                }
+            }
+        });
+        
+        // Update active models count
+        const activeModelsEl = document.getElementById('activeModels');
+        if (activeModelsEl) {
+            const currentCount = parseInt(activeModelsEl.textContent) || 0;
+            activeModelsEl.textContent = currentCount + 1;
         }
     }
     

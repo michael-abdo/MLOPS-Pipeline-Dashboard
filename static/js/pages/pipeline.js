@@ -99,53 +99,86 @@ class Pipeline {
     }
     
     async loadPipelineStats() {
-        // Simulate loading pipeline statistics
-        // In real implementation, this would call the backend API
-        const stats = {
-            active: 2,
-            completedToday: 5,
-            avgDuration: '12m'
-        };
-        
-        this.updateStatsDisplay(stats);
+        try {
+            // Load real pipeline statistics from backend
+            const pipelineData = await API.getPipelines();
+            const pipelines = pipelineData.pipelines || [];
+            
+            // Calculate real statistics
+            const activePipelines = pipelines.filter(p => p.status === 'running' || p.status === 'active');
+            const completedToday = pipelines.filter(p => {
+                if (p.status === 'completed' && p.updated_at) {
+                    const updatedDate = new Date(p.updated_at);
+                    const today = new Date();
+                    return updatedDate.toDateString() === today.toDateString();
+                }
+                return false;
+            });
+            
+            const stats = {
+                active: activePipelines.length,
+                completedToday: completedToday.length,
+                avgDuration: '12m', // TODO: Calculate from real data
+                total: pipelines.length
+            };
+            
+            this.updateStatsDisplay(stats);
+        } catch (error) {
+            console.error('Failed to load pipeline stats:', error);
+            // Fallback to default stats on error
+            const stats = {
+                active: 0,
+                completedToday: 0,
+                avgDuration: '--',
+                total: 0
+            };
+            this.updateStatsDisplay(stats);
+        }
     }
     
     async loadActivePipelines() {
-        // Simulate loading active pipelines
-        // In real implementation, this would call the backend API
-        const pipelines = [
-            {
-                id: 'pipe-001',
-                name: 'Customer Segmentation Training',
-                description: 'Training RandomForest model with customer data',
-                status: 'running',
-                progress: 42,
-                step: 'Feature Engineering (3/7)',
-                startTime: Date.now() - 120000, // 2 minutes ago
-            },
-            {
-                id: 'pipe-002',
-                name: 'Product Recommendation Model',
-                description: 'Collaborative filtering pipeline completed',
-                status: 'completed',
-                progress: 100,
-                duration: '8m 34s',
-                accuracy: 89.2,
-                completedTime: Date.now() - 3600000, // 1 hour ago
-            },
-            {
-                id: 'pipe-003',
-                name: 'Fraud Detection Pipeline',
-                description: 'Failed during data validation step',
-                status: 'failed',
-                progress: 15,
-                error: 'Invalid column format',
-                failedTime: Date.now() - 10800000, // 3 hours ago
-            }
-        ];
-        
-        this.pipelines = pipelines;
-        this.renderPipelineList();
+        try {
+            // Load real pipelines from backend API
+            const pipelineData = await API.getPipelines();
+            const pipelines = pipelineData.pipelines || [];
+            
+            // Transform backend data to match frontend expectations
+            this.pipelines = pipelines.map(pipeline => ({
+                id: pipeline.id,
+                name: pipeline.name,
+                description: pipeline.description || 'No description',
+                status: pipeline.status || 'draft',
+                progress: this.calculateProgress(pipeline),
+                step: this.getCurrentStep(pipeline),
+                startTime: pipeline.created_at ? new Date(pipeline.created_at).getTime() : Date.now(),
+                completedTime: pipeline.updated_at ? new Date(pipeline.updated_at).getTime() : null,
+                steps: pipeline.steps || []
+            }));
+            
+            this.renderPipelineList();
+        } catch (error) {
+            console.error('Failed to load pipelines:', error);
+            this.pipelines = [];
+            this.renderPipelineList();
+            this.showNotification('Failed to load pipelines', 'error');
+        }
+    }
+    
+    calculateProgress(pipeline) {
+        if (pipeline.status === 'completed') return 100;
+        if (pipeline.status === 'failed') return 0;
+        if (pipeline.status === 'running') return 50; // Mock progress for now
+        return 0;
+    }
+    
+    getCurrentStep(pipeline) {
+        if (pipeline.status === 'completed') return 'Completed';
+        if (pipeline.status === 'failed') return 'Failed';
+        if (pipeline.status === 'running') return 'Running...';
+        if (pipeline.steps && pipeline.steps.length > 0) {
+            return `${pipeline.steps[0].name || 'Step 1'} (1/${pipeline.steps.length})`;
+        }
+        return 'Ready to start';
     }
     
     updateStatsDisplay(stats) {
@@ -167,18 +200,72 @@ class Pipeline {
         // This provides a foundation for future dynamic pipeline management
     }
     
-    createPipeline(template) {
-        // Pipeline creation logic
+    async createPipeline(template) {
         this.showNotification(`Creating ${template} pipeline...`, 'info');
         
-        // Simulate pipeline creation
-        setTimeout(() => {
+        try {
+            // Create real pipeline using backend API
+            const pipelineData = this.getTemplateData(template);
+            const result = await API.createPipeline(pipelineData);
+            
             this.showNotification(`${template} pipeline created successfully!`, 'success');
-            // In real implementation, this would:
-            // 1. Call backend API to create pipeline
-            // 2. Update pipeline list
-            // 3. Start monitoring pipeline status
-        }, 1000);
+            
+            // Refresh pipeline list
+            await this.loadActivePipelines();
+            await this.loadPipelineStats();
+            
+        } catch (error) {
+            console.error('Failed to create pipeline:', error);
+            this.showNotification(`Failed to create ${template} pipeline: ${error.message}`, 'error');
+        }
+    }
+    
+    getTemplateData(template) {
+        const templates = {
+            'Classification': {
+                name: 'Classification Pipeline',
+                description: 'Standard classification pipeline with preprocessing and model training',
+                steps: [
+                    { name: 'Data Validation', type: 'validation' },
+                    { name: 'Data Preprocessing', type: 'preprocessing' },
+                    { name: 'Feature Engineering', type: 'feature_engineering' },
+                    { name: 'Model Training', type: 'training' },
+                    { name: 'Model Evaluation', type: 'evaluation' }
+                ]
+            },
+            'Regression': {
+                name: 'Regression Pipeline',
+                description: 'Standard regression pipeline with feature selection',
+                steps: [
+                    { name: 'Data Validation', type: 'validation' },
+                    { name: 'Data Preprocessing', type: 'preprocessing' },
+                    { name: 'Feature Selection', type: 'feature_selection' },
+                    { name: 'Model Training', type: 'training' },
+                    { name: 'Model Evaluation', type: 'evaluation' }
+                ]
+            },
+            'NLP': {
+                name: 'NLP Pipeline',
+                description: 'Natural language processing pipeline with text preprocessing',
+                steps: [
+                    { name: 'Text Preprocessing', type: 'text_preprocessing' },
+                    { name: 'Tokenization', type: 'tokenization' },
+                    { name: 'Feature Extraction', type: 'feature_extraction' },
+                    { name: 'Model Training', type: 'training' },
+                    { name: 'Model Evaluation', type: 'evaluation' }
+                ]
+            }
+        };
+        
+        return templates[template] || {
+            name: `${template} Pipeline`,
+            description: `Custom ${template} pipeline`,
+            steps: [
+                { name: 'Data Processing', type: 'processing' },
+                { name: 'Model Training', type: 'training' },
+                { name: 'Evaluation', type: 'evaluation' }
+            ]
+        };
     }
     
     handlePipelineAction(action, pipelineItem) {

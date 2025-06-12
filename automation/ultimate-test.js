@@ -24,12 +24,12 @@ async function runTestMultipleTimes() {
             // Run the test
             execSync('node tests/upload-csv.test.js', {
                 stdio: 'inherit',
-                cwd: path.join(__dirname)
+                cwd: __dirname
             });
             success = true;
             console.log(`✅ Test ${i} completed successfully`);
         } catch (err) {
-            error = err.message;
+            error = err.message || err.toString();
             console.error(`❌ Test ${i} failed:`, error);
         }
         
