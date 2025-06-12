@@ -1,0 +1,261 @@
+/* Critical CSS - Above-the-fold styles for immediate loading */
+/* This CSS is inlined in HTML head for fastest rendering */
+
+:root {
+    --primary-color: #2563eb;
+    --primary-dark: #1d4ed8;
+    --success-color: #10b981;
+    --success-dark: #059669;
+    --warning-color: #f59e0b;
+    --warning-dark: #d97706;
+    --danger-color: #ef4444;
+    --danger-dark: #dc2626;
+    --background-color: #f8fafc;
+    --surface-primary: #ffffff;
+    --surface-secondary: #f1f5f9;
+    --surface-hover: #e2e8f0;
+    --border-color: #e2e8f0;
+    --text-primary: #1e293b;
+    --text-secondary: #475569; /* Improved contrast for WCAG AA */
+    --text-tertiary: #64748b;
+    
+    /* Color RGB values for rgba usage */
+    --surface-primary-rgb: 255, 255, 255;
+    --primary-light: rgba(37, 99, 235, 0.1);
+    --success-light: rgba(16, 185, 129, 0.1);
+    --warning-light: rgba(245, 158, 11, 0.1);
+    --danger-light: rgba(239, 68, 68, 0.1);
+    
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+}
+
+/* Essential Reset */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* Critical Base Styles */
+html {
+    height: 100%;
+}
+
+body {
+    font-family: var(--font-family);
+    background: var(--background-color);
+    color: var(--text-primary);
+    line-height: 1.6;
+    height: 100%;
+    overflow-x: hidden;
+}
+
+/* Critical Navigation - Above the fold */
+.main-nav {
+    background: var(--surface-primary);
+    border-bottom: 2px solid var(--border-color);
+    padding: var(--spacing-md) var(--spacing-xl);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 1000;
+}
+
+.nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-brand h1 {
+    color: var(--primary-color);
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin: 0;
+}
+
+.nav-menu {
+    display: flex;
+    gap: var(--spacing-xl);
+    list-style: none;
+}
+
+.nav-link {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: inline-block;
+}
+
+.nav-link:hover, 
+.nav-link:focus, 
+.nav-link.active {
+    color: var(--primary-color);
+    background: var(--primary-light);
+    outline: none;
+}
+
+/* Enhanced focus indicators for accessibility */
+.nav-link:focus {
+    outline: 3px solid #ffbf47;
+    outline-offset: 2px;
+}
+
+/* Critical Layout Container */
+.main-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-xl);
+    min-height: calc(100vh - 120px);
+}
+
+/* Critical Typography */
+.page-header {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+}
+
+.page-title {
+    font-size: 2rem;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+    font-weight: 600;
+}
+
+.page-subtitle {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+/* Critical Card Layout */
+.card {
+    background: var(--surface-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Critical Loading States */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Critical Status Indicators with Accessibility */
+.connection-status {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: 2px solid transparent;
+    position: relative;
+}
+
+.connection-status::before {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: var(--spacing-xs);
+    vertical-align: middle;
+}
+
+.connection-status.connected {
+    background: var(--success-light);
+    color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.connection-status.connected::before {
+    background: var(--success-color);
+    content: "✓ ";
+    width: auto;
+    height: auto;
+    border-radius: 0;
+    font-weight: bold;
+}
+
+.connection-status.disconnected {
+    background: var(--danger-light);
+    color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+.connection-status.disconnected::before {
+    background: var(--danger-color);
+    content: "⚠ ";
+    width: auto;
+    height: auto;
+    border-radius: 0;
+    font-weight: bold;
+}
+
+.connection-status.connecting {
+    background: var(--warning-light);
+    color: var(--warning-color);
+    border-color: var(--warning-color);
+}
+
+.connection-status.connecting::before {
+    background: var(--warning-color);
+    content: "⟳ ";
+    width: auto;
+    height: auto;
+    border-radius: 0;
+    font-weight: bold;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Critical Responsive Design */
+@media (max-width: 768px) {
+    .main-nav {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    
+    .nav-container {
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+    
+    .nav-menu {
+        gap: var(--spacing-md);
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .main-content {
+        padding: var(--spacing-md);
+    }
+    
+    .page-title {
+        font-size: 1.5rem;
+    }
+}

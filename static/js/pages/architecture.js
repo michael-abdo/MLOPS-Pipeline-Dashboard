@@ -1,12 +1,20 @@
 import { wsManager } from '../common/websocket.js';
 import { API } from '../common/api.js';
+import { Card, Metric, ProgressBar, Grid, ButtonGroup, UploadArea, ChartContainer, initializeUIComponents } from '../components/ui-components.js';
+import { BasePageController } from '../common/lifecycle.js';
+import { demoData } from '../common/demo-data.js';
+import { CONFIG } from '../common/config.js';
+import { ErrorHandler, ErrorSeverity, ErrorCategory, RecoveryStrategy } from '../common/error-handler.js';
+import { withErrorHandling } from '../common/error-utils.js';
 
 /**
  * Architecture Page Controller
  * Handles system architecture visualization and component health monitoring
  */
-class Architecture {
+class Architecture extends BasePageController {
     constructor() {
+        super(); // Initialize lifecycle management
+        
         this.components = {};
         this.metrics = {};
         
@@ -14,6 +22,9 @@ class Architecture {
     }
     
     async init() {
+        // Initialize components
+        this.initializeComponents();
+        
         // Setup event listeners
         this.setupEventListeners();
         
@@ -27,35 +38,45 @@ class Architecture {
         this.startRealTimeUpdates();
     }
     
+    initializeComponents() {
+        // Initialize UI components
+        initializeUIComponents();
+        
+        // Replace static cards with dynamic components
+        this.renderDynamicCards();
+    }
+    
     setupEventListeners() {
-        // Component interaction handlers
-        document.addEventListener('click', (e) => {
+        // Component interaction handlers - using managed event listeners
+        const componentClickHandler = (e) => {
             if (e.target.matches('.arch-component')) {
                 this.handleComponentClick(e.target);
             }
-        });
+        };
+        this.addEventListener(document, 'click', componentClickHandler);
         
-        // Integration point interaction handlers
-        document.addEventListener('click', (e) => {
+        // Integration point interaction handlers - using managed event listeners
+        const integrationClickHandler = (e) => {
             if (e.target.matches('.integration-item')) {
                 this.handleIntegrationClick(e.target);
             }
-        });
+        };
+        this.addEventListener(document, 'click', integrationClickHandler);
     }
     
     setupWebSocketListeners() {
-        // Component health updates
-        wsManager.on('component_health', (data) => {
+        // Component health updates - using managed WebSocket handlers
+        this.addWebSocketHandler('component_health', (data) => {
             this.updateComponentHealth(data);
         });
         
-        // System metrics updates
-        wsManager.on('system_metrics', (data) => {
+        // System metrics updates - using managed WebSocket handlers
+        this.addWebSocketHandler('system_metrics', (data) => {
             this.updateSystemMetrics(data);
         });
         
-        // Integration status updates
-        wsManager.on('integration_status', (data) => {
+        // Integration status updates - using managed WebSocket handlers
+        this.addWebSocketHandler('integration_status', (data) => {
             this.updateIntegrationStatus(data);
         });
     }
@@ -72,7 +93,13 @@ class Architecture {
             await this.loadIntegrationStatus();
             
         } catch (error) {
-            console.error('Failed to load architecture data:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.HIGH,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.RETRY,
+                userMessage: 'Failed to load architecture data. Please check your connection and try again.',
+                context: { component: 'Architecture', action: 'loadInitialData' }
+            });
             this.showNotification('Failed to load architecture data', 'error');
         }
     }
@@ -117,7 +144,13 @@ class Architecture {
             this.updateComponentHealthDisplay(componentsByType);
             
         } catch (error) {
-            console.error('Failed to load component health:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                userMessage: 'Unable to load component health status. Showing error state.',
+                context: { component: 'Architecture', action: 'loadComponentHealth' }
+            });
             // Fallback to default status
             this.components = {
                 frontend: { dashboard: 'error', websocketClient: 'error', apiClient: 'error' },
@@ -136,7 +169,7 @@ class Architecture {
             const metrics = {
                 apiLatency: this.calculateAverageResponseTime(),
                 wsLatency: wsManager.getConnectionQuality().latency || 0,
-                throughput: 150, // TODO: Calculate from real data
+                throughput: CONFIG.DEMO.ENABLED ? 150 : 0, // Use demo value in demo mode
                 cpuUsage: metricsData.cpu_usage || 0,
                 memoryUsage: metricsData.memory_usage || 0,
                 diskUsage: metricsData.disk_usage || 0
@@ -146,7 +179,13 @@ class Architecture {
             this.updateSystemMetricsDisplay(metrics);
             
         } catch (error) {
-            console.error('Failed to load system metrics:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                userMessage: 'Unable to load system metrics. Showing default values.',
+                context: { component: 'Architecture', action: 'loadSystemMetrics' }
+            });
             // Fallback to default metrics
             const metrics = {
                 apiLatency: 0,
@@ -162,8 +201,13 @@ class Architecture {
     }
     
     calculateAverageResponseTime() {
-        // This could be enhanced to track actual response times
-        return Math.floor(Math.random() * 50) + 10; // 10-60ms
+        if (CONFIG.DEMO.ENABLED) {
+            // Use demo data with some variation
+            return Math.floor(Math.random() * 50) + 10; // 10-60ms
+        } else {
+            // Return 0 for production mode when no real data available
+            return 0;
+        }
     }
     
     async loadIntegrationStatus() {
@@ -195,8 +239,8 @@ class Architecture {
     }
     
     startRealTimeUpdates() {
-        // Start periodic updates for real-time metrics
-        setInterval(() => {
+        // Start periodic updates for real-time metrics using managed timer
+        this.addTimer(() => {
             this.simulateMetricUpdates();
         }, 3000); // Update every 3 seconds
     }
@@ -293,6 +337,151 @@ class Architecture {
         };
         
         console.log(`${emoji[type] || 'ℹ️'} Architecture: ${message}`);
+    }
+    
+    renderDynamicCards() {
+        // Replace all static cards with dynamic components
+        this.replaceSystemArchitectureCard();
+        this.replaceComponentHealthCard();
+        this.replaceIntegrationPointsCard();
+        this.replaceSystemPerformanceCard();
+    }
+    
+    replaceSystemArchitectureCard() {
+        // The architecture diagram is complex visual content
+        // Keep as static HTML for now, but could be enhanced with interactive SVG
+        // in future iterations
+    }
+    
+    replaceComponentHealthCard() {
+        const cards = document.querySelectorAll('.card');
+        let healthCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('Component Health')) {
+                healthCard = card;
+            }
+        });
+        
+        if (!healthCard) return;
+        
+        const healthContent = document.createElement('div');
+        healthContent.className = 'component-health-grid';
+        
+        // Copy existing component status grid
+        const existingGrid = healthCard.querySelector('.grid');
+        if (existingGrid) {
+            healthContent.innerHTML = existingGrid.innerHTML;
+        }
+        
+        const newCard = Card.create({
+            title: 'Component Health',
+            icon: '📊',
+            content: healthContent,
+            id: 'componentHealthCard'
+        });
+        
+        healthCard.parentNode.replaceChild(newCard, healthCard);
+    }
+    
+    replaceIntegrationPointsCard() {
+        const cards = document.querySelectorAll('.card');
+        let integrationCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('Integration Points')) {
+                integrationCard = card;
+            }
+        });
+        
+        if (!integrationCard) return;
+        
+        const integrationContent = document.createElement('div');
+        integrationContent.className = 'integration-list';
+        
+        // Copy existing integration list
+        const existingList = integrationCard.querySelector('.integration-list');
+        if (existingList) {
+            integrationContent.innerHTML = existingList.innerHTML;
+        }
+        
+        const newCard = Card.create({
+            title: 'Integration Points',
+            icon: '🔗',
+            content: integrationContent,
+            id: 'integrationPointsCard'
+        });
+        
+        integrationCard.parentNode.replaceChild(newCard, integrationCard);
+    }
+    
+    replaceSystemPerformanceCard() {
+        const cards = document.querySelectorAll('.card');
+        let performanceCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('System Performance')) {
+                performanceCard = card;
+            }
+        });
+        
+        if (!performanceCard) return;
+        
+        const performanceContent = document.createElement('div');
+        
+        // Create metrics grid using UI components
+        const metricsGrid = Grid.createMetricGrid([
+            {
+                value: this.metrics.apiLatency || 0,
+                label: 'API Response Time',
+                format: 'custom',
+                id: 'apiLatency',
+                suffix: 'ms'
+            },
+            {
+                value: this.metrics.wsLatency || 0,
+                label: 'WebSocket Latency',
+                format: 'custom',
+                id: 'wsLatency',
+                suffix: 'ms'
+            },
+            {
+                value: this.metrics.throughput || 0,
+                label: 'Request Throughput',
+                format: 'custom',
+                id: 'throughput',
+                suffix: '/s'
+            }
+        ], {
+            columns: 3,
+            gap: 'lg',
+            responsive: { sm: 1, md: 3 }
+        });
+        
+        performanceContent.appendChild(metricsGrid);
+        
+        const newCard = Card.create({
+            title: 'System Performance',
+            icon: '📈',
+            content: performanceContent,
+            id: 'systemPerformanceCard'
+        });
+        
+        performanceCard.parentNode.replaceChild(newCard, performanceCard);
+    }
+
+    /**
+     * Custom cleanup logic for architecture page
+     */
+    customCleanup() {
+        // Clear components and metrics
+        this.components = {};
+        this.metrics = {};
+        
+        console.log('Architecture: Custom cleanup completed');
     }
 }
 

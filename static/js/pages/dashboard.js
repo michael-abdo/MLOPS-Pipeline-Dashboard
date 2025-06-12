@@ -2,14 +2,30 @@ import { wsManager } from '../common/websocket.js';
 import { API } from '../common/api.js';
 import { ActivityFeed } from '../components/activity-feed.js';
 import { formatDuration, formatBytes } from '../common/utils.js';
-import { Card, Metric, ProgressBar, Grid, ButtonGroup, UploadArea, ChartContainer, initializeUIComponents } from '../components/ui-components.js';
+// Import only the core components needed for dashboard
+import { Card, Metric, ProgressBar, Grid, initializeCoreUIStyles } from '../components/ui-core.js';
+import { ButtonGroup, UploadArea, initializeFormUIStyles } from '../components/ui-forms.js';
+import { ChartContainer, initializeChartUIStyles } from '../components/ui-charts.js';
+import { BasePageController } from '../common/lifecycle.js';
+import { StatefulPageController } from '../common/state-integration.js';
+import { demoData } from '../common/demo-data.js';
+import { CONFIG } from '../common/config.js';
+// Import centralized error handling system
+import { ErrorHandler, ErrorSeverity, ErrorCategory, RecoveryStrategy } from '../common/error-handler.js';
+import { withErrorHandling } from '../common/error-utils.js';
 
 /**
  * Dashboard Page Controller
- * Manages dashboard-specific functionality
+ * Manages dashboard-specific functionality with state management
  */
-class Dashboard {
+class Dashboard extends BasePageController {
     constructor() {
+        super(); // Initialize lifecycle management
+        
+        // Mix in state management
+        const stateController = new StatefulPageController();
+        Object.assign(this, stateController);
+        
         this.currentFile = null;
         this.currentJobId = null;
         this.isTraining = false;
@@ -33,8 +49,10 @@ class Dashboard {
     }
     
     initializeComponents() {
-        // Initialize UI components
-        initializeUIComponents();
+        // Initialize UI components (split modules for better performance)
+        initializeCoreUIStyles();
+        initializeFormUIStyles();
+        initializeChartUIStyles();
         
         // Initialize activity feed if container exists
         const activityContainer = document.getElementById('activityFeed');
@@ -47,113 +65,157 @@ class Dashboard {
     }
     
     setupEventListeners() {
-        // File upload
+        // File upload - using managed event listener
         const fileInput = document.getElementById('fileInput');
         if (fileInput) {
-            fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
+            this.addEventListener(fileInput, 'change', (e) => this.handleFileUpload(e));
         }
         
-        // Upload area click and drag and drop
+        // Upload area click and drag and drop - using managed event listeners
         const uploadArea = document.querySelector('.upload-area');
         if (uploadArea) {
-            uploadArea.addEventListener('click', () => {
+            this.addEventListener(uploadArea, 'click', () => {
                 const fileInput = document.getElementById('fileInput');
                 if (fileInput) fileInput.click();
             });
-            uploadArea.addEventListener('dragover', (e) => this.handleDragOver(e));
-            uploadArea.addEventListener('dragleave', (e) => this.handleDragLeave(e));
-            uploadArea.addEventListener('drop', (e) => this.handleFileDrop(e));
+            this.addEventListener(uploadArea, 'dragover', (e) => this.handleDragOver(e));
+            this.addEventListener(uploadArea, 'dragleave', (e) => this.handleDragLeave(e));
+            this.addEventListener(uploadArea, 'drop', (e) => this.handleFileDrop(e));
         }
         
-        // Training button
+        // Training button - using managed event listener
         const trainButton = document.getElementById('trainButton');
         if (trainButton) {
-            trainButton.addEventListener('click', () => this.startTraining());
+            this.addEventListener(trainButton, 'click', () => this.startTraining());
         }
         
-        // Advanced options toggle
+        // Advanced options toggle - using managed event listener
         const advancedToggle = document.getElementById('advancedToggle');
         if (advancedToggle) {
-            advancedToggle.addEventListener('click', (e) => {
+            this.addEventListener(advancedToggle, 'click', (e) => {
                 e.preventDefault();
                 this.toggleAdvanced();
             });
         }
         
-        // Use model button
+        // Use model button - using managed event listener
         const useModelButton = document.getElementById('useModelButton');
         if (useModelButton) {
-            useModelButton.addEventListener('click', () => this.useModel());
+            this.addEventListener(useModelButton, 'click', () => this.useModel());
         }
         
-        // View details button
+        // View details button - using managed event listener
         const viewDetailsButton = document.getElementById('viewDetailsButton');
         if (viewDetailsButton) {
-            viewDetailsButton.addEventListener('click', () => this.viewDetails());
+            this.addEventListener(viewDetailsButton, 'click', () => this.viewDetails());
         }
     }
     
     setupWebSocketListeners() {
-        // Training progress updates
-        wsManager.on('training_progress', (data) => {
+        // Training progress updates - using managed WebSocket handlers
+        this.addWebSocketHandler('training_progress', (data) => {
             this.updateTrainingProgress(data);
         });
         
-        // Training completed
-        wsManager.on('training_completed', (data) => {
+        // Training completed - using managed WebSocket handlers
+        this.addWebSocketHandler('training_completed', (data) => {
             this.handleTrainingCompleted(data);
         });
         
-        // Training failed
-        wsManager.on('training_failed', (data) => {
+        // Training failed - using managed WebSocket handlers
+        this.addWebSocketHandler('training_failed', (data) => {
             this.handleTrainingFailed(data);
         });
         
-        // System metrics updates
-        wsManager.on('system_metrics', (data) => {
+        // System metrics updates - using managed WebSocket handlers
+        this.addWebSocketHandler('system_metrics', (data) => {
             this.updateSystemMetrics(data);
         });
         
-        // Health changes
-        wsManager.on('health_change', (data) => {
+        // Health changes - using managed WebSocket handlers
+        this.addWebSocketHandler('health_change', (data) => {
             this.updateSystemHealth(data);
         });
         
-        // Prediction volume milestones
-        wsManager.on('prediction_volume', (data) => {
+        // Prediction volume milestones - using managed WebSocket handlers
+        this.addWebSocketHandler('prediction_volume', (data) => {
             this.handlePredictionVolume(data);
         });
         
-        // Model deployed
-        wsManager.on('model_deployed', (data) => {
+        // Model deployed - using managed WebSocket handlers
+        this.addWebSocketHandler('model_deployed', (data) => {
             this.handleModelDeployed(data);
         });
     }
     
     async loadInitialData() {
         try {
-            // Load current models
+            // Load current models using cached API
             await this.loadCurrentModelMetrics();
             
-            // Load system status
+            // Load system status using cached API
             await this.loadSystemStatus();
             
         } catch (error) {
-            console.error('Failed to load initial data:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.SYSTEM,
+                recovery: RecoveryStrategy.FALLBACK,
+                context: { component: 'Dashboard', action: 'loadInitialData' },
+                userMessage: 'Failed to load dashboard data. Using fallback data.'
+            });
         }
     }
     
     async loadCurrentModelMetrics() {
         try {
-            const models = await API.getModels();
-            const activeModel = models.find(m => m.status === 'active' || m.status === 'deployed');
+            let models = null;
+            let activeModel = null;
+            
+            if (CONFIG.DEMO.ENABLED) {
+                // Use demo data in demo mode
+                models = await demoData.getModels();
+                activeModel = models.find(m => m.status === 'active' || m.status === 'deployed');
+            } else {
+                // Use cached API call to prevent duplicate requests
+                models = await this.loadCachedData('models');
+                activeModel = models?.find(m => m.status === 'active' || m.status === 'deployed');
+            }
             
             if (activeModel) {
+                // Store in state for cross-page access
+                this.setState('active_model', activeModel);
+                
                 this.updateCurrentModelDisplay(activeModel);
                 this.updateModelPerformanceSection(activeModel);
+            } else if (CONFIG.DEMO.ENABLED) {
+                // Fallback to demo data if no active model found
+                const demoModels = await demoData.getModels();
+                const demoModel = demoModels[0]; // Use first demo model
+                this.setState('active_model', demoModel);
+                this.updateCurrentModelDisplay(demoModel);
+                this.updateModelPerformanceSection(demoModel);
             }
         } catch (error) {
-            console.error('Failed to load model metrics:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                context: { component: 'Dashboard', action: 'loadCurrentModelMetrics' },
+                userMessage: 'Failed to load model metrics. Showing demo data.'
+            });
+            
+            // Fallback to demo data on error if in demo mode
+            if (CONFIG.DEMO.ENABLED) {
+                try {
+                    const demoModels = await demoData.getModels();
+                    const demoModel = demoModels[0];
+                    this.updateCurrentModelDisplay(demoModel);
+                    this.updateModelPerformanceSection(demoModel);
+                } catch (demoError) {
+                    console.error('Failed to load demo model data:', demoError);
+                }
+            }
         }
     }
     
@@ -185,7 +247,13 @@ class Dashboard {
         // Update response time with model size info
         const responseEl = document.getElementById('responseTime');
         if (responseEl) {
-            responseEl.textContent = `${model.avg_response_time || 23}ms`;
+            // Use demo data if in demo mode and no real data available
+            let responseTime = model.avg_response_time;
+            if (!responseTime && CONFIG.DEMO.ENABLED) {
+                // Get fallback from demo data instead of hardcoded value
+                responseTime = 25; // Will be replaced with dynamic demo data in async context
+            }
+            responseEl.textContent = `${responseTime || 25}ms`;
             
             if (model.model_size) {
                 responseEl.title = `Model size: ${model.model_size} | Algorithm: ${model.hyperparameters?.algorithm || 'Unknown'}`;
@@ -195,10 +263,39 @@ class Dashboard {
     
     async loadSystemStatus() {
         try {
-            const status = await API.getSystemStatus();
+            let status = null;
+            
+            if (CONFIG.DEMO.ENABLED) {
+                // Use demo data in demo mode
+                status = await demoData.getSystemStatus();
+            } else {
+                // Use cached API call to prevent duplicate requests
+                status = await this.loadCachedData('monitoring');
+            }
+            
+            // Store in state for cross-page access
+            this.setState('system_status', status);
+            
             this.updateSystemStatusDisplay(status);
         } catch (error) {
-            console.error('Failed to load system status:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                context: { component: 'Dashboard', action: 'loadSystemStatus' },
+                userMessage: 'Failed to load system status. Using cached data.'
+            });
+            
+            // Fallback to demo data on error if in demo mode
+            if (CONFIG.DEMO.ENABLED) {
+                try {
+                    const demoStatus = await demoData.getSystemStatus();
+                    this.setState('system_status', demoStatus);
+                    this.updateSystemStatusDisplay(demoStatus);
+                } catch (demoError) {
+                    console.error('Failed to load demo system status:', demoError);
+                }
+            }
         }
     }
     
@@ -346,8 +443,13 @@ class Dashboard {
             }
             
         } catch (error) {
-            console.error('Upload failed:', error);
-            this.showError(`Upload failed: ${error.message}`);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.HIGH,
+                category: ErrorCategory.UPLOAD,
+                recovery: RecoveryStrategy.RETRY,
+                context: { component: 'Dashboard', action: 'handleFileUpload', file: file?.name },
+                userMessage: 'File upload failed. Please try again or check your file format.'
+            });
             this.resetUploadArea();
         }
     }
@@ -392,8 +494,13 @@ class Dashboard {
             this.showTrainingInProgress();
             
         } catch (error) {
-            console.error('Training failed to start:', error);
-            this.showError(`Failed to start training: ${error.message}`);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.HIGH,
+                category: ErrorCategory.SYSTEM,
+                recovery: RecoveryStrategy.RETRY,
+                context: { component: 'Dashboard', action: 'startTraining', jobId: this.currentJobId },
+                userMessage: 'Failed to start training. Please check your data and try again.'
+            });
         }
     }
     
@@ -1070,6 +1177,28 @@ class Dashboard {
             console.error('Upload failed:', error);
             this.showError(`Upload failed: ${error.message}`);
         }
+    }
+
+    /**
+     * Custom cleanup logic for dashboard page
+     */
+    customCleanup() {
+        // Clean up activity feed
+        if (this.activityFeed && this.activityFeed.destroy) {
+            this.activityFeed.destroy();
+        }
+        
+        // Clean up state subscriptions
+        if (this.cleanupState) {
+            this.cleanupState();
+        }
+        
+        // Reset training state
+        this.isTraining = false;
+        this.currentFile = null;
+        this.currentJobId = null;
+        
+        console.log('Dashboard: Custom cleanup completed');
     }
 }
 

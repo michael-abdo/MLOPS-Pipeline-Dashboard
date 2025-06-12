@@ -1,25 +1,38 @@
 import { wsManager } from '../common/websocket.js';
 import { API } from '../common/api.js';
 import { ActivityFeed } from '../components/activity-feed.js';
-import { Card, Metric, ProgressBar, Grid, ButtonGroup, UploadArea, ChartContainer, initializeUIComponents } from '../components/ui-components.js';
+// Import only needed UI components (split modules for better performance)
+import { Card, Metric, ProgressBar, Grid, initializeCoreUIStyles } from '../components/ui-core.js';
+import { ChartContainer, initializeChartUIStyles } from '../components/ui-charts.js';
+import { BasePageController } from '../common/lifecycle.js';
+import { demoData } from '../common/demo-data.js';
+import { CONFIG } from '../common/config.js';
+import { ErrorHandler, ErrorSeverity, ErrorCategory, RecoveryStrategy } from '../common/error-handler.js';
+import { withErrorHandling } from '../common/error-utils.js';
 
 /**
  * System Monitoring Page Controller
  * Handles real-time system monitoring, performance metrics, and alerts
  */
-class SystemMonitor {
+class SystemMonitor extends BasePageController {
     constructor() {
+        super(); // Initialize lifecycle management
+        
         this.metrics = {};
         this.alerts = [];
         this.charts = {};
         this.activityFeed = null;
+        this.updateTimers = {
+            metrics: null,
+            charts: null
+        };
         
         this.init();
     }
     
     async init() {
         // Initialize components
-        this.initializeComponents();
+        await this.initializeComponents();
         
         // Setup event listeners
         this.setupEventListeners();
@@ -34,9 +47,10 @@ class SystemMonitor {
         this.startRealTimeUpdates();
     }
     
-    initializeComponents() {
-        // Initialize UI components
-        initializeUIComponents();
+    async initializeComponents() {
+        // Initialize UI components (split modules for better performance)
+        initializeCoreUIStyles();
+        initializeChartUIStyles();
         
         // Initialize activity feed
         const activityContainer = document.getElementById('activityFeed');
@@ -48,7 +62,7 @@ class SystemMonitor {
         this.initializeCharts();
         
         // Replace static cards with dynamic components
-        this.renderDynamicCards();
+        await this.renderDynamicCards();
     }
     
     initializeCharts() {
@@ -60,7 +74,7 @@ class SystemMonitor {
         // Clear alerts button
         const clearAlertsBtn = document.getElementById('clearAlertsBtn');
         if (clearAlertsBtn) {
-            clearAlertsBtn.addEventListener('click', () => {
+            this.addEventListener(clearAlertsBtn, 'click', () => {
                 this.clearAllAlerts();
             });
         }
@@ -68,13 +82,13 @@ class SystemMonitor {
         // Configure alerts button
         const configureAlertsBtn = document.getElementById('configureAlertsBtn');
         if (configureAlertsBtn) {
-            configureAlertsBtn.addEventListener('click', () => {
+            this.addEventListener(configureAlertsBtn, 'click', () => {
                 this.configureAlerts();
             });
         }
         
-        // Alert action buttons
-        document.addEventListener('click', (e) => {
+        // Alert action buttons - using managed event listener
+        const alertActionHandler = (e) => {
             if (e.target.matches('.alert-actions .btn')) {
                 const action = e.target.textContent.toLowerCase();
                 const alertItem = e.target.closest('.alert-item');
@@ -82,32 +96,33 @@ class SystemMonitor {
                     this.handleAlertAction(action, alertItem);
                 }
             }
-        });
+        };
+        this.addEventListener(document, 'click', alertActionHandler);
     }
     
     setupWebSocketListeners() {
         // System metrics updates
-        wsManager.on('system_metrics', (data) => {
+        this.addWebSocketHandler('system_metrics', (data) => {
             this.updateSystemMetrics(data);
         });
         
         // Service health updates
-        wsManager.on('service_health', (data) => {
+        this.addWebSocketHandler('service_health', (data) => {
             this.updateServiceHealth(data);
         });
         
         // Performance metrics updates
-        wsManager.on('performance_metrics', (data) => {
+        this.addWebSocketHandler('performance_metrics', (data) => {
             this.updatePerformanceMetrics(data);
         });
         
         // New alerts
-        wsManager.on('system_alert', (data) => {
+        this.addWebSocketHandler('system_alert', (data) => {
             this.handleNewAlert(data);
         });
         
         // Chart data updates
-        wsManager.on('chart_data', (data) => {
+        this.addWebSocketHandler('chart_data', (data) => {
             this.updateChartData(data);
         });
     }
@@ -127,7 +142,13 @@ class SystemMonitor {
             await this.loadAlerts();
             
         } catch (error) {
-            console.error('Failed to load monitoring data:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.HIGH,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.RETRY,
+                userMessage: 'Failed to load monitoring data. Please check your connection and try again.',
+                context: { component: 'SystemMonitor', action: 'loadInitialData' }
+            });
             this.showNotification('Failed to load monitoring data', 'error');
         }
     }
@@ -149,7 +170,13 @@ class SystemMonitor {
             this.updateSystemMetricsDisplay(metrics);
             
         } catch (error) {
-            console.error('Failed to load system metrics:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                userMessage: 'Unable to load real-time system metrics. Showing default values.',
+                context: { component: 'SystemMonitor', action: 'loadSystemMetrics' }
+            });
             // Fallback to default metrics on error
             const metrics = {
                 uptime: '0%',
@@ -187,7 +214,7 @@ class SystemMonitor {
                             status: service.status === 'running' ? 'ready' : 'error',
                             modelsLoaded: 1, // TODO: Get from real data
                             predictionsPerMin: service.predictions_per_minute || 0,
-                            accuracy: 89.2 // TODO: Get from real data
+                            accuracy: CONFIG.DEMO.ENABLED ? 89.2 : 0 // Use demo value in demo mode
                         };
                         break;
                     case 'Data Processor':
@@ -204,7 +231,7 @@ class SystemMonitor {
             services.websocket = {
                 status: wsManager.isConnected() ? 'connected' : 'disconnected',
                 activeConnections: wsManager.getConnectionCount ? wsManager.getConnectionCount() : 1,
-                messagesPerSec: 8, // TODO: Get from real metrics
+                messagesPerSec: CONFIG.DEMO.ENABLED ? 8 : 0, // Use demo value in demo mode
                 latency: wsManager.getConnectionQuality().latency || 0
             };
             
@@ -212,7 +239,13 @@ class SystemMonitor {
             this.updateServiceHealthDisplay(services);
             
         } catch (error) {
-            console.error('Failed to load service health:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                userMessage: 'Unable to load service health information. Showing error state.',
+                context: { component: 'SystemMonitor', action: 'loadServiceHealth' }
+            });
             // Fallback to error state
             const services = {
                 fastapi: { status: 'error', responseTime: 0, requestsPerMin: 0, errorRate: 100 },
@@ -257,7 +290,13 @@ class SystemMonitor {
             this.updatePerformanceMetricsDisplay(performance);
             
         } catch (error) {
-            console.error('Failed to load performance metrics:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                userMessage: 'Unable to load performance metrics. Showing default values.',
+                context: { component: 'SystemMonitor', action: 'loadPerformanceMetrics' }
+            });
             // Fallback to default metrics on error
             const performance = {
                 training: {
@@ -292,7 +331,13 @@ class SystemMonitor {
             this.showNotification(`Loaded ${alerts.length} system alerts`, 'info');
             
         } catch (error) {
-            console.error('Failed to load alerts:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                userMessage: 'Unable to load system alerts. Alert list is empty.',
+                context: { component: 'SystemMonitor', action: 'loadAlerts' }
+            });
             // Fallback to empty alerts list
             this.alerts = [];
             this.updateAlertsDisplay([]);
@@ -336,13 +381,13 @@ class SystemMonitor {
     }
     
     startRealTimeUpdates() {
-        // Start periodic updates for real-time monitoring
-        setInterval(() => {
+        // Start periodic updates for real-time monitoring with automatic cleanup
+        this.updateTimers.metrics = this.addTimer(() => {
             this.simulateMetricUpdates();
         }, 5000); // Update every 5 seconds
         
-        // Start chart updates
-        setInterval(() => {
+        // Start chart updates with automatic cleanup
+        this.updateTimers.charts = this.addTimer(() => {
             this.simulateChartUpdates();
         }, 2000); // Update charts every 2 seconds
     }
@@ -438,7 +483,13 @@ class SystemMonitor {
                 this.showNotification('All alerts cleared', 'success');
                 
             } catch (error) {
-                console.error('Failed to clear alerts:', error);
+                ErrorHandler.handleError(error, {
+                    severity: ErrorSeverity.MEDIUM,
+                    category: ErrorCategory.NETWORK,
+                    recovery: RecoveryStrategy.RETRY,
+                    userMessage: 'Failed to clear alerts. Please try again.',
+                    context: { component: 'SystemMonitor', action: 'clearAllAlerts' }
+                });
                 this.showNotification('Failed to clear alerts', 'error');
             }
         }
@@ -490,7 +541,13 @@ class SystemMonitor {
                 this.showNotification(`Alert acknowledged: ${title}`, 'success');
             }
         } catch (error) {
-            console.error('Failed to acknowledge alert:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.LOW,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.RETRY,
+                userMessage: `Failed to acknowledge alert: ${title}. Please try again.`,
+                context: { component: 'SystemMonitor', action: 'acknowledgeAlert', alertTitle: title }
+            });
             this.showNotification(`Failed to acknowledge alert: ${title}`, 'error');
             
             // Restore alert state on error
@@ -534,9 +591,9 @@ class SystemMonitor {
         // Notifications are now handled by the notification event system
     }
     
-    renderDynamicCards() {
+    async renderDynamicCards() {
         // Replace all static cards with dynamic components
-        this.replaceSystemOverviewCard();
+        await this.replaceSystemOverviewCard();
         this.replaceChartCards();
         this.replaceServiceHealthCard();
         this.replacePerformanceMetricsCard();
@@ -544,44 +601,86 @@ class SystemMonitor {
         this.replaceActivityCard();
     }
     
-    replaceSystemOverviewCard() {
+    async replaceSystemOverviewCard() {
         const overviewCard = document.querySelector('.card:first-of-type');
         if (!overviewCard) return;
         
-        const metricsData = [
-            {
-                value: '99.8',
-                label: 'System Uptime',
-                format: 'percent',
-                id: 'systemUptime',
-                trend: 'up',
-                trendValue: 0.2
-            },
-            {
-                value: 34,
-                label: 'CPU Usage',
-                format: 'percent',
-                id: 'cpuUsage',
-                trend: 'up',
-                trendValue: 5
-            },
-            {
-                value: '2.1GB',
-                label: 'Memory Usage',
-                format: 'custom',
-                id: 'memoryUsage',
-                trend: 'down',
-                trendValue: 0.3
-            },
-            {
-                value: 45,
-                label: 'Disk Usage',
-                format: 'percent',
-                id: 'diskUsage',
-                trend: 'down',
-                trendValue: 2
-            }
-        ];
+        let metricsData = [];
+        
+        if (CONFIG.DEMO.ENABLED) {
+            // Use demo data in demo mode
+            const demoMetrics = await demoData.getSystemMetrics();
+            metricsData = [
+                {
+                    value: demoMetrics.uptime.replace('%', ''),
+                    label: 'System Uptime',
+                    format: 'percent',
+                    id: 'systemUptime',
+                    trend: 'up',
+                    trendValue: 0.2
+                },
+                {
+                    value: demoMetrics.cpu_usage,
+                    label: 'CPU Usage',
+                    format: 'percent',
+                    id: 'cpuUsage',
+                    trend: 'up',
+                    trendValue: 5
+                },
+                {
+                    value: demoMetrics.memory_usage,
+                    label: 'Memory Usage',
+                    format: 'custom',
+                    id: 'memoryUsage',
+                    trend: 'down',
+                    trendValue: 0.3
+                },
+                {
+                    value: demoMetrics.disk_usage,
+                    label: 'Disk Usage',
+                    format: 'percent',
+                    id: 'diskUsage',
+                    trend: 'down',
+                    trendValue: 2
+                }
+            ];
+        } else {
+            // Use placeholder values in production mode
+            metricsData = [
+                {
+                    value: '0',
+                    label: 'System Uptime',
+                    format: 'percent',
+                    id: 'systemUptime',
+                    trend: 'neutral',
+                    trendValue: 0
+                },
+                {
+                    value: 0,
+                    label: 'CPU Usage',
+                    format: 'percent',
+                    id: 'cpuUsage',
+                    trend: 'neutral',
+                    trendValue: 0
+                },
+                {
+                    value: '0GB',
+                    label: 'Memory Usage',
+                    format: 'custom',
+                    id: 'memoryUsage',
+                    trend: 'neutral',
+                    trendValue: 0
+                },
+                {
+                    value: 0,
+                    label: 'Disk Usage',
+                    format: 'percent',
+                    id: 'diskUsage',
+                    trend: 'neutral',
+                    trendValue: 0
+                }
+            ];
+        }
         
         const metricsGrid = Grid.createMetricGrid(metricsData, {
             columns: 4,
@@ -810,6 +909,27 @@ class SystemMonitor {
         Metric.update('cpuUsage', metrics.cpuUsage, { format: 'percent' });
         Metric.update('memoryUsage', metrics.memoryUsage, { format: 'custom' });
         Metric.update('diskUsage', metrics.diskUsage, { format: 'percent' });
+    }
+
+    /**
+     * Custom cleanup logic for monitoring page
+     */
+    customCleanup() {
+        // Clean up activity feed
+        if (this.activityFeed && this.activityFeed.destroy) {
+            this.activityFeed.destroy();
+        }
+        
+        // Clear chart references
+        this.charts = {};
+        
+        // Clear metrics
+        this.metrics = {};
+        
+        // Clear alerts
+        this.alerts = [];
+        
+        console.log('SystemMonitor: Custom cleanup completed');
     }
 }
 

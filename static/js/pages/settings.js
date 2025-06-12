@@ -3,6 +3,8 @@ import { Card, Metric, ProgressBar, Grid, ButtonGroup, UploadArea, ChartContaine
 import { BasePageController } from '../common/lifecycle.js';
 import { demoData } from '../common/demo-data.js';
 import { CONFIG } from '../common/config.js';
+import { ErrorHandler, ErrorSeverity, ErrorCategory, RecoveryStrategy } from '../common/error-handler.js';
+import { withErrorHandling } from '../common/error-utils.js';
 
 /**
  * Settings Page Controller
@@ -79,7 +81,13 @@ class Settings extends BasePageController {
         try {
             await this.loadSettings();
         } catch (error) {
-            console.error('Failed to load settings data:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.HIGH,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                userMessage: 'Failed to load settings. Using default values.',
+                context: { component: 'Settings', action: 'loadInitialData' }
+            });
             this.showNotification('Failed to load settings', 'error');
         }
     }
@@ -103,7 +111,13 @@ class Settings extends BasePageController {
             this.populateForm(this.settings);
             
         } catch (error) {
-            console.error('Failed to load settings:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                userMessage: 'Unable to load saved settings. Using default configuration.',
+                context: { component: 'Settings', action: 'loadSettings' }
+            });
             // Fallback to defaults on error
             this.settings = { ...this.defaultSettings };
             this.populateForm(this.settings);
@@ -179,7 +193,13 @@ class Settings extends BasePageController {
             }
             
         } catch (error) {
-            console.error('Failed to save settings:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.RETRY,
+                userMessage: 'Failed to save settings. Please try again.',
+                context: { component: 'Settings', action: 'saveSettings', formData: formSettings }
+            });
             this.showNotification('Failed to save settings', 'error');
         }
     }

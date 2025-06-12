@@ -1,0 +1,392 @@
+/* Accessibility Improvements for MLOps Dashboard */
+/* Enhanced color contrast and visual patterns for WCAG AA compliance */
+
+/* Improved CSS Variables with Better Contrast */
+:root {
+    /* Enhanced contrast ratios for WCAG AA compliance (4.5:1 minimum) */
+    --text-secondary: #475569; /* Improved from #64748b for better contrast */
+    --text-tertiary: #64748b; /* For less critical text */
+    
+    /* Status color improvements */
+    --success-color: #059669; /* Darker green for better contrast */
+    --warning-color: #d97706; /* Darker amber for better contrast */
+    --danger-color: #dc2626; /* Darker red for better contrast */
+    
+    /* High contrast alternatives for critical states */
+    --success-high-contrast: #065f46;
+    --warning-high-contrast: #92400e;
+    --danger-high-contrast: #991b1b;
+}
+
+/* Enhanced Status Indicators with Visual Patterns */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    font-weight: 600; /* Increased for better readability */
+    font-size: 0.9rem;
+    border: 2px solid transparent;
+    position: relative;
+}
+
+/* Success Status - Green with checkmark pattern */
+.status-good, .status-success {
+    background: var(--success-light);
+    color: var(--success-high-contrast);
+    border-color: var(--success-color);
+}
+
+.status-good::before, 
+.status-success::before {
+    content: "✓";
+    font-weight: bold;
+    margin-right: var(--spacing-xs);
+    color: var(--success-color);
+}
+
+/* Warning Status - Amber with triangle pattern */
+.status-warning {
+    background: var(--warning-light);
+    color: var(--warning-high-contrast);
+    border-color: var(--warning-color);
+}
+
+.status-warning::before {
+    content: "△";
+    font-weight: bold;
+    margin-right: var(--spacing-xs);
+    color: var(--warning-color);
+}
+
+/* Error Status - Red with X pattern */
+.status-error, .status-danger {
+    background: var(--danger-light);
+    color: var(--danger-high-contrast);
+    border-color: var(--danger-color);
+}
+
+.status-error::before, 
+.status-danger::before {
+    content: "✗";
+    font-weight: bold;
+    margin-right: var(--spacing-xs);
+    color: var(--danger-color);
+}
+
+/* Enhanced Connection Status with Better Accessibility */
+.connection-status {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 600; /* Increased for better readability */
+    border: 2px solid transparent;
+    position: relative;
+    text-transform: none; /* Removed uppercase for better readability */
+    min-width: 120px;
+    text-align: center;
+}
+
+.connection-status.connected {
+    background: var(--success-light);
+    color: var(--success-high-contrast);
+    border-color: var(--success-color);
+}
+
+.connection-status.connected::before {
+    content: "● ";
+    color: var(--success-color);
+    font-weight: bold;
+    animation: none;
+}
+
+.connection-status.disconnected {
+    background: var(--danger-light);
+    color: var(--danger-high-contrast);
+    border-color: var(--danger-color);
+}
+
+.connection-status.disconnected::before {
+    content: "● ";
+    color: var(--danger-color);
+    font-weight: bold;
+}
+
+.connection-status.connecting {
+    background: var(--warning-light);
+    color: var(--warning-high-contrast);
+    border-color: var(--warning-color);
+}
+
+.connection-status.connecting::before {
+    content: "● ";
+    color: var(--warning-color);
+    font-weight: bold;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Connection Quality Indicators with Text Labels */
+.connection-status.connected[data-quality="excellent"]::after {
+    content: " (Excellent)";
+    font-weight: normal;
+    font-size: 0.75rem;
+}
+
+.connection-status.connected[data-quality="good"]::after {
+    content: " (Good)";
+    font-weight: normal;
+    font-size: 0.75rem;
+}
+
+.connection-status.connected[data-quality="fair"]::after {
+    content: " (Fair)";
+    font-weight: normal;
+    font-size: 0.75rem;
+}
+
+.connection-status.connected[data-quality="poor"]::after {
+    content: " (Poor)";
+    font-weight: normal;
+    font-size: 0.75rem;
+}
+
+/* Enhanced Button Focus States */
+.btn:focus {
+    outline: 3px solid #ffbf47;
+    outline-offset: 2px;
+}
+
+.btn-primary:focus {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+}
+
+.btn-secondary:focus {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+}
+
+.btn-success:focus {
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+}
+
+/* Enhanced Progress Bar with Better Contrast */
+.progress-bar {
+    background: #d1d5db; /* Darker background for better contrast */
+    border: 1px solid var(--border-color);
+}
+
+.progress-fill {
+    position: relative;
+}
+
+/* Progress Bar Status Patterns */
+.progress-fill.success {
+    background: linear-gradient(90deg, var(--success-color) 0%, var(--success-color) 100%);
+}
+
+.progress-fill.warning {
+    background: linear-gradient(90deg, var(--warning-color) 0%, var(--warning-color) 100%);
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(255, 255, 255, 0.2) 10px,
+        rgba(255, 255, 255, 0.2) 20px
+    );
+}
+
+.progress-fill.error {
+    background: linear-gradient(90deg, var(--danger-color) 0%, var(--danger-color) 100%);
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 5px,
+        rgba(255, 255, 255, 0.3) 5px,
+        rgba(255, 255, 255, 0.3) 10px
+    );
+}
+
+/* Enhanced Metric Display */
+.metric {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.metric-value {
+    font-weight: 700; /* Bolder for better readability */
+    color: var(--text-primary);
+}
+
+.metric-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-top: var(--spacing-xs);
+}
+
+/* System Health Status with Patterns */
+.system-health {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-lg);
+    border: 2px solid transparent;
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    background-size: 24px 24px;
+}
+
+.system-health.healthy {
+    background-color: var(--success-light);
+    border-color: var(--success-color);
+    color: var(--success-high-contrast);
+}
+
+.system-health.warning {
+    background-color: var(--warning-light);
+    border-color: var(--warning-color);
+    color: var(--warning-high-contrast);
+}
+
+.system-health.critical {
+    background-color: var(--danger-light);
+    border-color: var(--danger-color);
+    color: var(--danger-high-contrast);
+}
+
+/* Enhanced Form Accessibility */
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+    outline: 3px solid #ffbf47;
+    outline-offset: 2px;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-checkbox:focus {
+    outline: 3px solid #ffbf47;
+    outline-offset: 2px;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    :root {
+        --text-secondary: var(--text-primary);
+        --border-color: #000000;
+        --success-color: var(--success-high-contrast);
+        --warning-color: var(--warning-high-contrast);
+        --danger-color: var(--danger-high-contrast);
+    }
+    
+    .card {
+        border: 2px solid var(--border-color);
+    }
+    
+    .btn {
+        border: 2px solid currentColor;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    .connection-status.connecting::before,
+    .progress-fill,
+    .metric,
+    .btn {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* Print Styles for Accessibility */
+@media print {
+    .connection-status::before {
+        content: "[" attr(data-status) "] ";
+    }
+    
+    .status-good::before { content: "[SUCCESS] "; }
+    .status-warning::before { content: "[WARNING] "; }
+    .status-error::before { content: "[ERROR] "; }
+    
+    .sr-only {
+        position: static;
+        width: auto;
+        height: auto;
+        padding: 0;
+        margin: 0;
+        overflow: visible;
+        clip: auto;
+        white-space: normal;
+    }
+}
+
+/* Focus Trap for Modals and Interactive Components */
+.focus-trap {
+    outline: 3px solid #ffbf47;
+    outline-offset: 2px;
+}
+
+/* Enhanced Upload Area Accessibility */
+.upload-area:focus {
+    outline: 3px solid #ffbf47;
+    outline-offset: 2px;
+    transform: scale(1.02);
+}
+
+.upload-area[aria-disabled="true"] {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Enhanced Table Accessibility (if tables are added later) */
+.table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.table th,
+.table td {
+    border: 1px solid var(--border-color);
+    padding: var(--spacing-sm);
+    text-align: left;
+}
+
+.table th {
+    background-color: var(--surface-secondary);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.table tr:nth-child(even) {
+    background-color: var(--surface-secondary);
+}
+
+.table tr:hover {
+    background-color: var(--surface-hover);
+}
+
+/* Loading States with Better Accessibility */
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--border-color);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.loading-spinner[aria-label]::after {
+    content: attr(aria-label);
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: var(--spacing-sm);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}

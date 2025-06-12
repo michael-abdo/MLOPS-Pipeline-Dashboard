@@ -3,15 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ML Pipeline Settings - Configure training preferences, notifications, data management, and advanced options">
     <title>Settings - ML Pipeline</title>
     <link rel="stylesheet" href="/static/css/shared.css">
+    <style>
+        /* Screen reader only class for accessibility */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        /* Help text styling */
+        .help-text {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: var(--spacing-xs);
+        }
+    </style>
 </head>
 <body>
     <!-- Navigation will be rendered by JavaScript component -->
-    <nav class="main-nav" id="main-nav"></nav>
+    <nav class="main-nav" id="main-nav" role="navigation" aria-label="Main navigation"></nav>
+
+    <!-- Screen reader announcements for dynamic content -->
+    <div id="sr-announcer" aria-live="polite" aria-atomic="true" class="sr-only"></div>
 
     <!-- Main Content -->
-    <div class="main-content">
+    <main class="main-content" role="main">
         <!-- Page Header -->
         <div class="page-header">
             <h1 class="page-title">Settings</h1>
@@ -19,211 +43,176 @@
         </div>
 
         <!-- Settings Form -->
-        <div class="card">
-            <h3 style="margin-bottom: var(--spacing-lg);">Training Settings</h3>
+        <section aria-labelledby="training-settings" class="card">
+            <h2 id="training-settings" style="margin-bottom: var(--spacing-lg);">Training Settings</h2>
             
-            <form id="settingsForm">
-                <div class="grid grid-2">
-                    <div class="form-group">
-                        <label class="form-label" for="defaultModel">Default Model Type</label>
-                        <select id="defaultModel" class="form-select">
-                            <option value="automatic">Automatic (Recommended)</option>
-                            <option value="classification">Classification</option>
-                            <option value="regression">Regression</option>
-                        </select>
+            <form id="settingsForm" role="form" aria-label="ML Pipeline Settings">
+                <fieldset>
+                    <legend class="sr-only">Training Configuration</legend>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label" for="defaultModel">Default Model Type</label>
+                            <select id="defaultModel" class="form-select" aria-describedby="defaultModel-help">
+                                <option value="automatic">Automatic (Recommended)</option>
+                                <option value="classification">Classification</option>
+                                <option value="regression">Regression</option>
+                            </select>
+                            <div id="defaultModel-help" class="help-text">
+                                Automatic selection chooses the best model type based on your data
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="trainingTimeout">Training Timeout (minutes)</label>
+                            <input type="number" id="trainingTimeout" class="form-input" min="5" max="60" value="15"
+                                   aria-describedby="timeout-help" required>
+                            <div id="timeout-help" class="help-text">
+                                Maximum time allowed for model training (5-60 minutes)
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label class="form-label" for="trainingTimeout">Training Timeout (minutes)</label>
-                        <input type="number" id="trainingTimeout" class="form-input" min="5" max="60" value="15">
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label">
+                                <input type="checkbox" id="autoValidation" class="form-checkbox" checked
+                                       aria-describedby="autoValidation-help">
+                                Auto-validate data before training
+                            </label>
+                            <div id="autoValidation-help" class="help-text">
+                                Automatically check data quality before starting training
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                <input type="checkbox" id="trainingNotifications" class="form-checkbox" checked
+                                       aria-describedby="trainingNotifications-help">
+                                Training completion notifications
+                            </label>
+                            <div id="trainingNotifications-help" class="help-text">
+                                Receive notifications when training is complete
+                            </div>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="grid grid-2">
-                    <div class="form-group">
-                        <label class="form-label">
-                            <input type="checkbox" id="autoValidation" class="form-checkbox" checked>
-                            Auto-validate data before training
-                        </label>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">
-                            <input type="checkbox" id="trainingNotifications" class="form-checkbox" checked>
-                            Training completion notifications
-                        </label>
-                    </div>
-                </div>
+                </fieldset>
             </form>
-        </div>
+        </section>
 
         <!-- Notification Settings -->
-        <div class="card">
-            <h3 style="margin-bottom: var(--spacing-lg);">Notification Settings</h3>
+        <section aria-labelledby="notification-settings" class="card">
+            <h2 id="notification-settings" style="margin-bottom: var(--spacing-lg);">Notification Settings</h2>
             
-            <div class="grid grid-2">
-                <div class="form-group">
-                    <label class="form-label">
-                        <input type="checkbox" id="errorNotifications" class="form-checkbox" checked>
-                        Error notifications
-                    </label>
+            <fieldset form="settingsForm">
+                <legend class="sr-only">Notification Configuration</legend>
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="errorNotifications" class="form-checkbox" checked
+                                   aria-describedby="errorNotifications-help">
+                            Error notifications
+                        </label>
+                        <div id="errorNotifications-help" class="help-text">
+                            Receive alerts when errors occur during training or processing
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="emailAddress">Email Address</label>
+                        <input type="email" id="emailAddress" class="form-input" placeholder="your@email.com"
+                               aria-describedby="email-help">
+                        <div id="email-help" class="help-text">
+                            Email address for receiving notifications (optional)
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="form-group">
-                    <label class="form-label" for="emailAddress">Email Address</label>
-                    <input type="email" id="emailAddress" class="form-input" placeholder="your@email.com">
-                </div>
-            </div>
-        </div>
+            </fieldset>
+        </section>
 
         <!-- Data Management -->
-        <div class="card">
-            <h3 style="margin-bottom: var(--spacing-lg);">Data Management</h3>
+        <section aria-labelledby="data-management" class="card">
+            <h2 id="data-management" style="margin-bottom: var(--spacing-lg);">Data Management</h2>
             
-            <div class="grid grid-2">
-                <div class="form-group">
-                    <label class="form-label" for="dataCleanup">Auto-cleanup data older than (days)</label>
-                    <select id="dataCleanup" class="form-select">
-                        <option value="7">7 days</option>
-                        <option value="30" selected>30 days</option>
-                        <option value="90">90 days</option>
-                        <option value="0">Never</option>
-                    </select>
+            <fieldset form="settingsForm">
+                <legend class="sr-only">Data Storage and Cleanup Configuration</legend>
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="dataCleanup">Auto-cleanup data older than (days)</label>
+                        <select id="dataCleanup" class="form-select" aria-describedby="cleanup-help">
+                            <option value="7">7 days</option>
+                            <option value="30" selected>30 days</option>
+                            <option value="90">90 days</option>
+                            <option value="0">Never</option>
+                        </select>
+                        <div id="cleanup-help" class="help-text">
+                            Automatically remove old training data to save storage space
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="maxFileSize">Max file size (MB)</label>
+                        <input type="number" id="maxFileSize" class="form-input" min="1" max="100" value="50"
+                               aria-describedby="filesize-help" required>
+                        <div id="filesize-help" class="help-text">
+                            Maximum allowed file size for uploads (1-100 MB)
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="form-group">
-                    <label class="form-label" for="maxFileSize">Max file size (MB)</label>
-                    <input type="number" id="maxFileSize" class="form-input" min="1" max="100" value="50">
-                </div>
-            </div>
-        </div>
+            </fieldset>
+        </section>
 
         <!-- Advanced Settings -->
-        <div class="card">
-            <h3 style="margin-bottom: var(--spacing-lg);">Advanced Settings</h3>
+        <section aria-labelledby="advanced-settings" class="card">
+            <h2 id="advanced-settings" style="margin-bottom: var(--spacing-lg);">Advanced Settings</h2>
             
-            <div class="grid grid-2">
-                <div class="form-group">
-                    <label class="form-label">
-                        <input type="checkbox" id="showTechnical" class="form-checkbox">
-                        Show technical details
-                    </label>
+            <fieldset form="settingsForm">
+                <legend class="sr-only">Advanced Configuration Options</legend>
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="showTechnical" class="form-checkbox"
+                                   aria-describedby="technical-help">
+                            Show technical details
+                        </label>
+                        <div id="technical-help" class="help-text">
+                            Display detailed technical information in the interface
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="debugMode" class="form-checkbox"
+                                   aria-describedby="debug-help">
+                            Enable debug mode
+                        </label>
+                        <div id="debug-help" class="help-text">
+                            Enable additional logging and debugging features
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="form-group">
-                    <label class="form-label">
-                        <input type="checkbox" id="debugMode" class="form-checkbox">
-                        Enable debug mode
-                    </label>
-                </div>
-            </div>
-        </div>
+            </fieldset>
+        </section>
 
         <!-- Action Buttons -->
-        <div style="text-align: center; margin-top: var(--spacing-xl);">
-            <button type="button" class="btn btn-primary" id="saveSettings" style="margin-right: var(--spacing-md);">
+        <div role="group" aria-label="Settings actions" style="text-align: center; margin-top: var(--spacing-xl);">
+            <button type="submit" form="settingsForm" class="btn btn-primary" id="saveSettings" 
+                    style="margin-right: var(--spacing-md);" aria-describedby="save-help">
                 Save Settings
             </button>
-            <button type="button" class="btn btn-secondary" id="resetSettings">
+            <button type="button" class="btn btn-secondary" id="resetSettings" aria-describedby="reset-help">
                 Reset to Defaults
             </button>
+            <div id="save-help" class="sr-only">Save all current settings</div>
+            <div id="reset-help" class="sr-only">Reset all settings to their default values</div>
         </div>
         
         <!-- Notification area -->
-        <div id="notification" style="margin-top: var(--spacing-lg);"></div>
-    </div>
+        <div id="notification" role="status" aria-live="polite" aria-atomic="true" 
+             style="margin-top: var(--spacing-lg);"></div>
+    </main>
 
     <!-- Import JavaScript modules -->
     <script type="module" src="/static/js/components/navigation.js"></script>
-    <script type="module">
-        import { API } from '/static/js/common/api.js';
-
-        // Load settings when page loads
-        document.addEventListener('DOMContentLoaded', async () => {
-            await loadSettings();
-            
-            // Save settings
-            document.getElementById('saveSettings').addEventListener('click', saveSettings);
-            
-            // Reset settings
-            document.getElementById('resetSettings').addEventListener('click', resetSettings);
-        });
-
-        async function loadSettings() {
-            try {
-                const settings = await API.getSettings();
-                
-                // Populate form with loaded settings
-                document.getElementById('defaultModel').value = settings.defaultModel || 'automatic';
-                document.getElementById('trainingTimeout').value = settings.trainingTimeout || 15;
-                document.getElementById('autoValidation').checked = settings.autoValidation !== false;
-                document.getElementById('trainingNotifications').checked = settings.trainingNotifications !== false;
-                document.getElementById('errorNotifications').checked = settings.errorNotifications !== false;
-                document.getElementById('emailAddress').value = settings.emailAddress || '';
-                document.getElementById('dataCleanup').value = settings.dataCleanup || 30;
-                document.getElementById('maxFileSize').value = settings.maxFileSize || 50;
-                document.getElementById('showTechnical').checked = settings.showTechnical === true;
-                document.getElementById('debugMode').checked = settings.debugMode === true;
-                
-            } catch (error) {
-                console.error('Failed to load settings:', error);
-                showNotification('Failed to load settings', 'error');
-            }
-        }
-
-        async function saveSettings() {
-            try {
-                const settings = {
-                    defaultModel: document.getElementById('defaultModel').value,
-                    trainingTimeout: parseInt(document.getElementById('trainingTimeout').value),
-                    autoValidation: document.getElementById('autoValidation').checked,
-                    trainingNotifications: document.getElementById('trainingNotifications').checked,
-                    errorNotifications: document.getElementById('errorNotifications').checked,
-                    emailAddress: document.getElementById('emailAddress').value,
-                    dataCleanup: parseInt(document.getElementById('dataCleanup').value),
-                    maxFileSize: parseInt(document.getElementById('maxFileSize').value),
-                    showTechnical: document.getElementById('showTechnical').checked,
-                    debugMode: document.getElementById('debugMode').checked
-                };
-
-                await API.saveSettings(settings);
-                showNotification('Settings saved successfully!', 'success');
-                
-            } catch (error) {
-                console.error('Failed to save settings:', error);
-                showNotification('Failed to save settings', 'error');
-            }
-        }
-
-        function resetSettings() {
-            // Reset to default values
-            document.getElementById('defaultModel').value = 'automatic';
-            document.getElementById('trainingTimeout').value = 15;
-            document.getElementById('autoValidation').checked = true;
-            document.getElementById('trainingNotifications').checked = true;
-            document.getElementById('errorNotifications').checked = true;
-            document.getElementById('emailAddress').value = '';
-            document.getElementById('dataCleanup').value = 30;
-            document.getElementById('maxFileSize').value = 50;
-            document.getElementById('showTechnical').checked = false;
-            document.getElementById('debugMode').checked = false;
-            
-            showNotification('Settings reset to defaults', 'warning');
-        }
-
-        function showNotification(message, type = 'success') {
-            const notification = document.getElementById('notification');
-            notification.innerHTML = `
-                <div class="notification ${type}">
-                    ${message}
-                </div>
-            `;
-            
-            // Auto-hide after 3 seconds
-            setTimeout(() => {
-                notification.innerHTML = '';
-            }, 3000);
-        }
-    </script>
+    <script type="module" src="/static/js/pages/settings.js"></script>
 </body>
 </html>

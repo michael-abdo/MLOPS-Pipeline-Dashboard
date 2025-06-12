@@ -1,14 +1,22 @@
 import { wsManager } from '../common/websocket.js';
 import { API } from '../common/api.js';
 import { ActivityFeed } from '../components/activity-feed.js';
-import { Card, Metric, ProgressBar, Grid, ButtonGroup, UploadArea, ChartContainer, initializeUIComponents } from '../components/ui-components.js';
+// Import only needed UI components (split modules for better performance)
+import { Card, Metric, ProgressBar, Grid, initializeCoreUIStyles } from '../components/ui-core.js';
+import { ButtonGroup, UploadArea, initializeFormUIStyles } from '../components/ui-forms.js';
+import { ChartContainer, initializeChartUIStyles } from '../components/ui-charts.js';
+import { BasePageController } from '../common/lifecycle.js';
+import { ErrorHandler, ErrorSeverity, ErrorCategory, RecoveryStrategy } from '../common/error-handler.js';
+import { withErrorHandling } from '../common/error-utils.js';
 
 /**
  * Pipeline Page Controller
  * Manages pipeline creation, monitoring, and management
  */
-class Pipeline {
+class Pipeline extends BasePageController {
     constructor() {
+        super(); // Initialize lifecycle management
+        
         this.pipelines = [];
         this.activityFeed = null;
         
@@ -30,8 +38,10 @@ class Pipeline {
     }
     
     initializeComponents() {
-        // Initialize UI components
-        initializeUIComponents();
+        // Initialize UI components (split modules for better performance)
+        initializeCoreUIStyles();
+        initializeFormUIStyles();
+        initializeChartUIStyles();
         
         // Initialize activity feed
         const activityContainer = document.getElementById('activityFeed');
@@ -44,12 +54,12 @@ class Pipeline {
     }
     
     setupEventListeners() {
-        // Template card clicks
+        // Template card clicks - using managed event listeners
         const templateCards = document.querySelectorAll('.template-card');
         templateCards.forEach(card => {
             const createBtn = card.querySelector('.btn');
             if (createBtn) {
-                createBtn.addEventListener('click', (e) => {
+                this.addEventListener(createBtn, 'click', (e) => {
                     e.stopPropagation();
                     const template = card.dataset.template;
                     this.createPipeline(template);
@@ -57,8 +67,8 @@ class Pipeline {
             }
         });
         
-        // Pipeline action buttons
-        document.addEventListener('click', (e) => {
+        // Pipeline action buttons - using managed event listener
+        const pipelineActionHandler = (e) => {
             if (e.target.matches('.pipeline-actions .btn')) {
                 const action = e.target.textContent.toLowerCase();
                 const pipelineItem = e.target.closest('.pipeline-item');
@@ -66,27 +76,28 @@ class Pipeline {
                     this.handlePipelineAction(action, pipelineItem);
                 }
             }
-        });
+        };
+        this.addEventListener(document, 'click', pipelineActionHandler);
     }
     
     setupWebSocketListeners() {
-        // Pipeline status updates
-        wsManager.on('pipeline_status', (data) => {
+        // Pipeline status updates - using managed WebSocket handlers
+        this.addWebSocketHandler('pipeline_status', (data) => {
             this.updatePipelineStatus(data);
         });
         
-        // Pipeline progress updates
-        wsManager.on('pipeline_progress', (data) => {
+        // Pipeline progress updates - using managed WebSocket handlers
+        this.addWebSocketHandler('pipeline_progress', (data) => {
             this.updatePipelineProgress(data);
         });
         
-        // Pipeline completed
-        wsManager.on('pipeline_completed', (data) => {
+        // Pipeline completed - using managed WebSocket handlers
+        this.addWebSocketHandler('pipeline_completed', (data) => {
             this.handlePipelineCompleted(data);
         });
         
-        // Pipeline failed
-        wsManager.on('pipeline_failed', (data) => {
+        // Pipeline failed - using managed WebSocket handlers
+        this.addWebSocketHandler('pipeline_failed', (data) => {
             this.handlePipelineFailed(data);
         });
     }
@@ -100,7 +111,13 @@ class Pipeline {
             await this.loadActivePipelines();
             
         } catch (error) {
-            console.error('Failed to load pipeline data:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.HIGH,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.RETRY,
+                userMessage: 'Failed to load pipeline data. Please check your connection and try again.',
+                context: { component: 'Pipeline', action: 'loadInitialData' }
+            });
             this.showNotification('Failed to load pipeline data', 'error');
         }
     }
@@ -131,7 +148,13 @@ class Pipeline {
             
             this.updateStatsDisplay(stats);
         } catch (error) {
-            console.error('Failed to load pipeline stats:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                userMessage: 'Unable to load pipeline statistics. Showing default values.',
+                context: { component: 'Pipeline', action: 'loadPipelineStats' }
+            });
             // Fallback to default stats on error
             const stats = {
                 active: 0,
@@ -164,7 +187,13 @@ class Pipeline {
             
             this.renderPipelineList();
         } catch (error) {
-            console.error('Failed to load pipelines:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                userMessage: 'Unable to load active pipelines. Pipeline list is empty.',
+                context: { component: 'Pipeline', action: 'loadActivePipelines' }
+            });
             this.pipelines = [];
             this.renderPipelineList();
             this.showNotification('Failed to load pipelines', 'error');
@@ -222,7 +251,13 @@ class Pipeline {
             await this.loadPipelineStats();
             
         } catch (error) {
-            console.error('Failed to create pipeline:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.VALIDATION,
+                recovery: RecoveryStrategy.RETRY,
+                userMessage: `Failed to create ${template} pipeline. Please check your configuration and try again.`,
+                context: { component: 'Pipeline', action: 'createPipeline', template: template }
+            });
             this.showNotification(`Failed to create ${template} pipeline: ${error.message}`, 'error');
         }
     }
@@ -650,6 +685,21 @@ class Pipeline {
                 }
             }
         }
+    }
+
+    /**
+     * Custom cleanup logic for pipeline page
+     */
+    customCleanup() {
+        // Clean up activity feed
+        if (this.activityFeed && this.activityFeed.destroy) {
+            this.activityFeed.destroy();
+        }
+        
+        // Clear pipelines data
+        this.pipelines = [];
+        
+        console.log('Pipeline: Custom cleanup completed');
     }
 }
 

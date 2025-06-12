@@ -1,14 +1,25 @@
 import { wsManager } from '../common/websocket.js';
 import { API } from '../common/api.js';
 import { ActivityFeed } from '../components/activity-feed.js';
-import { Card, Metric, ProgressBar, Grid, ButtonGroup, UploadArea, ChartContainer, initializeUIComponents } from '../components/ui-components.js';
+// Import only needed UI components (split modules for better performance)
+import { Card, Metric, ProgressBar, Grid, initializeCoreUIStyles } from '../components/ui-core.js';
+import { ButtonGroup, UploadArea, initializeFormUIStyles } from '../components/ui-forms.js';
+import { ChartContainer, initializeChartUIStyles } from '../components/ui-charts.js';
+import { BasePageController } from '../common/lifecycle.js';
+import { demoData } from '../common/demo-data.js';
+import { CONFIG } from '../common/config.js';
+// Import centralized error handling system
+import { ErrorHandler, ErrorSeverity, ErrorCategory, RecoveryStrategy } from '../common/error-handler.js';
+import { withErrorHandling } from '../common/error-utils.js';
 
 /**
  * Data Management Page Controller
  * Handles dataset uploads, processing, and quality assessment
  */
-class DataManager {
+class DataManager extends BasePageController {
     constructor() {
+        super(); // Initialize lifecycle management
+        
         this.datasets = [];
         this.processingJobs = [];
         this.activityFeed = null;
@@ -31,8 +42,10 @@ class DataManager {
     }
     
     initializeComponents() {
-        // Initialize UI components
-        initializeUIComponents();
+        // Initialize UI components (split modules for better performance)
+        initializeCoreUIStyles();
+        initializeFormUIStyles();
+        initializeChartUIStyles();
         
         // Initialize activity feed
         const activityContainer = document.getElementById('activityFeed');
@@ -47,42 +60,42 @@ class DataManager {
     }
     
     setupEventListeners() {
-        // File input change
+        // File input change - using managed event listener
         const fileInput = document.getElementById('fileInput');
         if (fileInput) {
-            fileInput.addEventListener('change', (e) => {
+            this.addEventListener(fileInput, 'change', (e) => {
                 if (e.target.files.length > 0) {
                     this.handleFileUpload(e.target.files[0]);
                 }
             });
         }
         
-        // Dataset filter
+        // Dataset filter - using managed event listener
         const datasetFilter = document.getElementById('datasetFilter');
         if (datasetFilter) {
-            datasetFilter.addEventListener('change', (e) => {
+            this.addEventListener(datasetFilter, 'change', (e) => {
                 this.filterDatasets(e.target.value);
             });
         }
         
-        // Refresh datasets
+        // Refresh datasets - using managed event listener
         const refreshBtn = document.getElementById('refreshDatasets');
         if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => {
+            this.addEventListener(refreshBtn, 'click', () => {
                 this.loadDatasets();
             });
         }
         
-        // Create job button
+        // Create job button - using managed event listener
         const createJobBtn = document.getElementById('createJobBtn');
         if (createJobBtn) {
-            createJobBtn.addEventListener('click', () => {
+            this.addEventListener(createJobBtn, 'click', () => {
                 this.createProcessingJob();
             });
         }
         
-        // Dataset and job actions
-        document.addEventListener('click', (e) => {
+        // Dataset and job actions - using managed event listener
+        const actionHandler = (e) => {
             if (e.target.matches('.dataset-actions .btn')) {
                 const action = e.target.textContent.toLowerCase();
                 const datasetCard = e.target.closest('.dataset-card');
@@ -98,34 +111,35 @@ class DataManager {
                     this.handleJobAction(action, jobItem);
                 }
             }
-        });
+        };
+        this.addEventListener(document, 'click', actionHandler);
     }
     
     // setupDragAndDrop method removed - now handled by UploadArea component
     
     setupWebSocketListeners() {
-        // Dataset upload progress
-        wsManager.on('upload_progress', (data) => {
+        // Dataset upload progress - using managed WebSocket handlers
+        this.addWebSocketHandler('upload_progress', (data) => {
             this.updateUploadProgress(data);
         });
         
-        // Dataset processing status
-        wsManager.on('dataset_processed', (data) => {
+        // Dataset processing status - using managed WebSocket handlers
+        this.addWebSocketHandler('dataset_processed', (data) => {
             this.handleDatasetProcessed(data);
         });
         
-        // Data quality updates
-        wsManager.on('quality_assessment', (data) => {
+        // Data quality updates - using managed WebSocket handlers
+        this.addWebSocketHandler('quality_assessment', (data) => {
             this.updateQualityMetrics(data);
         });
         
-        // Processing job updates
-        wsManager.on('job_progress', (data) => {
+        // Processing job updates - using managed WebSocket handlers
+        this.addWebSocketHandler('job_progress', (data) => {
             this.updateJobProgress(data);
         });
         
-        // Job completed
-        wsManager.on('job_completed', (data) => {
+        // Job completed - using managed WebSocket handlers
+        this.addWebSocketHandler('job_completed', (data) => {
             this.handleJobCompleted(data);
         });
     }
@@ -142,7 +156,13 @@ class DataManager {
             await this.loadQualityMetrics();
             
         } catch (error) {
-            console.error('Failed to load data management data:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.SYSTEM,
+                recovery: RecoveryStrategy.FALLBACK,
+                context: { component: 'Data', action: 'loadInitialData' },
+                userMessage: 'Failed to load data management dashboard. Using fallback data.'
+            });
             this.showNotification('Failed to load data', 'error');
         }
     }
@@ -172,7 +192,13 @@ class DataManager {
             this.updateDatasetStats();
             
         } catch (error) {
-            console.error('Failed to load datasets:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                context: { component: 'Data', action: 'loadDatasets' },
+                userMessage: 'Failed to load datasets. Showing demo data.'
+            });
             // Fallback to empty list on error
             this.datasets = [];
             this.renderDatasetList();
@@ -189,43 +215,72 @@ class DataManager {
     }
     
     async loadProcessingJobs() {
-        // Simulate loading processing jobs
-        const jobs = [
-            {
-                id: 'job-001',
-                name: 'Data Cleaning & Normalization',
-                description: 'Cleaning customer data and normalizing features',
-                status: 'running',
-                progress: 67,
-                startedAt: Date.now() - 300000, // 5 minutes ago
-            },
-            {
-                id: 'job-002',
-                name: 'Feature Engineering',
-                description: 'Generated 12 new features from raw data',
-                status: 'completed',
-                progress: 100,
-                startedAt: Date.now() - 7200000, // 2 hours ago
-                completedAt: Date.now() - 6337000, // 2 hours ago + 14m 23s
-                duration: '14m 23s',
+        try {
+            let jobs = [];
+            
+            if (CONFIG.DEMO.ENABLED) {
+                // Use demo data in demo mode
+                jobs = demoData.getDemoProcessingJobs();
+            } else {
+                // Load real processing jobs from API
+                // TODO: Implement real API call when backend supports it
+                jobs = [];
             }
-        ];
-        
-        this.processingJobs = jobs;
-        this.renderProcessingJobs();
+            
+            this.processingJobs = jobs;
+            this.renderProcessingJobs();
+        } catch (error) {
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                context: { component: 'Data', action: 'loadProcessingJobs' },
+                userMessage: 'Failed to load processing jobs. Using cached data.'
+            });
+            
+            // Fallback to demo data on error if in demo mode
+            if (CONFIG.DEMO.ENABLED) {
+                this.processingJobs = demoData.getDemoProcessingJobs();
+                this.renderProcessingJobs();
+            }
+        }
     }
     
     async loadQualityMetrics() {
-        // Simulate loading quality assessment data
-        const metrics = {
-            overallScore: 85,
-            completeness: 92,
-            accuracy: 88,
-            consistency: 95,
-            validity: 76
-        };
-        
-        this.updateQualityDisplay(metrics);
+        try {
+            let metrics = null;
+            
+            if (CONFIG.DEMO.ENABLED) {
+                // Use demo data in demo mode
+                metrics = demoData.getDemoQualityMetrics();
+            } else {
+                // Load real quality metrics from API
+                // TODO: Implement real API call when backend supports it
+                metrics = {
+                    overallScore: 0,
+                    completeness: 0,
+                    accuracy: 0,
+                    consistency: 0,
+                    validity: 0
+                };
+            }
+            
+            this.updateQualityDisplay(metrics);
+        } catch (error) {
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.MEDIUM,
+                category: ErrorCategory.NETWORK,
+                recovery: RecoveryStrategy.FALLBACK,
+                context: { component: 'Data', action: 'loadQualityMetrics' },
+                userMessage: 'Failed to load data quality metrics. Using demo data.'
+            });
+            
+            // Fallback to demo data on error if in demo mode
+            if (CONFIG.DEMO.ENABLED) {
+                const demoMetrics = demoData.getDemoQualityMetrics();
+                this.updateQualityDisplay(demoMetrics);
+            }
+        }
     }
     
     renderDatasets() {
@@ -292,7 +347,13 @@ class DataManager {
             await this.loadDatasets();
             
         } catch (error) {
-            console.error('Upload failed:', error);
+            ErrorHandler.handleError(error, {
+                severity: ErrorSeverity.HIGH,
+                category: ErrorCategory.UPLOAD,
+                recovery: RecoveryStrategy.RETRY,
+                context: { component: 'Data', action: 'handleFileUpload', file: file?.name },
+                userMessage: 'File upload failed. Please check your file format and try again.'
+            });
             this.showNotification(`Upload failed: ${error.message}`, 'error');
             
             // Set error state
@@ -902,6 +963,22 @@ class DataManager {
         const readyDatasets = this.datasets.filter(d => d.status === 'ready').length;
         
         console.log(`Total datasets: ${totalDatasets}, Ready: ${readyDatasets}`);
+    }
+
+    /**
+     * Custom cleanup logic for data management page
+     */
+    customCleanup() {
+        // Clean up activity feed
+        if (this.activityFeed && this.activityFeed.destroy) {
+            this.activityFeed.destroy();
+        }
+        
+        // Clear datasets and jobs
+        this.datasets = [];
+        this.processingJobs = [];
+        
+        console.log('DataManager: Custom cleanup completed');
     }
 }
 
