@@ -1,5 +1,74 @@
 /* Dashboard-specific styles */
 
+/* Upload Area Styles */
+.upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: var(--surface-primary);
+    margin-bottom: var(--spacing-lg);
+}
+
+.upload-area:hover {
+    border-color: var(--primary-color);
+    background: var(--primary-light);
+    transform: translateY(-2px);
+}
+
+.upload-area:focus {
+    outline: 3px solid #ffbf47;
+    outline-offset: 2px;
+    border-color: var(--primary-color);
+}
+
+.upload-area.drag-over {
+    border-color: var(--primary-color);
+    background: var(--primary-light);
+    transform: scale(1.02);
+}
+
+.upload-area.uploading {
+    border-color: var(--warning-color);
+    background: var(--warning-light);
+    pointer-events: none;
+}
+
+.upload-area.error {
+    border-color: var(--danger-color);
+    background: var(--danger-light);
+}
+
+.upload-area.success {
+    border-color: var(--success-color);
+    background: var(--success-light);
+}
+
+.upload-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.7;
+}
+
+.upload-area h3 {
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+    font-size: 1.2rem;
+}
+
+.upload-area p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.upload-area.drag-over .upload-icon,
+.upload-area:hover .upload-icon {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
 /* 4-Step Workflow Display */
 .workflow-steps {
     display: grid;
