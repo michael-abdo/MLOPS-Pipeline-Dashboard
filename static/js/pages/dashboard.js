@@ -2,6 +2,7 @@ import { wsManager } from '../common/websocket.js';
 import { API } from '../common/api.js';
 import { ActivityFeed } from '../components/activity-feed.js';
 import { formatDuration, formatBytes } from '../common/utils.js';
+import { Card, Metric, ProgressBar, Grid, initializeUIComponents } from '../components/ui-components.js';
 
 /**
  * Dashboard Page Controller
@@ -32,11 +33,17 @@ class Dashboard {
     }
     
     initializeComponents() {
+        // Initialize UI components
+        initializeUIComponents();
+        
         // Initialize activity feed if container exists
         const activityContainer = document.getElementById('activityFeed');
         if (activityContainer) {
             this.activityFeed = new ActivityFeed('activityFeed');
         }
+        
+        // Replace static cards with dynamic components
+        this.renderDynamicCards();
     }
     
     setupEventListeners() {
@@ -407,12 +414,11 @@ class Dashboard {
     }
     
     updateTrainingProgress(data) {
-        // Update main progress bar
-        const mainProgressBar = document.getElementById('mainProgressBar');
-        if (mainProgressBar) {
-            mainProgressBar.style.width = `${data.progress}%`;
-            mainProgressBar.classList.add('active');
-        }
+        // Update main progress bar using new ProgressBar component
+        ProgressBar.update('mainProgressBarContainer', data.progress, {
+            label: data.stage || 'Training in progress...',
+            style: data.progress < 100 ? 'default' : 'success'
+        });
         
         // Update stage info
         const stageEl = document.getElementById('trainingStage');
@@ -471,11 +477,10 @@ class Dashboard {
         this.isTraining = false;
         
         // Update progress to 100%
-        const mainProgressBar = document.getElementById('mainProgressBar');
-        if (mainProgressBar) {
-            mainProgressBar.style.width = '100%';
-            mainProgressBar.classList.remove('active');
-        }
+        ProgressBar.update('mainProgressBarContainer', 100, {
+            label: `✅ Training completed! Accuracy: ${(data.final_accuracy * 100).toFixed(1)}%`,
+            style: 'success'
+        });
         
         // Show success message
         this.showSuccess(`Training completed! Final accuracy: ${(data.final_accuracy * 100).toFixed(1)}%`);
@@ -519,9 +524,41 @@ class Dashboard {
     }
     
     updateSystemMetrics(data) {
-        // This would update real-time system metrics
-        // For now, we'll keep the existing static display
-        // but this is where live CPU, memory, disk usage would be updated
+        // Update CPU usage
+        if (data.cpu !== undefined) {
+            Metric.update('cpuPercent', data.cpu, { format: 'percent' });
+            ProgressBar.update('cpuProgressBar', data.cpu, {
+                style: data.cpu > 80 ? 'danger' : data.cpu > 60 ? 'warning' : 'default'
+            });
+        }
+        
+        // Update memory usage
+        if (data.memory !== undefined) {
+            Metric.update('memoryPercent', data.memory, { format: 'percent' });
+            ProgressBar.update('memoryProgressBar', data.memory, {
+                style: data.memory > 80 ? 'danger' : data.memory > 60 ? 'warning' : 'default'
+            });
+        }
+        
+        // Update disk usage
+        if (data.disk !== undefined) {
+            Metric.update('diskPercent', data.disk, { format: 'percent' });
+            ProgressBar.update('diskProgressBar', data.disk, {
+                style: data.disk > 90 ? 'danger' : data.disk > 70 ? 'warning' : 'default'
+            });
+        }
+        
+        // Update active connections
+        if (data.active_connections !== undefined) {
+            const connEl = document.getElementById('activeConnections');
+            if (connEl) connEl.textContent = data.active_connections;
+        }
+        
+        // Update last update time
+        const updateEl = document.getElementById('lastUpdateTime');
+        if (updateEl) {
+            updateEl.textContent = 'Just now';
+        }
     }
     
     updateSystemHealth(data) {
@@ -646,6 +683,282 @@ class Dashboard {
     viewDetails() {
         // Show detailed model information - will be implemented in Phase 2
         this.showSuccess('Model details view coming in Phase 2');
+    }
+    
+    renderDynamicCards() {
+        // Replace Live System Status card
+        this.replaceLiveSystemStatusCard();
+        
+        // Replace System Performance Monitor card
+        this.replaceSystemPerformanceCard();
+        
+        // Replace Activity Feed card
+        this.replaceActivityFeedCard();
+    }
+    
+    replaceLiveSystemStatusCard() {
+        const existingCard = document.querySelector('.main-content > .card:first-of-type');
+        if (!existingCard) return;
+        
+        const statusContent = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+                <div>
+                    <strong>Customer Prediction Model v2.1</strong>
+                    <p style="color: var(--text-secondary); margin-top: var(--spacing-sm);">
+                        Last trained <span id="lastTrained">2 hours ago</span> • 
+                        <span id="totalPredictions">1,247</span> predictions made
+                    </p>
+                </div>
+                <div class="status-indicator status-good">
+                    <div class="status-dot"></div>
+                    <span id="statusText">Live & Healthy</span>
+                </div>
+            </div>
+            <div id="trainingProgressContainer"></div>
+            <div id="systemMetricsGrid"></div>
+        `;
+        
+        const newCard = Card.create({
+            title: 'Live System Status',
+            icon: '🔧',
+            content: statusContent,
+            className: 'system-status-card',
+            id: 'systemStatusCard'
+        });
+        
+        // Add training progress bar
+        const progressContainer = newCard.querySelector('#trainingProgressContainer');
+        const progressBar = ProgressBar.create({
+            progress: 100,
+            label: '🚀 Ready for New Training',
+            showPercentage: true,
+            style: 'success',
+            id: 'mainProgressBarContainer'
+        });
+        progressContainer.appendChild(progressBar);
+        
+        // Add system metrics grid
+        const metricsContainer = newCard.querySelector('#systemMetricsGrid');
+        const metricsGrid = Grid.createMetricGrid([
+            {
+                value: 94.2,
+                label: 'Current Accuracy',
+                format: 'percent',
+                id: 'liveAccuracy',
+                trend: 'up',
+                trendValue: 2.3
+            },
+            {
+                value: 23,
+                label: 'Predictions/Min',
+                format: 'custom',
+                id: 'livePredictions',
+                trend: 'neutral',
+                trendValue: 0
+            },
+            {
+                value: '✅',
+                label: 'System Health',
+                format: 'custom',
+                id: 'systemHealth',
+                tooltip: 'All systems operational'
+            }
+        ], {
+            columns: 3,
+            gap: 'lg',
+            responsive: { sm: 1, md: 3 }
+        });
+        metricsContainer.appendChild(metricsGrid);
+        
+        // Replace the existing card
+        existingCard.parentNode.replaceChild(newCard, existingCard);
+    }
+    
+    replaceSystemPerformanceCard() {
+        // Find the System Performance Monitor card by looking for the specific title
+        const cards = document.querySelectorAll('.card');
+        let performanceCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('System Performance Monitor')) {
+                performanceCard = card;
+            }
+        });
+        
+        if (!performanceCard) return;
+        
+        const resourcesContent = document.createElement('div');
+        
+        // System Metrics Grid
+        const metricsGrid = Grid.createMetricGrid([
+            {
+                value: 0,
+                label: 'CPU Usage',
+                format: 'percent',
+                id: 'cpuPercent',
+                className: 'cpu-metric'
+            },
+            {
+                value: 0,
+                label: 'Memory Usage',
+                format: 'percent',
+                id: 'memoryPercent',
+                className: 'memory-metric'
+            },
+            {
+                value: 0,
+                label: 'Disk Usage',
+                format: 'percent',
+                id: 'diskPercent',
+                className: 'disk-metric'
+            }
+        ], {
+            columns: 3,
+            gap: 'lg',
+            responsive: { sm: 1, md: 3 }
+        });
+        
+        resourcesContent.appendChild(metricsGrid);
+        
+        // Add progress bars under each metric
+        const cpuMetric = metricsGrid.querySelector('#cpuPercent').parentElement;
+        const cpuProgress = ProgressBar.create({
+            progress: 0,
+            showPercentage: false,
+            style: 'default',
+            height: 8,
+            id: 'cpuProgressBar'
+        });
+        cpuMetric.appendChild(cpuProgress);
+        
+        const memoryMetric = metricsGrid.querySelector('#memoryPercent').parentElement;
+        const memoryProgress = ProgressBar.create({
+            progress: 0,
+            showPercentage: false,
+            style: 'default',
+            height: 8,
+            id: 'memoryProgressBar'
+        });
+        memoryMetric.appendChild(memoryProgress);
+        
+        const diskMetric = metricsGrid.querySelector('#diskPercent').parentElement;
+        const diskProgress = ProgressBar.create({
+            progress: 0,
+            showPercentage: false,
+            style: 'default',
+            height: 8,
+            id: 'diskProgressBar'
+        });
+        diskMetric.appendChild(diskProgress);
+        
+        // System Health Status
+        const healthStatus = document.createElement('div');
+        healthStatus.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: var(--spacing-lg); margin-bottom: var(--spacing-lg); padding: var(--spacing-md); border: 2px solid var(--border-color); border-radius: var(--radius-md); background: rgba(16, 185, 129, 0.05);">
+                <div>
+                    <h4 style="margin: 0; display: flex; align-items: center; gap: var(--spacing-sm);">
+                        <span id="systemStatusIcon">✅</span>
+                        <span id="systemStatusText">System Healthy</span>
+                    </h4>
+                    <p style="margin: var(--spacing-sm) 0 0 0; color: var(--text-secondary); font-size: 0.9rem;" id="systemStatusDetail">
+                        All metrics within normal range • Last updated: <span id="lastUpdateTime">Just now</span>
+                    </p>
+                </div>
+                <div style="text-align: right;">
+                    <div class="metric-value" id="activeConnections" style="font-size: 1.5rem; color: var(--success-color);">0</div>
+                    <div class="metric-label">Active Connections</div>
+                </div>
+            </div>
+        `;
+        resourcesContent.appendChild(healthStatus);
+        
+        // Additional System Info Grid
+        const infoGrid = Grid.create({
+            columns: 2,
+            gap: 'lg',
+            responsive: { sm: 1, md: 2 },
+            children: [
+                this.createInfoPanel('Response Times', [
+                    { label: 'API Average:', value: '23ms', id: 'apiResponseTime' },
+                    { label: 'WebSocket:', value: '12ms', id: 'wsResponseTime' }
+                ]),
+                this.createInfoPanel('Resource Status', [
+                    { label: 'ML Models:', value: '2 Active', id: 'totalModels' },
+                    { label: 'Queue Jobs:', value: '0 Pending', id: 'queueJobs' }
+                ])
+            ]
+        });
+        resourcesContent.appendChild(infoGrid);
+        
+        const newCard = Card.create({
+            title: 'System Performance Monitor',
+            icon: '⚡',
+            content: resourcesContent,
+            collapsible: true,
+            id: 'systemPerformanceCard'
+        });
+        
+        performanceCard.parentNode.replaceChild(newCard, performanceCard);
+    }
+    
+    createInfoPanel(title, items) {
+        const panel = document.createElement('div');
+        panel.style.cssText = 'padding: var(--spacing-md); background: var(--background-color); border-radius: var(--radius-md);';
+        
+        const titleEl = document.createElement('h5');
+        titleEl.style.cssText = 'margin: 0 0 var(--spacing-sm) 0; color: var(--text-primary);';
+        titleEl.textContent = title;
+        panel.appendChild(titleEl);
+        
+        items.forEach((item, index) => {
+            const row = document.createElement('div');
+            row.style.cssText = `display: flex; justify-content: space-between; ${index < items.length - 1 ? 'margin-bottom: var(--spacing-sm);' : ''}`;
+            row.innerHTML = `
+                <span style="color: var(--text-secondary);">${item.label}</span>
+                <span id="${item.id}" style="font-weight: 600;">${item.value}</span>
+            `;
+            panel.appendChild(row);
+        });
+        
+        return panel;
+    }
+    
+    replaceActivityFeedCard() {
+        // Find the Activity Feed card
+        const cards = document.querySelectorAll('.card');
+        let activityCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('Live Activity Feed')) {
+                activityCard = card;
+            }
+        });
+        
+        if (!activityCard) return;
+        
+        const activityContent = `
+            <div id="activityFeed" style="max-height: 300px; overflow-y: auto;">
+                <!-- Activities will be loaded from backend -->
+            </div>
+        `;
+        
+        const newCard = Card.create({
+            title: 'Live Activity Feed',
+            icon: '🔍',
+            content: activityContent,
+            className: 'activity-feed-card',
+            id: 'activityFeedCard'
+        });
+        
+        activityCard.parentNode.replaceChild(newCard, activityCard);
+        
+        // Re-initialize activity feed
+        const activityContainer = newCard.querySelector('#activityFeed');
+        if (activityContainer && this.activityFeed) {
+            this.activityFeed = new ActivityFeed('activityFeed');
+        }
     }
 }
 

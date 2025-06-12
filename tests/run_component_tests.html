@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Component Integration Tests</title>
+    <link rel="stylesheet" href="/static/css/shared.css">
+    <style>
+        body { padding: 2rem; }
+        pre { background: #f5f5f5; padding: 1rem; border-radius: 4px; }
+        .success { color: green; }
+        .failure { color: red; }
+    </style>
+</head>
+<body>
+    <h1>UI Component Integration Tests</h1>
+    <div id="testResults">
+        <p>Running tests...</p>
+    </div>
+    
+    <script type="module">
+        import { results } from './test_components_integration.js';
+        
+        // Wait for tests to complete
+        setTimeout(() => {
+            const resultsDiv = document.getElementById('testResults');
+            const allPassed = results.failed === 0;
+            
+            resultsDiv.innerHTML = `
+                <h2 class="${allPassed ? 'success' : 'failure'}">
+                    ${allPassed ? '✅ All tests passed!' : '❌ Some tests failed'}
+                </h2>
+                <p>Total tests: ${results.passed + results.failed}</p>
+                <p class="success">Passed: ${results.passed}</p>
+                <p class="failure">Failed: ${results.failed}</p>
+                <h3>Detailed Results:</h3>
+                <pre>${results.tests.map(test => 
+                    `${test.status === 'PASSED' ? '✅' : '❌'} ${test.name}${test.error ? '\n   Error: ' + test.error : ''}`
+                ).join('\n')}</pre>
+            `;
+        }, 100);
+    </script>
+</body>
+</html>

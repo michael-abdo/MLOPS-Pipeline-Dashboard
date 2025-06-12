@@ -1,6 +1,7 @@
 import { wsManager } from '../common/websocket.js';
 import { API } from '../common/api.js';
 import { ActivityFeed } from '../components/activity-feed.js';
+import { Card, Metric, ProgressBar, Grid, initializeUIComponents } from '../components/ui-components.js';
 
 /**
  * Data Management Page Controller
@@ -30,6 +31,9 @@ class DataManager {
     }
     
     initializeComponents() {
+        // Initialize UI components
+        initializeUIComponents();
+        
         // Initialize activity feed
         const activityContainer = document.getElementById('activityFeed');
         if (activityContainer) {
@@ -38,6 +42,9 @@ class DataManager {
         
         // Setup drag and drop
         this.setupDragAndDrop();
+        
+        // Replace static cards with dynamic components
+        this.renderDynamicCards();
     }
     
     setupEventListeners() {
@@ -493,6 +500,386 @@ class DataManager {
         };
         
         console.log(`${emoji[type] || 'ℹ️'} Data: ${message}`);
+    }
+    
+    renderDynamicCards() {
+        // Replace all static cards with dynamic components
+        this.replaceUploadCard();
+        this.replaceDatasetLibraryCard();
+        this.replaceDataQualityCard();
+        this.replaceProcessingJobsCard();
+        this.replaceActivityCard();
+    }
+    
+    replaceUploadCard() {
+        const uploadCard = document.querySelector('.card:first-of-type');
+        if (!uploadCard) return;
+        
+        const uploadContent = `
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="fileInput" accept=".csv,.json,.parquet" style="display: none;">
+                <div class="upload-content">
+                    <div class="upload-icon">📁</div>
+                    <h4>Drop files here or click to browse</h4>
+                    <p>Supported formats: CSV, JSON, Parquet</p>
+                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                        Choose File
+                    </button>
+                </div>
+            </div>
+            
+            <div class="upload-progress" id="uploadProgress" style="display: none;">
+                <div id="uploadProgressContainer"></div>
+            </div>
+        `;
+        
+        const newCard = Card.create({
+            title: 'Upload Dataset',
+            icon: '📂',
+            content: uploadContent,
+            id: 'uploadCard'
+        });
+        
+        // Add progress bar
+        const progressContainer = newCard.querySelector('#uploadProgressContainer');
+        if (progressContainer) {
+            const progressBar = ProgressBar.create({
+                progress: 0,
+                label: 'Uploading...',
+                showPercentage: true,
+                id: 'uploadProgressBar'
+            });
+            progressContainer.appendChild(progressBar);
+        }
+        
+        uploadCard.parentNode.replaceChild(newCard, uploadCard);
+        
+        // Re-setup drag and drop after card replacement
+        this.setupDragAndDrop();
+    }
+    
+    replaceDatasetLibraryCard() {
+        const cards = document.querySelectorAll('.card');
+        let datasetCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('Dataset Library')) {
+                datasetCard = card;
+            }
+        });
+        
+        if (!datasetCard) return;
+        
+        // Create header actions
+        const headerActions = document.createElement('div');
+        headerActions.className = 'card-actions';
+        headerActions.innerHTML = `
+            <select class="select" id="datasetFilter">
+                <option value="all">All Datasets</option>
+                <option value="training">Training Data</option>
+                <option value="validation">Validation Data</option>
+                <option value="test">Test Data</option>
+            </select>
+            <button class="btn btn-secondary" id="refreshDatasets">Refresh</button>
+        `;
+        
+        const datasetContent = `<div class="dataset-grid" id="datasetGrid"></div>`;
+        
+        const newCard = Card.create({
+            title: 'Dataset Library',
+            icon: '📚',
+            content: datasetContent,
+            headerActions: headerActions,
+            id: 'datasetLibraryCard'
+        });
+        
+        // Copy existing dataset grid content
+        const existingGrid = datasetCard.querySelector('.dataset-grid');
+        const newGrid = newCard.querySelector('.dataset-grid');
+        if (existingGrid && newGrid) {
+            newGrid.innerHTML = existingGrid.innerHTML;
+        }
+        
+        datasetCard.parentNode.replaceChild(newCard, datasetCard);
+        
+        // Re-attach event listeners
+        const filterEl = newCard.querySelector('#datasetFilter');
+        if (filterEl) {
+            filterEl.addEventListener('change', (e) => this.filterDatasets(e.target.value));
+        }
+        
+        const refreshBtn = newCard.querySelector('#refreshDatasets');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => this.loadDatasets());
+        }
+    }
+    
+    replaceDataQualityCard() {
+        const cards = document.querySelectorAll('.card');
+        let qualityCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('Data Quality Assessment')) {
+                qualityCard = card;
+            }
+        });
+        
+        if (!qualityCard) return;
+        
+        const qualityContent = document.createElement('div');
+        
+        // Overall quality score
+        const scoreSection = document.createElement('div');
+        scoreSection.className = 'quality-overview';
+        scoreSection.innerHTML = `
+            <div class="quality-score">
+                <div class="score-circle">
+                    <div class="score-value" id="overallScore">85%</div>
+                </div>
+                <div class="score-label">Overall Quality Score</div>
+            </div>
+            <div id="qualityMetricsGrid"></div>
+        `;
+        qualityContent.appendChild(scoreSection);
+        
+        const newCard = Card.create({
+            title: 'Data Quality Assessment',
+            icon: '🔍',
+            content: qualityContent,
+            id: 'dataQualityCard'
+        });
+        
+        // Add quality metrics grid using new components
+        const metricsContainer = newCard.querySelector('#qualityMetricsGrid');
+        const metricsGrid = Grid.create({
+            columns: 2,
+            gap: 'lg',
+            responsive: { sm: 1, md: 2 },
+            children: [
+                this.createQualityMetricCard('✅', 'Completeness', '92% of data points are complete', 92, 'default'),
+                this.createQualityMetricCard('🎯', 'Accuracy', '88% of values within expected ranges', 88, 'default'),
+                this.createQualityMetricCard('🔗', 'Consistency', '95% of data follows standard formats', 95, 'success'),
+                this.createQualityMetricCard('⚠️', 'Validity', '76% of records pass validation rules', 76, 'warning')
+            ]
+        });
+        metricsContainer.appendChild(metricsGrid);
+        
+        qualityCard.parentNode.replaceChild(newCard, qualityCard);
+    }
+    
+    createQualityMetricCard(icon, title, description, value, style) {
+        const metricCard = document.createElement('div');
+        metricCard.className = 'quality-metric';
+        metricCard.innerHTML = `
+            <div class="metric-icon">${icon}</div>
+            <div class="metric-info">
+                <h4>${title}</h4>
+                <p>${description}</p>
+                <div id="${title.toLowerCase()}Progress"></div>
+            </div>
+        `;
+        
+        // Add progress bar
+        const progressContainer = metricCard.querySelector(`#${title.toLowerCase()}Progress`);
+        const progressBar = ProgressBar.create({
+            progress: value,
+            showPercentage: false,
+            style: style,
+            height: 8,
+            id: `${title.toLowerCase()}ProgressBar`
+        });
+        progressContainer.appendChild(progressBar);
+        
+        return metricCard;
+    }
+    
+    replaceProcessingJobsCard() {
+        const cards = document.querySelectorAll('.card');
+        let jobsCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('Data Processing Jobs')) {
+                jobsCard = card;
+            }
+        });
+        
+        if (!jobsCard) return;
+        
+        const headerActions = document.createElement('button');
+        headerActions.className = 'btn btn-primary';
+        headerActions.id = 'createJobBtn';
+        headerActions.textContent = 'Create Job';
+        headerActions.onclick = () => this.createProcessingJob();
+        
+        const jobsContent = `<div class="job-list" id="jobList"></div>`;
+        
+        const newCard = Card.create({
+            title: 'Data Processing Jobs',
+            icon: '⚙️',
+            content: jobsContent,
+            headerActions: headerActions,
+            id: 'processingJobsCard'
+        });
+        
+        // Copy existing job list content and update progress bars
+        const existingJobList = jobsCard.querySelector('.job-list');
+        const newJobList = newCard.querySelector('.job-list');
+        if (existingJobList && newJobList) {
+            newJobList.innerHTML = existingJobList.innerHTML;
+            
+            // Replace progress bars in job items
+            const jobItems = newJobList.querySelectorAll('.job-item');
+            jobItems.forEach(item => {
+                const progressDiv = item.querySelector('.job-progress');
+                const oldProgressBar = progressDiv.querySelector('.progress-bar');
+                const progressValue = oldProgressBar ? 
+                    parseInt(oldProgressBar.querySelector('.progress-fill').style.width) : 0;
+                
+                progressDiv.innerHTML = '';
+                const newProgressBar = ProgressBar.create({
+                    progress: progressValue,
+                    showPercentage: false,
+                    style: progressValue === 100 ? 'success' : 'default',
+                    animated: progressValue < 100,
+                    height: 8
+                });
+                progressDiv.appendChild(newProgressBar);
+            });
+        }
+        
+        jobsCard.parentNode.replaceChild(newCard, jobsCard);
+    }
+    
+    replaceActivityCard() {
+        const cards = document.querySelectorAll('.card');
+        let activityCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('Data Activity')) {
+                activityCard = card;
+            }
+        });
+        
+        if (!activityCard) return;
+        
+        const activityContent = `
+            <div id="activityFeed" style="max-height: 300px; overflow-y: auto;">
+                <!-- Activities will be loaded from backend -->
+            </div>
+        `;
+        
+        const newCard = Card.create({
+            title: 'Data Activity',
+            icon: '🔍',
+            content: activityContent,
+            id: 'dataActivityCard'
+        });
+        
+        activityCard.parentNode.replaceChild(newCard, activityCard);
+        
+        // Re-initialize activity feed
+        const activityContainer = newCard.querySelector('#activityFeed');
+        if (activityContainer && this.activityFeed) {
+            this.activityFeed = new ActivityFeed('activityFeed');
+        }
+    }
+    
+    updateUploadProgress(data) {
+        // Update progress using new ProgressBar component
+        ProgressBar.update('uploadProgressBar', data.progress, {
+            label: `Uploading... ${data.progress}%`
+        });
+        
+        // Show/hide upload progress container
+        const uploadProgress = document.getElementById('uploadProgress');
+        if (uploadProgress) {
+            uploadProgress.style.display = data.progress < 100 ? 'flex' : 'none';
+        }
+    }
+    
+    renderDatasetList() {
+        const datasetGrid = document.getElementById('datasetGrid');
+        if (!datasetGrid) return;
+        
+        // Clear existing content
+        datasetGrid.innerHTML = '';
+        
+        // Render datasets
+        this.datasets.forEach(dataset => {
+            const statusClass = dataset.status === 'ready' ? 'status-ready' : 
+                               dataset.status === 'processing' ? 'status-processing' : 
+                               'status-error';
+            
+            const datasetCard = document.createElement('div');
+            datasetCard.className = 'dataset-card';
+            datasetCard.innerHTML = `
+                <div class="dataset-header">
+                    <div class="dataset-icon">${dataset.status === 'error' ? '⚠️' : '📊'}</div>
+                    <div class="dataset-info">
+                        <h4>${dataset.name}</h4>
+                        <p>${dataset.description}</p>
+                    </div>
+                    <div class="dataset-status">
+                        <span class="status-badge ${statusClass}">${dataset.status}</span>
+                    </div>
+                </div>
+                <div class="dataset-stats">
+                    <div class="stat">
+                        <span class="stat-label">Rows:</span>
+                        <span class="stat-value">${dataset.rows || 'Unknown'}</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Columns:</span>
+                        <span class="stat-value">${dataset.columns || 'Unknown'}</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Size:</span>
+                        <span class="stat-value">${dataset.size}</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Type:</span>
+                        <span class="stat-value">${dataset.type}</span>
+                    </div>
+                </div>
+                <div class="dataset-actions">
+                    ${dataset.status === 'ready' ? `
+                        <button class="btn btn-primary">Preview</button>
+                        <button class="btn btn-secondary">Profile</button>
+                        <button class="btn btn-secondary">Download</button>
+                    ` : dataset.status === 'error' ? `
+                        <button class="btn btn-primary">Retry</button>
+                        <button class="btn btn-secondary">Debug</button>
+                        <button class="btn btn-danger">Delete</button>
+                    ` : `
+                        <button class="btn btn-secondary" disabled>Processing...</button>
+                    `}
+                </div>
+            `;
+            
+            datasetGrid.appendChild(datasetCard);
+        });
+        
+        // If no datasets, show empty state
+        if (this.datasets.length === 0) {
+            datasetGrid.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📦</div>
+                    <p>No datasets uploaded yet. Upload your first dataset to get started!</p>
+                </div>
+            `;
+        }
+    }
+    
+    updateDatasetStats() {
+        // Update any dataset statistics displayed elsewhere
+        const totalDatasets = this.datasets.length;
+        const readyDatasets = this.datasets.filter(d => d.status === 'ready').length;
+        
+        console.log(`Total datasets: ${totalDatasets}, Ready: ${readyDatasets}`);
     }
 }
 

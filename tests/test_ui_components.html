@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Components Test</title>
+    <link rel="stylesheet" href="/static/css/shared.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .test-section {
+            margin: 2rem 0;
+            padding: 2rem;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        .test-section h2 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+        .test-grid {
+            display: grid;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-content">
+        <h1>UI Components Test Page</h1>
+        
+        <div class="test-section">
+            <h2>1. Card Component Tests</h2>
+            <div id="cardTests" class="test-grid"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>2. Metric Component Tests</h2>
+            <div id="metricTests"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>3. ProgressBar Component Tests</h2>
+            <div id="progressTests" class="test-grid"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>4. Grid System Tests</h2>
+            <div id="gridTests"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>5. Dynamic Updates Test</h2>
+            <button onclick="testDynamicUpdates()">Test Dynamic Updates</button>
+            <div id="dynamicTests" style="margin-top: 1rem;"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { Card, Metric, ProgressBar, Grid, initializeUIComponents } from '/static/js/components/ui-components.js';
+        
+        // Initialize components
+        initializeUIComponents();
+        
+        // 1. Test Card Components
+        const cardTests = document.getElementById('cardTests');
+        
+        // Basic card
+        cardTests.appendChild(Card.create({
+            title: 'Basic Card',
+            content: 'This is a basic card with simple content.',
+            id: 'basicCard'
+        }));
+        
+        // Card with icon
+        cardTests.appendChild(Card.create({
+            title: 'Card with Icon',
+            icon: '🚀',
+            content: 'This card has an icon in the title.',
+            id: 'iconCard'
+        }));
+        
+        // Collapsible card
+        cardTests.appendChild(Card.create({
+            title: 'Collapsible Card',
+            icon: '📦',
+            content: 'Click the header to collapse/expand this card.',
+            collapsible: true,
+            id: 'collapsibleCard'
+        }));
+        
+        // Card with header actions
+        const actionButton = document.createElement('button');
+        actionButton.textContent = 'Action';
+        actionButton.className = 'btn btn-primary';
+        actionButton.onclick = () => alert('Action clicked!');
+        
+        cardTests.appendChild(Card.create({
+            title: 'Card with Actions',
+            content: 'This card has action buttons in the header.',
+            headerActions: actionButton,
+            id: 'actionCard'
+        }));
+        
+        // 2. Test Metric Components
+        const metricTests = document.getElementById('metricTests');
+        const metricsGrid = Grid.createMetricGrid([
+            {
+                value: 95.5,
+                label: 'Accuracy',
+                format: 'percent',
+                id: 'testAccuracy',
+                trend: 'up',
+                trendValue: 3.2,
+                tooltip: 'Model accuracy on test set'
+            },
+            {
+                value: 1234567,
+                label: 'Total Revenue',
+                format: 'currency',
+                id: 'testRevenue',
+                trend: 'up',
+                trendValue: 15.5
+            },
+            {
+                value: 42,
+                label: 'Active Users',
+                format: 'number',
+                id: 'testUsers',
+                trend: 'down',
+                trendValue: 5.0
+            },
+            {
+                value: 'Healthy',
+                label: 'System Status',
+                format: 'custom',
+                id: 'testStatus',
+                tooltip: 'All systems operational'
+            }
+        ], {
+            columns: 4,
+            gap: 'lg',
+            responsive: { sm: 2, md: 4 }
+        });
+        metricTests.appendChild(metricsGrid);
+        
+        // 3. Test ProgressBar Components
+        const progressTests = document.getElementById('progressTests');
+        
+        // Default progress bar
+        progressTests.appendChild(ProgressBar.create({
+            progress: 75,
+            label: 'Default Progress',
+            showPercentage: true,
+            id: 'defaultProgress'
+        }));
+        
+        // Success style
+        progressTests.appendChild(ProgressBar.create({
+            progress: 100,
+            label: 'Completed',
+            showPercentage: true,
+            style: 'success',
+            id: 'successProgress'
+        }));
+        
+        // Warning style
+        progressTests.appendChild(ProgressBar.create({
+            progress: 65,
+            label: 'Warning Level',
+            showPercentage: true,
+            style: 'warning',
+            id: 'warningProgress'
+        }));
+        
+        // Danger style
+        progressTests.appendChild(ProgressBar.create({
+            progress: 90,
+            label: 'Critical',
+            showPercentage: true,
+            style: 'danger',
+            id: 'dangerProgress'
+        }));
+        
+        // Animated progress
+        progressTests.appendChild(ProgressBar.create({
+            progress: 45,
+            label: 'Animated Progress',
+            showPercentage: true,
+            animated: true,
+            id: 'animatedProgress'
+        }));
+        
+        // 4. Test Grid System
+        const gridTests = document.getElementById('gridTests');
+        
+        // 3-column grid
+        const grid3 = Grid.create({
+            columns: 3,
+            gap: 'lg',
+            responsive: { sm: 1, md: 2, lg: 3 },
+            children: [
+                '<div style="background: #ddd; padding: 2rem; text-align: center;">Column 1</div>',
+                '<div style="background: #ddd; padding: 2rem; text-align: center;">Column 2</div>',
+                '<div style="background: #ddd; padding: 2rem; text-align: center;">Column 3</div>'
+            ]
+        });
+        gridTests.appendChild(grid3);
+        
+        // 5. Dynamic Updates Test
+        window.testDynamicUpdates = function() {
+            const dynamicTests = document.getElementById('dynamicTests');
+            
+            // Create components if not exists
+            if (!dynamicTests.querySelector('#dynamicCard')) {
+                const card = Card.create({
+                    title: 'Dynamic Updates',
+                    content: '<div id="dynamicContent">Watch this content update!</div>',
+                    id: 'dynamicCard'
+                });
+                
+                const metric = Metric.create({
+                    value: 0,
+                    label: 'Dynamic Metric',
+                    format: 'number',
+                    id: 'dynamicMetric'
+                });
+                
+                const progress = ProgressBar.create({
+                    progress: 0,
+                    label: 'Dynamic Progress',
+                    showPercentage: true,
+                    id: 'dynamicProgress'
+                });
+                
+                dynamicTests.appendChild(card);
+                dynamicTests.appendChild(metric);
+                dynamicTests.appendChild(progress);
+            }
+            
+            // Animate updates
+            let value = 0;
+            const interval = setInterval(() => {
+                value += 10;
+                
+                // Update metric
+                Metric.update('dynamicMetric', value, { format: 'number' });
+                
+                // Update progress
+                ProgressBar.update('dynamicProgress', value, {
+                    style: value > 80 ? 'danger' : value > 60 ? 'warning' : value > 40 ? 'success' : 'default'
+                });
+                
+                // Update card content
+                Card.updateContent('dynamicCard', `
+                    <div>
+                        <p>Current value: ${value}</p>
+                        <p>Status: ${value >= 100 ? 'Complete!' : 'In progress...'}</p>
+                    </div>
+                `);
+                
+                if (value >= 100) {
+                    clearInterval(interval);
+                }
+            }, 500);
+        };
+    </script>
+</body>
+</html>

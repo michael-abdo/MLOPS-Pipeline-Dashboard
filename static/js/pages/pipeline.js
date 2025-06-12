@@ -1,6 +1,7 @@
 import { wsManager } from '../common/websocket.js';
 import { API } from '../common/api.js';
 import { ActivityFeed } from '../components/activity-feed.js';
+import { Card, Metric, ProgressBar, Grid, initializeUIComponents } from '../components/ui-components.js';
 
 /**
  * Pipeline Page Controller
@@ -29,11 +30,17 @@ class Pipeline {
     }
     
     initializeComponents() {
+        // Initialize UI components
+        initializeUIComponents();
+        
         // Initialize activity feed
         const activityContainer = document.getElementById('activityFeed');
         if (activityContainer) {
             this.activityFeed = new ActivityFeed('activityFeed');
         }
+        
+        // Replace static cards with dynamic components
+        this.renderDynamicCards();
     }
     
     setupEventListeners() {
@@ -385,6 +392,264 @@ class Pipeline {
         };
         
         console.log(`${emoji[type] || 'ℹ️'} Pipeline: ${message}`);
+    }
+    
+    renderDynamicCards() {
+        // Replace all static cards with dynamic components
+        this.replaceActivePipelinesCard();
+        this.replaceCreatePipelineCard();
+        this.replacePipelineStatusCard();
+        this.replacePipelineAnalyticsCard();
+        this.replaceActivityCard();
+    }
+    
+    replaceActivePipelinesCard() {
+        const overviewCard = document.querySelector('.card:first-of-type');
+        if (!overviewCard) return;
+        
+        const metricsData = [
+            {
+                value: 2,
+                label: 'Active Pipelines',
+                format: 'number',
+                id: 'activePipelines'
+            },
+            {
+                value: 5,
+                label: 'Completed Today',
+                format: 'number',
+                id: 'completedToday'
+            },
+            {
+                value: '12m',
+                label: 'Avg Duration',
+                format: 'custom',
+                id: 'avgDuration'
+            }
+        ];
+        
+        const metricsGrid = Grid.createMetricGrid(metricsData, {
+            columns: 3,
+            gap: 'lg',
+            responsive: { sm: 1, md: 3 }
+        });
+        
+        const newCard = Card.create({
+            title: 'Active Pipelines',
+            icon: '🔄',
+            content: metricsGrid,
+            id: 'activePipelinesCard'
+        });
+        
+        overviewCard.parentNode.replaceChild(newCard, overviewCard);
+    }
+    
+    replaceCreatePipelineCard() {
+        const cards = document.querySelectorAll('.card');
+        let createCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('Create New Pipeline')) {
+                createCard = card;
+            }
+        });
+        
+        if (!createCard) return;
+        
+        const templatesContent = document.createElement('div');
+        templatesContent.className = 'pipeline-templates';
+        
+        // Copy existing templates content
+        const existingTemplates = createCard.querySelector('.pipeline-templates');
+        if (existingTemplates) {
+            templatesContent.innerHTML = existingTemplates.innerHTML;
+        }
+        
+        const newCard = Card.create({
+            title: 'Create New Pipeline',
+            icon: '⚡',
+            content: templatesContent,
+            id: 'createPipelineCard'
+        });
+        
+        createCard.parentNode.replaceChild(newCard, createCard);
+        
+        // Re-attach event listeners for template buttons
+        const templateCards = newCard.querySelectorAll('.template-card');
+        templateCards.forEach(card => {
+            const createBtn = card.querySelector('.btn');
+            if (createBtn) {
+                createBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const template = card.dataset.template;
+                    this.createPipeline(template);
+                });
+            }
+        });
+    }
+    
+    replacePipelineStatusCard() {
+        const cards = document.querySelectorAll('.card');
+        let statusCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('Pipeline Status')) {
+                statusCard = card;
+            }
+        });
+        
+        if (!statusCard) return;
+        
+        const statusContent = document.createElement('div');
+        statusContent.className = 'pipeline-list';
+        statusContent.id = 'pipelineList';
+        
+        // Copy existing pipeline list content and update progress bars
+        const existingList = statusCard.querySelector('.pipeline-list');
+        if (existingList) {
+            statusContent.innerHTML = existingList.innerHTML;
+            
+            // Replace progress bars in pipeline items
+            const pipelineItems = statusContent.querySelectorAll('.pipeline-item');
+            pipelineItems.forEach(item => {
+                const progressDiv = item.querySelector('.pipeline-progress');
+                const oldProgressBar = progressDiv.querySelector('.progress-bar');
+                const progressText = progressDiv.querySelector('.progress-text');
+                const progressValue = oldProgressBar ? 
+                    parseInt(oldProgressBar.querySelector('.progress-fill').style.width) : 0;
+                
+                // Determine style based on status
+                let style = 'default';
+                if (item.classList.contains('completed')) style = 'success';
+                else if (item.classList.contains('failed')) style = 'danger';
+                
+                progressDiv.innerHTML = '';
+                const newProgressBar = ProgressBar.create({
+                    progress: progressValue,
+                    showPercentage: true,
+                    style: style,
+                    animated: item.classList.contains('running'),
+                    height: 12
+                });
+                progressDiv.appendChild(newProgressBar);
+            });
+        }
+        
+        const newCard = Card.create({
+            title: 'Pipeline Status',
+            icon: '📋',
+            content: statusContent,
+            id: 'pipelineStatusCard'
+        });
+        
+        statusCard.parentNode.replaceChild(newCard, statusCard);
+    }
+    
+    replacePipelineAnalyticsCard() {
+        const cards = document.querySelectorAll('.card');
+        let analyticsCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('Pipeline Analytics')) {
+                analyticsCard = card;
+            }
+        });
+        
+        if (!analyticsCard) return;
+        
+        const analyticsContent = document.createElement('div');
+        
+        const analyticsGrid = Grid.create({
+            columns: 2,
+            gap: 'lg',
+            responsive: { sm: 1, md: 2 },
+            children: [
+                this.createAnalyticsMetric('Success Rate (Last 30 Days)', '94.5%', '+2.3%', 'positive'),
+                this.createAnalyticsMetric('Average Execution Time', '8m 42s', '+1.2m', 'negative')
+            ]
+        });
+        
+        analyticsContent.appendChild(analyticsGrid);
+        
+        const newCard = Card.create({
+            title: 'Pipeline Analytics',
+            icon: '📊',
+            content: analyticsContent,
+            id: 'pipelineAnalyticsCard'
+        });
+        
+        analyticsCard.parentNode.replaceChild(newCard, analyticsCard);
+    }
+    
+    createAnalyticsMetric(title, value, trend, trendType) {
+        const metricDiv = document.createElement('div');
+        metricDiv.innerHTML = `
+            <h4>${title}</h4>
+            <div class="metric-large">
+                <span class="metric-value">${value}</span>
+                <span class="metric-trend ${trendType}">${trend}</span>
+            </div>
+        `;
+        return metricDiv;
+    }
+    
+    replaceActivityCard() {
+        const cards = document.querySelectorAll('.card');
+        let activityCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('Pipeline Activity')) {
+                activityCard = card;
+            }
+        });
+        
+        if (!activityCard) return;
+        
+        const activityContent = `
+            <div id="activityFeed" style="max-height: 300px; overflow-y: auto;">
+                <!-- Activities will be loaded from backend -->
+            </div>
+        `;
+        
+        const newCard = Card.create({
+            title: 'Pipeline Activity',
+            icon: '🔍',
+            content: activityContent,
+            id: 'pipelineActivityCard'
+        });
+        
+        activityCard.parentNode.replaceChild(newCard, activityCard);
+        
+        // Re-initialize activity feed
+        const activityContainer = newCard.querySelector('#activityFeed');
+        if (activityContainer && this.activityFeed) {
+            this.activityFeed = new ActivityFeed('activityFeed');
+        }
+    }
+    
+    updateStatsDisplay(stats) {
+        // Update stats using new Metric component
+        Metric.update('activePipelines', stats.active, { format: 'number' });
+        Metric.update('completedToday', stats.completedToday, { format: 'number' });
+        Metric.update('avgDuration', stats.avgDuration, { format: 'custom' });
+    }
+    
+    updatePipelineProgress(data) {
+        // Update pipeline progress using ProgressBar component
+        const pipelineItem = document.querySelector(`[data-pipeline-id="${data.pipelineId}"]`);
+        if (pipelineItem) {
+            const progressContainer = pipelineItem.querySelector('.pipeline-progress');
+            if (progressContainer) {
+                const progressBar = progressContainer.querySelector('.progress-container');
+                if (progressBar) {
+                    ProgressBar.update(progressBar, data.progress);
+                }
+            }
+        }
     }
 }
 

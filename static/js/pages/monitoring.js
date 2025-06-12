@@ -1,6 +1,7 @@
 import { wsManager } from '../common/websocket.js';
 import { API } from '../common/api.js';
 import { ActivityFeed } from '../components/activity-feed.js';
+import { Card, Metric, ProgressBar, Grid, initializeUIComponents } from '../components/ui-components.js';
 
 /**
  * System Monitoring Page Controller
@@ -34,6 +35,9 @@ class SystemMonitor {
     }
     
     initializeComponents() {
+        // Initialize UI components
+        initializeUIComponents();
+        
         // Initialize activity feed
         const activityContainer = document.getElementById('activityFeed');
         if (activityContainer) {
@@ -42,6 +46,9 @@ class SystemMonitor {
         
         // Initialize charts (placeholder for future chart library integration)
         this.initializeCharts();
+        
+        // Replace static cards with dynamic components
+        this.renderDynamicCards();
     }
     
     initializeCharts() {
@@ -544,6 +551,312 @@ class SystemMonitor {
         };
         
         console.log(`${emoji[type] || 'ℹ️'} Monitor: ${message}`);
+    }
+    
+    renderDynamicCards() {
+        // Replace all static cards with dynamic components
+        this.replaceSystemOverviewCard();
+        this.replaceChartCards();
+        this.replaceServiceHealthCard();
+        this.replacePerformanceMetricsCard();
+        this.replaceSystemAlertsCard();
+        this.replaceActivityCard();
+    }
+    
+    replaceSystemOverviewCard() {
+        const overviewCard = document.querySelector('.card:first-of-type');
+        if (!overviewCard) return;
+        
+        const metricsData = [
+            {
+                value: '99.8',
+                label: 'System Uptime',
+                format: 'percent',
+                id: 'systemUptime',
+                trend: 'up',
+                trendValue: 0.2
+            },
+            {
+                value: 34,
+                label: 'CPU Usage',
+                format: 'percent',
+                id: 'cpuUsage',
+                trend: 'up',
+                trendValue: 5
+            },
+            {
+                value: '2.1GB',
+                label: 'Memory Usage',
+                format: 'custom',
+                id: 'memoryUsage',
+                trend: 'down',
+                trendValue: 0.3
+            },
+            {
+                value: 45,
+                label: 'Disk Usage',
+                format: 'percent',
+                id: 'diskUsage',
+                trend: 'down',
+                trendValue: 2
+            }
+        ];
+        
+        const metricsGrid = Grid.createMetricGrid(metricsData, {
+            columns: 4,
+            gap: 'lg',
+            responsive: { sm: 2, md: 4 }
+        });
+        
+        const newCard = Card.create({
+            title: 'System Overview',
+            icon: '🖥️',
+            content: metricsGrid,
+            id: 'systemOverviewCard'
+        });
+        
+        overviewCard.parentNode.replaceChild(newCard, overviewCard);
+    }
+    
+    replaceChartCards() {
+        // Replace CPU & Memory Usage chart card
+        const cards = document.querySelectorAll('.card');
+        let cpuMemoryCard = null;
+        let networkCard = null;
+        
+        cards.forEach(card => {
+            const h4 = card.querySelector('h4');
+            if (h4) {
+                if (h4.textContent.includes('CPU & Memory Usage')) {
+                    cpuMemoryCard = card;
+                } else if (h4.textContent.includes('Network Activity')) {
+                    networkCard = card;
+                }
+            }
+        });
+        
+        // Replace CPU & Memory card
+        if (cpuMemoryCard) {
+            const chartContent = document.createElement('div');
+            chartContent.innerHTML = `
+                <div class="chart-container">
+                    <canvas id="resourceChart" width="400" height="200"></canvas>
+                </div>
+                <div class="chart-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--primary-color);"></div>
+                        <span>CPU Usage</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--success-color);"></div>
+                        <span>Memory Usage</span>
+                    </div>
+                </div>
+            `;
+            
+            const newCpuCard = Card.create({
+                title: 'CPU & Memory Usage',
+                icon: '📊',
+                content: chartContent,
+                id: 'cpuMemoryCard'
+            });
+            
+            cpuMemoryCard.parentNode.replaceChild(newCpuCard, cpuMemoryCard);
+            
+            // Re-initialize chart after replacement
+            this.initializeCharts();
+        }
+        
+        // Replace Network card
+        if (networkCard) {
+            const networkContent = document.createElement('div');
+            networkContent.innerHTML = `
+                <div class="chart-container">
+                    <canvas id="networkChart" width="400" height="200"></canvas>
+                </div>
+                <div class="chart-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--warning-color);"></div>
+                        <span>Incoming</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--danger-color);"></div>
+                        <span>Outgoing</span>
+                    </div>
+                </div>
+            `;
+            
+            const newNetworkCard = Card.create({
+                title: 'Network Activity',
+                icon: '🌐',
+                content: networkContent,
+                id: 'networkCard'
+            });
+            
+            networkCard.parentNode.replaceChild(newNetworkCard, networkCard);
+            
+            // Re-initialize chart after replacement
+            this.initializeCharts();
+        }
+    }
+    
+    replaceServiceHealthCard() {
+        const cards = document.querySelectorAll('.card');
+        let serviceCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('Service Health')) {
+                serviceCard = card;
+            }
+        });
+        
+        if (!serviceCard) return;
+        
+        const serviceContent = document.createElement('div');
+        serviceContent.className = 'service-grid';
+        
+        // Copy existing service grid content
+        const existingGrid = serviceCard.querySelector('.service-grid');
+        if (existingGrid) {
+            serviceContent.innerHTML = existingGrid.innerHTML;
+        }
+        
+        const newCard = Card.create({
+            title: 'Service Health',
+            icon: '🔧',
+            content: serviceContent,
+            id: 'serviceHealthCard'
+        });
+        
+        serviceCard.parentNode.replaceChild(newCard, serviceCard);
+    }
+    
+    replacePerformanceMetricsCard() {
+        const cards = document.querySelectorAll('.card');
+        let performanceCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('Performance Metrics')) {
+                performanceCard = card;
+            }
+        });
+        
+        if (!performanceCard) return;
+        
+        const performanceContent = document.createElement('div');
+        performanceContent.className = 'performance-grid';
+        
+        // Copy existing performance grid content
+        const existingGrid = performanceCard.querySelector('.performance-grid');
+        if (existingGrid) {
+            performanceContent.innerHTML = existingGrid.innerHTML;
+        }
+        
+        const newCard = Card.create({
+            title: 'Performance Metrics',
+            icon: '⚡',
+            content: performanceContent,
+            id: 'performanceMetricsCard'
+        });
+        
+        performanceCard.parentNode.replaceChild(newCard, performanceCard);
+    }
+    
+    replaceSystemAlertsCard() {
+        const cards = document.querySelectorAll('.card');
+        let alertsCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('System Alerts')) {
+                alertsCard = card;
+            }
+        });
+        
+        if (!alertsCard) return;
+        
+        // Create header actions
+        const headerActions = document.createElement('div');
+        headerActions.className = 'card-actions';
+        headerActions.innerHTML = `
+            <button class="btn btn-secondary" id="clearAlertsBtn">Clear All</button>
+            <button class="btn btn-primary" id="configureAlertsBtn">Configure</button>
+        `;
+        
+        const alertsContent = document.createElement('div');
+        alertsContent.className = 'alerts-list';
+        
+        // Copy existing alerts content
+        const existingAlerts = alertsCard.querySelector('.alerts-list');
+        if (existingAlerts) {
+            alertsContent.innerHTML = existingAlerts.innerHTML;
+        }
+        
+        const newCard = Card.create({
+            title: 'System Alerts',
+            icon: '🚨',
+            content: alertsContent,
+            headerActions: headerActions,
+            id: 'systemAlertsCard'
+        });
+        
+        alertsCard.parentNode.replaceChild(newCard, alertsCard);
+        
+        // Re-attach event listeners
+        const clearBtn = newCard.querySelector('#clearAlertsBtn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => this.clearAllAlerts());
+        }
+        
+        const configureBtn = newCard.querySelector('#configureAlertsBtn');
+        if (configureBtn) {
+            configureBtn.addEventListener('click', () => this.configureAlerts());
+        }
+    }
+    
+    replaceActivityCard() {
+        const cards = document.querySelectorAll('.card');
+        let activityCard = null;
+        
+        cards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            if (h3 && h3.textContent.includes('System Activity')) {
+                activityCard = card;
+            }
+        });
+        
+        if (!activityCard) return;
+        
+        const activityContent = `
+            <div id="activityFeed" style="max-height: 300px; overflow-y: auto;">
+                <!-- Activities will be loaded from backend -->
+            </div>
+        `;
+        
+        const newCard = Card.create({
+            title: 'System Activity',
+            icon: '🔍',
+            content: activityContent,
+            id: 'systemActivityCard'
+        });
+        
+        activityCard.parentNode.replaceChild(newCard, activityCard);
+        
+        // Re-initialize activity feed
+        const activityContainer = newCard.querySelector('#activityFeed');
+        if (activityContainer && this.activityFeed) {
+            this.activityFeed = new ActivityFeed('activityFeed');
+        }
+    }
+    
+    updateSystemMetricsDisplay(metrics) {
+        // Update system overview metrics using new Metric component
+        Metric.update('systemUptime', metrics.uptime.replace('%', ''), { format: 'percent' });
+        Metric.update('cpuUsage', metrics.cpuUsage, { format: 'percent' });
+        Metric.update('memoryUsage', metrics.memoryUsage, { format: 'custom' });
+        Metric.update('diskUsage', metrics.diskUsage, { format: 'percent' });
     }
 }
 
