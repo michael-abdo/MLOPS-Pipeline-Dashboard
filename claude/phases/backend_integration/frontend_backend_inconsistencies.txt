@@ -1,0 +1,292 @@
+Frontend-Backend Inconsistencies Analysis
+  Missing Backend Routes
+    Page Routes Not Implemented
+      /pipeline route returns 404
+        Frontend expects full pipeline page
+        Backend returns "Pipeline management coming soon"
+      /architecture route returns 404
+        Frontend expects architecture visualization page
+        Backend returns "Architecture view coming soon"
+      /data route returns 404
+        Frontend expects data management page
+        Backend returns "Data management coming soon"
+      /monitoring route returns 404
+        Frontend expects monitoring dashboard
+        Backend returns "Monitoring dashboard coming soon"
+    Missing API Endpoints
+      Pipeline Management APIs
+        GET /api/pipelines - List all pipelines
+        POST /api/pipelines - Create new pipeline
+        GET /api/pipelines/{id} - Get pipeline details
+        PUT /api/pipelines/{id} - Update pipeline
+        DELETE /api/pipelines/{id} - Delete pipeline
+        POST /api/pipelines/{id}/run - Execute pipeline
+        GET /api/pipelines/{id}/status - Get pipeline status
+      Dataset Management APIs
+        GET /api/datasets - List all datasets
+        POST /api/datasets - Upload new dataset
+        GET /api/datasets/{id} - Get dataset details
+        DELETE /api/datasets/{id} - Delete dataset
+        GET /api/datasets/{id}/preview - Preview dataset
+        GET /api/datasets/{id}/statistics - Get dataset statistics
+        POST /api/datasets/{id}/validate - Validate dataset
+      Component Health APIs
+        GET /api/components/health - Get all component health
+        GET /api/components/{name}/health - Get specific component health
+        GET /api/components/{name}/metrics - Get component metrics
+      Monitoring APIs
+        GET /api/monitoring/services - Get service status
+        GET /api/monitoring/metrics - Get performance metrics
+        GET /api/monitoring/alerts - Get system alerts
+        POST /api/monitoring/alerts/acknowledge - Acknowledge alert
+  WebSocket Event Mismatches
+    Events Frontend Expects But Backend Doesn't Send
+      Pipeline Events
+        pipeline_status - Current pipeline execution status
+        pipeline_progress - Pipeline execution progress updates
+        pipeline_completed - Pipeline execution completed
+        pipeline_failed - Pipeline execution failed
+      Monitoring Events
+        service_health - Individual service health updates
+        performance_metrics - Real-time performance data
+        system_alert - System alert notifications
+        chart_data - Real-time chart data updates
+      Data Management Events
+        upload_progress - File upload progress
+        dataset_processed - Dataset processing completed
+        quality_assessment - Data quality check results
+        job_progress - Data job progress updates
+        job_completed - Data job completion
+      Architecture Events
+        component_health - Component health status changes
+        integration_status - Integration status updates
+    Events Backend Sends But Frontend Doesn't Use Fully
+      prediction_volume - Sent but not displayed anywhere
+      model_deployed - Sent but no UI update happens
+  Data Structure Inconsistencies
+    Training Request Mismatch
+      Frontend sends
+        file_path - Path to uploaded file
+        model_type - Type of model to train
+      Backend expects
+        file_path - Path to uploaded file
+        model_type - Type of model to train
+        target_column - Optional target column (never sent by frontend)
+    Model Data Fields
+      Backend provides limited fields
+        model_id, name, accuracy, created_at, status
+        predictions_made, avg_response_time, file_path
+      Frontend expects additional fields
+        Model version information
+        Training duration
+        Hyperparameters used
+        Validation metrics
+        Confusion matrix data
+        Feature importance
+    Activity Log Format
+      Backend sends simple format
+        title, message, timestamp, type
+      Frontend expects richer format
+        User information
+        Action details
+        Resource affected
+        Severity level
+  Feature Implementation Gaps
+    Pipeline Management
+      Frontend Implementation
+        Pipeline list with status
+        Pipeline creation form
+        Pipeline execution controls
+        Pipeline history view
+      Backend Implementation
+        No pipeline endpoints
+        No pipeline data models
+        No pipeline execution engine
+        No pipeline storage
+    Data Management
+      Frontend Implementation
+        Dataset list with filtering
+        Dataset upload with validation
+        Dataset preview functionality
+        Data quality checks
+        Dataset statistics view
+      Backend Implementation
+        Basic file upload only
+        No dataset persistence
+        No preview capability
+        No quality checks
+        No statistics calculation
+    Monitoring Dashboard
+      Frontend Implementation
+        Service health grid
+        Performance charts
+        Alert management
+        System metrics display
+      Backend Implementation
+        Basic system metrics only
+        No service-level monitoring
+        No alert system
+        No historical data
+    Architecture Visualization
+      Frontend Implementation
+        Component diagram
+        Health status indicators
+        Integration flow display
+        Performance metrics per component
+      Backend Implementation
+        No component tracking
+        No dependency mapping
+        No integration monitoring
+        No component metrics
+  Mock vs Real Data Usage
+    Pages Using Only Mock Data
+      Pipeline Page
+        All pipeline data hardcoded
+        Status updates simulated
+        History data mocked
+      Data Page
+        Dataset list hardcoded
+        Statistics mocked
+        Quality scores simulated
+      Monitoring Page
+        Service health mocked
+        Performance data simulated
+        Alerts hardcoded
+      Architecture Page
+        Component status mocked
+        Integration flows hardcoded
+        Metrics simulated
+    Pages Using Real Backend Data
+      Dashboard Page
+        File uploads work
+        Training progress real
+        Model metrics real
+        Activity feed real
+      Settings Page
+        Settings persistence works
+        Configuration updates work
+  Authentication & Security Gaps
+    Missing Authentication System
+      No login/logout endpoints
+      No user session management
+      No API key authentication
+      No role-based access control
+    Missing Authorization
+      All routes unprotected
+      No resource-level permissions
+      No user isolation
+      No audit logging
+    Security Headers
+      No CORS configuration
+      No CSRF protection
+      No rate limiting
+      No input sanitization
+  File Handling Limitations
+    Supported Formats
+      Frontend expects
+        CSV, JSON, Parquet support
+        Excel file support
+        Compressed file support
+      Backend provides
+        CSV support only
+        No other format handlers
+    Validation Differences
+      Frontend expects detailed validation
+        Column type checking
+        Data quality metrics
+        Missing value analysis
+        Outlier detection
+      Backend provides basic validation
+        File exists check
+        Basic CSV parsing
+        Row/column count only
+  Model Operations Gaps
+    Missing Model Features
+      Model versioning system
+        No version tracking
+        No rollback capability
+        No version comparison
+      Model comparison
+        No A/B testing
+        No performance comparison
+        No feature importance comparison
+      Model management
+        No model deletion
+        No model archiving
+        No model tagging
+  Real-time Update Gaps
+    Expected Real-time Updates
+      Pipeline execution steps
+      Dataset processing progress
+      Component health changes
+      Performance metric updates
+      Alert notifications
+    Actual Real-time Updates
+      Training progress only
+      System metrics only
+      Activity log updates
+  Error Handling Inconsistencies
+    Frontend Error Expectations
+      Structured error format
+        error_code field
+        error_message field
+        error_details object
+        suggested_action field
+    Backend Error Responses
+      Inconsistent formats
+      No error codes
+      Generic messages
+      No action suggestions
+  Performance Metrics Gaps
+    Frontend Expects Detailed Metrics
+      Response time per endpoint
+      Request volume per service
+      Error rate per component
+      Resource usage per service
+    Backend Provides Basic Metrics
+      Overall CPU usage
+      Total memory usage
+      Disk usage
+      No service-level metrics
+  Notification System Gaps
+    Frontend Notification Features
+      Toast notifications
+      Notification history
+      Notification preferences
+      Sound/visual alerts
+    Backend Support
+      Activity broadcasting only
+      No notification storage
+      No preference management
+      No notification types
+  Search and Filtering Missing
+    Frontend Filter UI Elements
+      Dataset name filter
+      Pipeline status filter
+      Model accuracy filter
+      Date range filters
+    Backend Search Capabilities
+      No search endpoints
+      No filter parameters
+      No pagination support
+      No sorting options
+  Batch Operations Not Implemented
+    Frontend Batch UI
+      Multi-select checkboxes
+      Bulk action buttons
+      Batch status display
+    Backend Batch Support
+      No batch endpoints
+      No bulk operations
+      No batch job tracking
+  Export/Import Features Missing
+    Frontend Export Buttons
+      Download dataset
+      Export model
+      Download reports
+      Export configurations
+    Backend Export Support
+      No export endpoints
+      No format options
+      No download streaming
+      No report generation

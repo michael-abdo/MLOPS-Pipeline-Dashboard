@@ -172,6 +172,74 @@ class Settings(BaseModel):
 # Simple in-memory settings storage
 current_settings = Settings()
 
+# Additional data models for new API endpoints
+class Pipeline(BaseModel):
+    id: Optional[str] = None
+    name: str
+    description: Optional[str] = None
+    status: str = "draft"  # draft, active, paused, completed, failed
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    steps: List[Dict[str, Any]] = []
+    
+class PipelineCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    steps: List[Dict[str, Any]] = []
+
+class Dataset(BaseModel):
+    id: Optional[str] = None
+    name: str
+    file_path: str
+    size: int
+    rows: int
+    columns: int
+    created_at: Optional[datetime] = None
+    status: str = "available"  # available, processing, error
+    file_type: str = "csv"
+    
+class ComponentHealth(BaseModel):
+    name: str
+    status: str  # healthy, warning, critical, unknown
+    last_check: datetime
+    metrics: Dict[str, Any] = {}
+    message: Optional[str] = None
+    
+class Alert(BaseModel):
+    id: Optional[str] = None
+    type: str  # error, warning, info
+    message: str
+    source: str
+    timestamp: Optional[datetime] = None
+    acknowledged: bool = False
+    acknowledged_by: Optional[str] = None
+    acknowledged_at: Optional[datetime] = None
+
+# In-memory storage for new entities
+pipelines_store: Dict[str, Pipeline] = {}
+datasets_store: Dict[str, Dataset] = {}
+alerts_store: Dict[str, Alert] = {}
+components_health: Dict[str, ComponentHealth] = {
+    "model_service": ComponentHealth(
+        name="model_service",
+        status="healthy",
+        last_check=datetime.now(),
+        metrics={"response_time": 45, "requests_per_minute": 120}
+    ),
+    "data_processor": ComponentHealth(
+        name="data_processor",
+        status="healthy", 
+        last_check=datetime.now(),
+        metrics={"queue_size": 5, "processing_rate": 50}
+    ),
+    "websocket_server": ComponentHealth(
+        name="websocket_server",
+        status="healthy",
+        last_check=datetime.now(),
+        metrics={"active_connections": 0, "messages_per_second": 0}
+    )
+}
+
 # Helper Functions
 def log_activity(title: str, description: str, status: str = "success"):
     """Add activity to log"""
@@ -725,6 +793,469 @@ async def save_settings(settings: Settings):
 async def get_settings():
     """Get current system settings"""
     return current_settings
+
+# ==================== Pipeline Management APIs ====================
+
+@app.get("/api/pipelines")
+async def get_pipelines():
+    """List all pipelines"""
+    return {
+        "pipelines": list(pipelines_store.values()),
+        "total": len(pipelines_store)
+    }
+
+@app.post("/api/pipelines")
+async def create_pipeline(pipeline: PipelineCreate):
+    """Create a new pipeline"""
+    pipeline_id = str(uuid.uuid4())
+    new_pipeline = Pipeline(
+        id=pipeline_id,
+        name=pipeline.name,
+        description=pipeline.description,
+        steps=pipeline.steps,
+        created_at=datetime.now(),
+        updated_at=datetime.now()
+    )
+    pipelines_store[pipeline_id] = new_pipeline
+    
+    # Log activity with broadcast
+    await log_activity_with_broadcast(
+        "Pipeline created",
+        f"New pipeline '{pipeline.name}' has been created",
+        "success"
+    )
+    
+    # Send WebSocket update
+    await manager.broadcast_json({
+        "type": "pipeline_status",
+        "pipeline_id": pipeline_id,
+        "status": "created",
+        "data": new_pipeline.dict()
+    })
+    
+    return new_pipeline
+
+@app.get("/api/pipelines/{pipeline_id}")
+async def get_pipeline(pipeline_id: str):
+    """Get pipeline details"""
+    if pipeline_id not in pipelines_store:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    return pipelines_store[pipeline_id]
+
+@app.put("/api/pipelines/{pipeline_id}")
+async def update_pipeline(pipeline_id: str, pipeline: PipelineCreate):
+    """Update a pipeline"""
+    if pipeline_id not in pipelines_store:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    
+    existing_pipeline = pipelines_store[pipeline_id]
+    existing_pipeline.name = pipeline.name
+    existing_pipeline.description = pipeline.description
+    existing_pipeline.steps = pipeline.steps
+    existing_pipeline.updated_at = datetime.now()
+    
+    await log_activity_with_broadcast(
+        "Pipeline updated",
+        f"Pipeline '{pipeline.name}' has been updated",
+        "info"
+    )
+    
+    return existing_pipeline
+
+@app.delete("/api/pipelines/{pipeline_id}")
+async def delete_pipeline(pipeline_id: str):
+    """Delete a pipeline"""
+    if pipeline_id not in pipelines_store:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    
+    pipeline_name = pipelines_store[pipeline_id].name
+    del pipelines_store[pipeline_id]
+    
+    await log_activity_with_broadcast(
+        "Pipeline deleted",
+        f"Pipeline '{pipeline_name}' has been deleted",
+        "warning"
+    )
+    
+    return {"message": "Pipeline deleted successfully"}
+
+@app.post("/api/pipelines/{pipeline_id}/run")
+async def run_pipeline(pipeline_id: str, background_tasks: BackgroundTasks):
+    """Execute a pipeline"""
+    if pipeline_id not in pipelines_store:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    
+    pipeline = pipelines_store[pipeline_id]
+    pipeline.status = "running"
+    
+    # Simulate pipeline execution
+    async def execute_pipeline():
+        try:
+            # Send initial status
+            await manager.broadcast_json({
+                "type": "pipeline_progress",
+                "pipeline_id": pipeline_id,
+                "progress": 0,
+                "status": "starting",
+                "current_step": "Initializing"
+            })
+            
+            total_steps = len(pipeline.steps)
+            for i, step in enumerate(pipeline.steps):
+                progress = int((i / total_steps) * 100)
+                
+                await manager.broadcast_json({
+                    "type": "pipeline_progress",
+                    "pipeline_id": pipeline_id,
+                    "progress": progress,
+                    "status": "running",
+                    "current_step": step.get("name", f"Step {i+1}")
+                })
+                
+                # Simulate step execution
+                await asyncio.sleep(2)
+            
+            # Pipeline completed
+            pipeline.status = "completed"
+            pipeline.updated_at = datetime.now()
+            
+            await manager.broadcast_json({
+                "type": "pipeline_completed",
+                "pipeline_id": pipeline_id,
+                "status": "completed",
+                "message": "Pipeline executed successfully"
+            })
+            
+            await log_activity_with_broadcast(
+                "Pipeline completed",
+                f"Pipeline '{pipeline.name}' executed successfully",
+                "success"
+            )
+            
+        except Exception as e:
+            pipeline.status = "failed"
+            await manager.broadcast_json({
+                "type": "pipeline_failed",
+                "pipeline_id": pipeline_id,
+                "error": str(e)
+            })
+    
+    background_tasks.add_task(execute_pipeline)
+    
+    return {
+        "message": "Pipeline execution started",
+        "pipeline_id": pipeline_id,
+        "status": "running"
+    }
+
+@app.get("/api/pipelines/{pipeline_id}/status")
+async def get_pipeline_status(pipeline_id: str):
+    """Get pipeline execution status"""
+    if pipeline_id not in pipelines_store:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    
+    pipeline = pipelines_store[pipeline_id]
+    return {
+        "pipeline_id": pipeline_id,
+        "status": pipeline.status,
+        "updated_at": pipeline.updated_at
+    }
+
+# ==================== Dataset Management APIs ====================
+
+@app.get("/api/datasets")
+async def get_datasets():
+    """List all datasets"""
+    return {
+        "datasets": list(datasets_store.values()),
+        "total": len(datasets_store)
+    }
+
+@app.post("/api/datasets")
+async def upload_dataset(file: UploadFile = File(...)):
+    """Upload new dataset"""
+    # Reuse existing upload logic
+    upload_result = await upload_file(file)
+    
+    # Create dataset entry
+    dataset_id = str(uuid.uuid4())
+    dataset = Dataset(
+        id=dataset_id,
+        name=file.filename,
+        file_path=upload_result["file_path"],
+        size=upload_result.get("size", 0),
+        rows=upload_result["rows"],
+        columns=upload_result["columns"],
+        created_at=datetime.now(),
+        file_type=file.filename.split('.')[-1].lower()
+    )
+    datasets_store[dataset_id] = dataset
+    
+    await manager.broadcast_json({
+        "type": "dataset_processed",
+        "dataset_id": dataset_id,
+        "status": "completed",
+        "data": dataset.dict()
+    })
+    
+    return dataset
+
+@app.get("/api/datasets/{dataset_id}")
+async def get_dataset(dataset_id: str):
+    """Get dataset details"""
+    if dataset_id not in datasets_store:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    return datasets_store[dataset_id]
+
+@app.delete("/api/datasets/{dataset_id}")
+async def delete_dataset(dataset_id: str):
+    """Delete a dataset"""
+    if dataset_id not in datasets_store:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    dataset = datasets_store[dataset_id]
+    
+    # Delete file if exists
+    try:
+        if os.path.exists(dataset.file_path):
+            os.remove(dataset.file_path)
+    except Exception:
+        pass
+    
+    del datasets_store[dataset_id]
+    
+    await log_activity_with_broadcast(
+        "Dataset deleted",
+        f"Dataset '{dataset.name}' has been deleted",
+        "warning"
+    )
+    
+    return {"message": "Dataset deleted successfully"}
+
+@app.get("/api/datasets/{dataset_id}/preview")
+async def preview_dataset(dataset_id: str, rows: int = 10):
+    """Preview dataset (first N rows)"""
+    if dataset_id not in datasets_store:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    dataset = datasets_store[dataset_id]
+    
+    # Simple preview - read first N rows
+    preview_data = []
+    try:
+        with open(dataset.file_path, 'r') as f:
+            import csv
+            reader = csv.DictReader(f)
+            for i, row in enumerate(reader):
+                if i >= rows:
+                    break
+                preview_data.append(row)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+    
+    return {
+        "dataset_id": dataset_id,
+        "rows": preview_data,
+        "total_rows": len(preview_data)
+    }
+
+@app.get("/api/datasets/{dataset_id}/statistics")
+async def get_dataset_statistics(dataset_id: str):
+    """Get dataset statistics"""
+    if dataset_id not in datasets_store:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    dataset = datasets_store[dataset_id]
+    
+    # Mock statistics for now
+    stats = {
+        "dataset_id": dataset_id,
+        "basic_stats": {
+            "rows": dataset.rows,
+            "columns": dataset.columns,
+            "size_bytes": dataset.size,
+            "file_type": dataset.file_type
+        },
+        "column_stats": {
+            "numeric_columns": dataset.columns // 2,
+            "categorical_columns": dataset.columns - (dataset.columns // 2),
+            "missing_values": 0
+        },
+        "quality_score": 95  # Mock quality score
+    }
+    
+    await manager.broadcast_json({
+        "type": "quality_assessment",
+        "dataset_id": dataset_id,
+        "quality_score": stats["quality_score"],
+        "stats": stats
+    })
+    
+    return stats
+
+@app.post("/api/datasets/{dataset_id}/validate")
+async def validate_dataset(dataset_id: str):
+    """Validate dataset quality"""
+    if dataset_id not in datasets_store:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    # Mock validation process
+    validation_result = {
+        "dataset_id": dataset_id,
+        "valid": True,
+        "issues": [],
+        "warnings": ["Some columns have missing values"],
+        "quality_score": 95
+    }
+    
+    await log_activity_with_broadcast(
+        "Dataset validated",
+        f"Dataset validation completed with quality score: 95%",
+        "success"
+    )
+    
+    return validation_result
+
+# ==================== Component Health APIs ====================
+
+@app.get("/api/components/health")
+async def get_all_component_health():
+    """Get health status of all components"""
+    # Update WebSocket server health
+    components_health["websocket_server"].metrics["active_connections"] = len(manager.active_connections)
+    components_health["websocket_server"].last_check = datetime.now()
+    
+    # Broadcast component health updates
+    for component in components_health.values():
+        await manager.broadcast_json({
+            "type": "component_health",
+            "component": component.name,
+            "status": component.status,
+            "metrics": component.metrics
+        })
+    
+    return {
+        "components": list(components_health.values()),
+        "overall_health": "healthy" if all(c.status == "healthy" for c in components_health.values()) else "degraded"
+    }
+
+@app.get("/api/components/{component_name}/health")
+async def get_component_health(component_name: str):
+    """Get specific component health"""
+    if component_name not in components_health:
+        raise HTTPException(status_code=404, detail="Component not found")
+    
+    component = components_health[component_name]
+    component.last_check = datetime.now()
+    
+    return component
+
+@app.get("/api/components/{component_name}/metrics")
+async def get_component_metrics(component_name: str):
+    """Get component performance metrics"""
+    if component_name not in components_health:
+        raise HTTPException(status_code=404, detail="Component not found")
+    
+    # Mock detailed metrics
+    metrics = {
+        "component": component_name,
+        "timestamp": datetime.now(),
+        "metrics": components_health[component_name].metrics,
+        "history": [
+            {
+                "timestamp": datetime.now().isoformat(),
+                "value": 45 + (i * 5)
+            } for i in range(10)
+        ]
+    }
+    
+    return metrics
+
+# ==================== Monitoring APIs ====================
+
+@app.get("/api/monitoring/services")
+async def get_service_status():
+    """Get status of all services"""
+    services = [
+        {
+            "name": "API Server",
+            "status": "running",
+            "uptime": "4d 12h 30m",
+            "response_time": "45ms",
+            "requests_per_minute": 120
+        },
+        {
+            "name": "Model Service", 
+            "status": "running",
+            "uptime": "4d 12h 30m",
+            "response_time": "120ms",
+            "predictions_per_minute": 50
+        },
+        {
+            "name": "Data Processor",
+            "status": "running",
+            "uptime": "4d 12h 30m",
+            "queue_size": 5,
+            "processing_rate": "50 records/sec"
+        }
+    ]
+    
+    await manager.broadcast_json({
+        "type": "service_health",
+        "services": services,
+        "timestamp": datetime.now().isoformat()
+    })
+    
+    return {"services": services}
+
+@app.get("/api/monitoring/metrics")
+async def get_performance_metrics():
+    """Get system performance metrics"""
+    metrics = {
+        "cpu_usage": psutil.cpu_percent(),
+        "memory_usage": psutil.virtual_memory().percent,
+        "disk_usage": psutil.disk_usage('/').percent,
+        "network_io": {
+            "bytes_sent": psutil.net_io_counters().bytes_sent,
+            "bytes_recv": psutil.net_io_counters().bytes_recv
+        },
+        "timestamp": datetime.now()
+    }
+    
+    await manager.broadcast_json({
+        "type": "performance_metrics",
+        "metrics": metrics
+    })
+    
+    return metrics
+
+@app.get("/api/monitoring/alerts")
+async def get_system_alerts():
+    """Get active system alerts"""
+    return {
+        "alerts": list(alerts_store.values()),
+        "total": len(alerts_store),
+        "unacknowledged": len([a for a in alerts_store.values() if not a.acknowledged])
+    }
+
+@app.post("/api/monitoring/alerts/acknowledge")
+async def acknowledge_alert(alert_id: str, acknowledged_by: str = "system"):
+    """Acknowledge an alert"""
+    if alert_id not in alerts_store:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    
+    alert = alerts_store[alert_id]
+    alert.acknowledged = True
+    alert.acknowledged_by = acknowledged_by
+    alert.acknowledged_at = datetime.now()
+    
+    await log_activity_with_broadcast(
+        "Alert acknowledged",
+        f"Alert '{alert.message}' has been acknowledged",
+        "info"
+    )
+    
+    return alert
 
 # Enhanced WebSocket endpoint with Phase 4 improvements
 @app.websocket("/ws")

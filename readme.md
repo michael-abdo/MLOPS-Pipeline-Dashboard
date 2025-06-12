@@ -210,36 +210,76 @@ This dashboard follows the **"Grandma Test"** - if your grandmother can't figure
 
 ```
 mlops/development/
-├── backend/                # Python backend services
-│   ├── backend_api.py     # Full API implementation
-│   └── backend_simple.py  # Simplified backend
-├── static/                # Frontend files
-│   ├── css/              # Stylesheets (6 files)
-│   ├── js/               # JavaScript modules
-│   │   ├── common/       # Shared utilities (5 files)
-│   │   ├── components/   # Reusable components (2 files)
-│   │   └── pages/        # Page controllers (5 files)
-│   ├── *.html            # Web pages (6 total)
-│   └── assets/           # Static assets
-├── tests/                 # Test suite
-│   ├── test_*.py         # Python tests (9 files)
-│   └── test_*.html       # Manual test pages
-├── automation/            # Browser automation tests
-│   ├── tests/            # Automated test scripts
-│   ├── screenshots/      # Test screenshots
-│   └── logs/             # Test logs
-├── docs/                  # Documentation
-│   ├── phase1_2/         # Phase 1-2 docs
-│   ├── phase3/           # Phase 3 docs
-│   └── retired/          # Archived docs
-├── claude/                # Development phases
-│   └── phases/           # Implementation reports
-├── models/                # Trained ML models
-├── uploads/               # User uploaded data
+├── automation/            # Browser automation framework
+│   ├── config/           # Automation configuration
+│   ├── core/             # Base automation classes
+│   ├── logs/             # Automation test logs
+│   ├── pages/            # Page object models
+│   ├── tests/            # WebSocket & upload tests
+│   ├── utils/            # Logger and utilities
+│   └── package.json      # Node.js dependencies
+├── backend/               # Python backend services
+│   ├── backend_api.py    # Full API implementation
+│   └── backend_simple.py # Enhanced backend with 20+ new APIs
+├── claude/                # AI development documentation
+│   └── phases/           # Implementation phases
+│       ├── backend_integration/  # Backend API docs
+│       ├── csv_compelixity/     # CSV testing docs
+│       └── frontend/            # Frontend architecture docs
+├── docs/                  # Project documentation
+│   ├── phase1_2/         # Phase 1-2 specifications
+│   ├── phase3/           # Phase 3 implementation
+│   └── retired/          # Archived documentation
+├── logs/                  # Application logs
+│   ├── backend.log       # Backend server logs
+│   └── backend_server.log # Server operation logs
+├── models/                # Trained ML models storage
+├── static/                # Frontend application
+│   ├── css/              # Modular stylesheets
+│   │   ├── shared.css    # Global styles
+│   │   ├── dashboard.css # Dashboard page styles
+│   │   ├── pipeline.css  # Pipeline page styles
+│   │   ├── architecture.css # Architecture page styles
+│   │   ├── data.css      # Data management styles
+│   │   └── monitoring.css # Monitoring page styles
+│   ├── js/               # Modular JavaScript
+│   │   ├── common/       # Shared utilities
+│   │   │   ├── api.js    # API client
+│   │   │   ├── websocket.js # WebSocket manager
+│   │   │   ├── notifications.js # Toast notifications
+│   │   │   ├── config.js # App configuration
+│   │   │   └── utils.js  # Helper functions
+│   │   ├── components/   # Reusable UI components
+│   │   │   ├── navigation.js # Top navigation bar
+│   │   │   └── activity-feed.js # Real-time feed
+│   │   └── pages/        # Page controllers
+│   │       ├── dashboard.js # Dashboard logic
+│   │       ├── pipeline.js  # Pipeline management
+│   │       ├── architecture.js # System architecture
+│   │       ├── data.js      # Data management
+│   │       └── monitoring.js # System monitoring
+│   ├── assets/           # Icons and images
+│   ├── index.html        # Dashboard page
+│   ├── pipeline.html     # Pipeline management page
+│   ├── architecture.html # Architecture visualization
+│   ├── data.html         # Data management page
+│   ├── monitoring.html   # System monitoring page
+│   └── settings.html     # Settings page
+├── tests/                 # Comprehensive test suite
+│   ├── test_api.py       # Basic API tests
+│   ├── test_new_apis.py  # New endpoints tests
+│   ├── test_websocket.py # WebSocket tests
+│   ├── test_complexity_monitoring.py # CSV complexity tests
+│   ├── test_manual_upload.html # Manual upload test
+│   └── test_*.py         # Additional test files
+├── uploads/               # User uploaded datasets
+│   └── *.csv             # Sample test data files
 ├── venv/                  # Python virtual environment
-├── requirements.txt       # Python dependencies
+├── CHANGELOG.md          # Version history
+├── CONTRIBUTING.md       # Contribution guidelines
+├── LICENSE               # MIT license
 ├── readme.md             # This file
-└── LICENSE               # MIT license
+└── requirements.txt      # Python dependencies
 ```
 
 ## 🔧 Configuration
