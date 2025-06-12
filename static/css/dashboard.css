@@ -1,15 +1,26 @@
 /* Dashboard-specific styles */
 
+/* Ensure sections are visible */
+.card {
+    display: block;
+}
+
 /* Upload Area Styles */
 .upload-area {
-    border: 2px dashed var(--border-color);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-xl);
+    border: 3px dashed var(--border-color);
+    border-radius: 0.75rem;
+    padding: 2rem;
     text-align: center;
     cursor: pointer;
     transition: all 0.3s ease;
-    background: var(--surface-primary);
-    margin-bottom: var(--spacing-lg);
+    background: var(--surface-color);
+    margin: 2rem 0;
+    height: auto;
+    min-height: 200px;
+    width: 100%;
+    display: block;
+    box-sizing: border-box;
+    position: relative;
 }
 
 .upload-area:hover {
@@ -137,16 +148,6 @@
     color: var(--text-secondary);
 }
 
-/* File Upload Area */
-.upload-area {
-    border: 3px dashed var(--border-color);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-xl);
-    text-align: center;
-    transition: all 0.3s ease;
-    cursor: pointer;
-    background: var(--surface-color);
-}
 
 .upload-area:hover, .upload-area.dragover {
     border-color: var(--primary-color);

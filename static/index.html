@@ -74,17 +74,10 @@
         }
     </style>
     
-    <!-- Non-critical CSS loaded asynchronously -->
-    <link rel="preload" href="/static/css/shared.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <link rel="preload" href="/static/css/dashboard.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <link rel="preload" href="/static/css/accessibility-improvements.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    
-    <!-- Fallback for browsers without JavaScript -->
-    <noscript>
-        <link rel="stylesheet" href="/static/css/shared.css">
-        <link rel="stylesheet" href="/static/css/dashboard.css">
-        <link rel="stylesheet" href="/static/css/accessibility-improvements.css">
-    </noscript>
+    <!-- CSS loaded synchronously for proper upload area styling -->
+    <link rel="stylesheet" href="/static/css/shared.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/accessibility-improvements.css">
 </head>
 <body>
     <!-- Navigation will be rendered by JavaScript component -->
@@ -358,7 +351,7 @@
                         View Details
                     </button>
                 </div>
-            </div>
+            </section>
         </div>
 
         <!-- System Performance Monitoring ---> 
@@ -458,9 +451,29 @@
         </section>
     </main>
 
-    <!-- Import JavaScript modules -->
-    <script type="module" src="/static/js/components/navigation.js"></script>
-    <script type="module" src="/static/js/pages/dashboard.js"></script>
+    <!-- Import JavaScript modules with error handling -->
+    <script>
+        // Check if ES6 modules are supported
+        const supportsModules = 'noModule' in HTMLScriptElement.prototype;
+        console.log('ES6 modules supported:', supportsModules);
+        
+        // Add error handler for module loading
+        window.addEventListener('error', function(e) {
+            if (e.filename && e.filename.includes('/static/js/')) {
+                console.error('JavaScript module error:', e.message, 'in', e.filename);
+                // Don't let JS errors stop the rest of the page from loading
+                e.preventDefault();
+            }
+        });
+        
+        // Add unhandled promise rejection handler
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('Unhandled promise rejection:', e.reason);
+            e.preventDefault();
+        });
+    </script>
+    <script type="module" src="/static/js/components/navigation.js" onerror="console.error('Failed to load navigation.js')"></script>
+    <script type="module" src="/static/js/pages/dashboard.js" onerror="console.error('Failed to load dashboard.js')"></script>
     
     <!-- Accessibility enhancements -->
     <script>

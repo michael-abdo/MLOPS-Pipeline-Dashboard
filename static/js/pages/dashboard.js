@@ -11,7 +11,7 @@ import { StatefulPageController } from '../common/state-integration.js';
 import { demoData } from '../common/demo-data.js';
 import { CONFIG } from '../common/config.js';
 // Import centralized error handling system
-import { ErrorHandler, ErrorSeverity, ErrorCategory, RecoveryStrategy } from '../common/error-handler.js';
+import { errorHandler, ErrorSeverity, ErrorCategory, RecoveryStrategy } from '../common/error-handler.js';
 import { withErrorHandling } from '../common/error-utils.js';
 
 /**
@@ -22,16 +22,71 @@ class Dashboard extends BasePageController {
     constructor() {
         super(); // Initialize lifecycle management
         
-        // Mix in state management
-        const stateController = new StatefulPageController();
-        Object.assign(this, stateController);
+        // Initialize state management manually
+        this.state = null;
+        this.stateAPI = null;
+        this.subscriptions = new Set();
+        
+        try {
+            // Import state functionality
+            this.initializeStateManagement();
+        } catch (error) {
+            // State management initialization failed, continuing without state
+        }
         
         this.currentFile = null;
         this.currentJobId = null;
         this.isTraining = false;
         this.activityFeed = null;
         
-        this.init();
+        // Wrap init() call to catch errors
+        this.init().catch(error => {
+            errorHandler.handleError(error, {
+                severity: ErrorSeverity.HIGH,
+                category: ErrorCategory.SYSTEM,
+                recovery: RecoveryStrategy.FALLBACK,
+                context: { component: 'Dashboard', action: 'constructor' },
+                userMessage: 'Dashboard failed to initialize properly.'
+            });
+        });
+    }
+    
+    async initializeStateManagement() {
+        try {
+            const { getGlobalState, getStateAwareAPI, initializeStateManagement } = await import('../common/state.js');
+            this.state = getGlobalState();
+            let api = getStateAwareAPI();
+            if (!api) {
+                api = initializeStateManagement(API);
+            }
+            this.stateAPI = api;
+        } catch (error) {
+            // Failed to initialize state management - fallback methods will handle it
+        }
+    }
+    
+    // Provide fallback state methods
+    setState(key, value, options = {}) {
+        if (this.state && this.state.set) {
+            this.state.set(key, value, options);
+        }
+        return this;
+    }
+    
+    getState(key, defaultValue = null) {
+        if (this.state && this.state.get) {
+            return this.state.get(key, defaultValue);
+        }
+        return defaultValue;
+    }
+    
+    subscribeToState(key, callback) {
+        if (this.state && this.state.subscribe) {
+            const unsubscribe = this.state.subscribe(key, callback);
+            this.subscriptions.add(unsubscribe);
+            return unsubscribe;
+        }
+        return () => {}; // No-op unsubscribe
     }
     
     async init() {
@@ -157,7 +212,7 @@ class Dashboard extends BasePageController {
             await this.loadSystemStatus();
             
         } catch (error) {
-            ErrorHandler.handleError(error, {
+            errorHandler.handleError(error, {
                 severity: ErrorSeverity.MEDIUM,
                 category: ErrorCategory.SYSTEM,
                 recovery: RecoveryStrategy.FALLBACK,
@@ -197,7 +252,7 @@ class Dashboard extends BasePageController {
                 this.updateModelPerformanceSection(demoModel);
             }
         } catch (error) {
-            ErrorHandler.handleError(error, {
+            errorHandler.handleError(error, {
                 severity: ErrorSeverity.MEDIUM,
                 category: ErrorCategory.NETWORK,
                 recovery: RecoveryStrategy.FALLBACK,
@@ -278,7 +333,7 @@ class Dashboard extends BasePageController {
             
             this.updateSystemStatusDisplay(status);
         } catch (error) {
-            ErrorHandler.handleError(error, {
+            errorHandler.handleError(error, {
                 severity: ErrorSeverity.MEDIUM,
                 category: ErrorCategory.NETWORK,
                 recovery: RecoveryStrategy.FALLBACK,
@@ -443,7 +498,7 @@ class Dashboard extends BasePageController {
             }
             
         } catch (error) {
-            ErrorHandler.handleError(error, {
+            errorHandler.handleError(error, {
                 severity: ErrorSeverity.HIGH,
                 category: ErrorCategory.UPLOAD,
                 recovery: RecoveryStrategy.RETRY,
@@ -494,7 +549,7 @@ class Dashboard extends BasePageController {
             this.showTrainingInProgress();
             
         } catch (error) {
-            ErrorHandler.handleError(error, {
+            errorHandler.handleError(error, {
                 severity: ErrorSeverity.HIGH,
                 category: ErrorCategory.SYSTEM,
                 recovery: RecoveryStrategy.RETRY,

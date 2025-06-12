@@ -22,7 +22,7 @@ export const withErrorHandling = {
     /**
      * Wrap an async function with error handling
      */
-    async (fn, options = {}) {
+    async: async function(fn, options = {}) {
         const {
             category = ErrorCategory.SYSTEM,
             severity = ErrorSeverity.MEDIUM,
@@ -59,7 +59,7 @@ export const withErrorHandling = {
     /**
      * Wrap API calls with network-specific error handling
      */
-    async api(apiCall, endpoint, options = {}) {
+    api: async function(apiCall, endpoint, options = {}) {
         return await this.async(apiCall, {
             category: ErrorCategory.NETWORK,
             recovery: RecoveryStrategy.RETRY,
@@ -73,7 +73,7 @@ export const withErrorHandling = {
     /**
      * Wrap upload operations with upload-specific error handling
      */
-    async upload(uploadCall, fileName, options = {}) {
+    upload: async function(uploadCall, fileName, options = {}) {
         return await this.async(uploadCall, {
             category: ErrorCategory.UPLOAD,
             recovery: RecoveryStrategy.RETRY,
@@ -87,7 +87,7 @@ export const withErrorHandling = {
     /**
      * Wrap component operations with component-specific error handling
      */
-    async component(componentCall, componentName, options = {}) {
+    component: async function(componentCall, componentName, options = {}) {
         return await this.async(componentCall, {
             category: ErrorCategory.COMPONENT,
             recovery: RecoveryStrategy.FALLBACK,
@@ -100,7 +100,7 @@ export const withErrorHandling = {
     /**
      * Wrap WebSocket operations with WebSocket-specific error handling
      */
-    async websocket(wsCall, eventType, options = {}) {
+    websocket: async function(wsCall, eventType, options = {}) {
         return await this.async(wsCall, {
             category: ErrorCategory.WEBSOCKET,
             recovery: RecoveryStrategy.RETRY,
