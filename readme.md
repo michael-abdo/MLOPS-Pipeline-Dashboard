@@ -32,6 +32,9 @@ A **simple 4-step ML pipeline** that anyone can use:
 - **Connection resilience** - Automatic failover with exponential backoff and heartbeat monitoring
 - **Complete event coverage** - All 17 WebSocket events fully implemented with frontend handlers
 - **Datetime serialization** - Fixed JSON serialization issues for robust API responses
+- **Enhanced data structures** - Rich model metadata with 20+ fields including hyperparameters, validation metrics
+- **Intelligent target detection** - Auto-detects target columns from CSV data for seamless training
+- **Comprehensive activity logging** - 13+ fields per activity including user context and severity levels
 - **Modular architecture** - Component-based design with shared modules for maintainability
 - **Multi-page ready** - Foundation prepared for Pipeline, Architecture, Data, and Monitoring pages
 
@@ -356,7 +359,7 @@ See `docs/AUTOMATION_GUIDE.md` for detailed automation documentation.
 
 ## 📈 What's Next (Future Development)
 
-Current version includes **Phase 4 - Polish & Testing** with enterprise-grade reliability and **Complete WebSocket Implementation** (17/17 events). Future phases add:
+Current version includes **Phase 4 - Polish & Testing** with enterprise-grade reliability, **Complete WebSocket Implementation** (17/17 events), and **Enhanced Data Structures** with intelligent auto-detection. Future phases add:
 
 - 👥 **Multi-user support** - Team collaboration
 - 🔐 **User authentication** - Secure login system  

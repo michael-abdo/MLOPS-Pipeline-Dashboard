@@ -143,9 +143,46 @@ class Dashboard {
             
             if (activeModel) {
                 this.updateCurrentModelDisplay(activeModel);
+                this.updateModelPerformanceSection(activeModel);
             }
         } catch (error) {
             console.error('Failed to load model metrics:', error);
+        }
+    }
+    
+    updateModelPerformanceSection(model) {
+        // Update model accuracy with enhanced tooltips
+        const accuracyEl = document.getElementById('modelAccuracy');
+        if (accuracyEl) {
+            const accuracy = (model.accuracy * 100).toFixed(1);
+            accuracyEl.textContent = `${accuracy}%`;
+            
+            if (model.validation_metrics) {
+                const precision = (model.validation_metrics.precision * 100).toFixed(1);
+                const recall = (model.validation_metrics.recall * 100).toFixed(1);
+                const f1 = (model.validation_metrics.f1_score * 100).toFixed(1);
+                accuracyEl.title = `Precision: ${precision}% | Recall: ${recall}% | F1: ${f1}%`;
+            }
+        }
+        
+        // Update prediction count with enhanced info
+        const predictionEl = document.getElementById('predictionCount');
+        if (predictionEl) {
+            predictionEl.textContent = model.predictions_made || '0';
+            
+            if (model.training_samples) {
+                predictionEl.title = `Training samples: ${model.training_samples} | Validation: ${model.validation_samples || 'N/A'}`;
+            }
+        }
+        
+        // Update response time with model size info
+        const responseEl = document.getElementById('responseTime');
+        if (responseEl) {
+            responseEl.textContent = `${model.avg_response_time || 23}ms`;
+            
+            if (model.model_size) {
+                responseEl.title = `Model size: ${model.model_size} | Algorithm: ${model.hyperparameters?.algorithm || 'Unknown'}`;
+            }
         }
     }
     
@@ -159,25 +196,69 @@ class Dashboard {
     }
     
     updateCurrentModelDisplay(model) {
-        // Update model name and info
+        // Update model name and info with enhanced details
         const modelNameEl = document.querySelector('.card strong');
-        if (modelNameEl) {
-            modelNameEl.textContent = model.name;
+        if (modelNameEl && model.name) {
+            modelNameEl.textContent = `${model.name} v${model.version || '1.0.0'}`;
         }
         
-        // Update accuracy
+        // Update model description with algorithm info
+        const descriptionEl = document.querySelector('.card p');
+        if (descriptionEl && model.hyperparameters) {
+            const trainingTime = model.training_duration ? 
+                `${Math.floor(model.training_duration / 60)}m ${Math.floor(model.training_duration % 60)}s` : 
+                'Unknown';
+            descriptionEl.innerHTML = `
+                Last trained ${this.formatTimeAgo(model.created_at)} • 
+                ${model.predictions_made || 0} predictions made<br>
+                <small style="color: var(--text-secondary);">
+                    ${model.hyperparameters?.algorithm || 'Unknown Algorithm'} • 
+                    Training time: ${trainingTime} • 
+                    ${model.training_samples || 0} samples
+                </small>
+            `;
+        }
+        
+        // Update accuracy with validation metrics
         const accuracyEl = document.getElementById('liveAccuracy');
         if (accuracyEl) {
-            accuracyEl.textContent = `${(model.accuracy * 100).toFixed(1)}%`;
+            const accuracy = (model.accuracy * 100).toFixed(1);
+            const validationAcc = model.validation_metrics?.validation_accuracy ? 
+                (model.validation_metrics.validation_accuracy * 100).toFixed(1) : accuracy;
+            accuracyEl.textContent = `${accuracy}%`;
+            accuracyEl.title = `Validation: ${validationAcc}% | F1: ${model.validation_metrics?.f1_score || 'N/A'}`;
         }
         
-        // Update predictions
+        // Update predictions with enhanced info
         const predictionsEl = document.getElementById('livePredictions');
-        if (predictionsEl && model.predictions_made > 0) {
-            // Calculate rate based on model age
-            const hoursSinceCreated = (Date.now() - new Date(model.created_at)) / (1000 * 60 * 60);
-            const rate = Math.max(1, Math.round(model.predictions_made / hoursSinceCreated / 60));
-            predictionsEl.textContent = `${rate}/min`;
+        if (predictionsEl) {
+            if (model.predictions_made > 0) {
+                // Calculate rate based on model age
+                const hoursSinceCreated = (Date.now() - new Date(model.created_at)) / (1000 * 60 * 60);
+                const rate = Math.max(1, Math.round(model.predictions_made / hoursSinceCreated / 60));
+                predictionsEl.textContent = `${rate}/min`;
+                predictionsEl.title = `Total: ${model.predictions_made} | Avg response: ${model.avg_response_time}ms`;
+            } else {
+                predictionsEl.textContent = '0/min';
+                predictionsEl.title = 'No predictions made yet';
+            }
+        }
+    }
+    
+    formatTimeAgo(dateString) {
+        const now = new Date();
+        const date = new Date(dateString);
+        const diffMs = now - date;
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        
+        if (diffHours < 1) {
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+            return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+        } else if (diffHours < 24) {
+            return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+        } else {
+            const diffDays = Math.floor(diffHours / 24);
+            return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
         }
     }
     

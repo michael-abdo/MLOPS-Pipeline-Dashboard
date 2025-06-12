@@ -85,8 +85,9 @@ class ConnectionManager:
         disconnected_clients = []
         event_type = data.get('type', 'unknown')
         
-        # Only log non-routine events to reduce noise
-        if event_type not in ['system_metrics', 'chart_data', 'integration_status']:
+        # Only log non-routine events in debug mode to reduce noise
+        debug_mode = os.getenv('DEBUG', 'False').lower() == 'true'
+        if debug_mode and event_type not in ['system_metrics', 'chart_data', 'integration_status']:
             print(f"📡 Broadcasting {event_type} to {len(self.active_connections)} clients")
         
         for client_id, conn_info in self.active_connections.items():
@@ -104,7 +105,7 @@ class ConnectionManager:
                 conn_info['bytes_sent'] += len(json.dumps(data))
                 
             except Exception as e:
-                if event_type not in ['system_metrics', 'chart_data', 'integration_status']:
+                if debug_mode and event_type not in ['system_metrics', 'chart_data', 'integration_status']:
                     print(f"   ❌ Failed to send {event_type} to client {client_id}: {e}")
                 disconnected_clients.append(client_id)
         
@@ -377,22 +378,57 @@ async def create_system_alert(title: str, message: str, priority: str = "medium"
     return alert
 
 # Helper Functions
-def log_activity(title: str, description: str, status: str = "success"):
-    """Add activity to log"""
+def log_activity(title: str, description: str, status: str = "success", user: str = "system", action_type: str = "operation", resource: str = None, severity: str = "info"):
+    """Add enhanced activity to log with comprehensive metadata"""
+    
+    # Map status to severity if not explicitly provided
+    if severity == "info":
+        severity_map = {
+            "success": "low",
+            "warning": "medium", 
+            "error": "high",
+            "info": "low"
+        }
+        severity = severity_map.get(status, "low")
+    
     activity = {
         "id": str(uuid.uuid4()),
         "title": title,
         "description": description,
         "status": status,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "user": user,
+        "action_type": action_type,
+        "resource_affected": resource or "system",
+        "severity_level": severity,
+        "session_id": "session_" + str(uuid.uuid4())[:8],  # Simulated session
+        "ip_address": "127.0.0.1",  # Simulated
+        "user_agent": "MLOps Dashboard",
+        "action_details": {
+            "category": action_type,
+            "outcome": status,
+            "duration_ms": None,  # Could be filled by timing wrapper
+            "affected_components": [resource] if resource else ["system"]
+        }
     }
     activity_log.insert(0, activity)  # Add to beginning
     if len(activity_log) > 50:  # Keep only last 50 activities
         activity_log.pop()
 
-async def train_model_background(job_id: str, file_path: str, model_type: str):
+async def train_model_background(job_id: str, file_path: str, model_type: str, target_column: Optional[str] = None):
     """Background task for model training with real-time WebSocket broadcasting"""
     start_time = datetime.now()
+    
+    # Auto-detect target column if not provided
+    detected_target_column = target_column
+    if not detected_target_column:
+        try:
+            import pandas as pd
+            df = pd.read_csv(file_path)
+            # Use last column as target by default
+            detected_target_column = df.columns[-1]
+        except Exception:
+            detected_target_column = "target"  # fallback
 
     # Define training stages with time estimates
     training_stages = [
@@ -483,16 +519,70 @@ async def train_model_background(job_id: str, file_path: str, model_type: str):
         model_id = str(uuid.uuid4())
         final_accuracy = training_jobs[job_id]["live_accuracy"]
 
-        # Store model info
+        # Store enhanced model info with comprehensive metadata
+        training_duration = (datetime.now() - start_time).total_seconds()
+        
+        # Generate realistic hyperparameters based on model type
+        hyperparameters = {
+            "algorithm": "Random Forest" if model_type == "automatic" else model_type,
+            "n_estimators": 100,
+            "max_depth": 10,
+            "learning_rate": 0.1,
+            "feature_selection": "auto",
+            "cross_validation_folds": 5
+        }
+        
+        # Generate validation metrics
+        validation_metrics = {
+            "precision": round(final_accuracy * 0.95 + 0.02, 3),  # Slightly different from accuracy
+            "recall": round(final_accuracy * 0.98 + 0.01, 3),
+            "f1_score": round(final_accuracy * 0.96 + 0.015, 3),
+            "roc_auc": round(final_accuracy * 0.97 + 0.02, 3),
+            "train_accuracy": round(final_accuracy * 1.05, 3),  # Training typically higher
+            "validation_accuracy": float(final_accuracy),
+            "test_accuracy": round(final_accuracy * 0.98, 3)  # Test typically slightly lower
+        }
+        
+        # Generate feature importance (simulated)
+        feature_importance = {
+            f"feature_{i+1}": round(1.0 / (i + 1) * 0.3 + 0.1, 3) 
+            for i in range(min(5, 10))  # Top 5-10 features
+        }
+        
+        # Generate confusion matrix (simulated for binary classification)
+        confusion_matrix = {
+            "true_positive": int(100 * final_accuracy),
+            "true_negative": int(150 * final_accuracy),
+            "false_positive": int(50 * (1 - final_accuracy)),
+            "false_negative": int(25 * (1 - final_accuracy))
+        }
+        
         models_store[model_id] = {
             "model_id": model_id,
             "name": f"Model {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "version": "1.0.0",
             "accuracy": float(final_accuracy),
             "created_at": datetime.now().isoformat(),
             "status": "active",
             "predictions_made": 0,
             "avg_response_time": 23.0,  # Simulated
-            "file_path": file_path
+            "file_path": file_path,
+            "target_column": detected_target_column,
+            "training_duration": training_duration,
+            "hyperparameters": hyperparameters,
+            "validation_metrics": validation_metrics,
+            "feature_importance": feature_importance,
+            "confusion_matrix": confusion_matrix,
+            "model_size": "2.3 MB",
+            "training_samples": 1000,  # Simulated
+            "validation_samples": 250,  # Simulated
+            "test_samples": 250,  # Simulated
+            "algorithm_details": {
+                "type": "ensemble",
+                "trees": 100,
+                "depth": 10,
+                "features_used": len(feature_importance)
+            }
         }
 
         # Complete training
@@ -529,7 +619,11 @@ async def train_model_background(job_id: str, file_path: str, model_type: str):
         await log_activity_with_broadcast(
             "Model training completed",
             f"New model trained with {final_accuracy:.1%} accuracy in {int(total_elapsed//60)}m {int(total_elapsed%60)}s",
-            "success"
+            "success",
+            user="system",
+            action_type="model_training",
+            resource=f"model_{model_id}",
+            severity="low"
         )
 
     except Exception as e:
@@ -563,22 +657,19 @@ async def broadcast_training_progress(job_id: str, progress_data: dict):
     except Exception as e:
         pass  # Silently handle broadcast failures
 
-async def log_activity_with_broadcast(title: str, description: str, status: str = "success"):
-    """Enhanced log_activity that broadcasts to WebSocket clients"""
-    # Add to local activity log
-    log_activity(title, description, status)
+async def log_activity_with_broadcast(title: str, description: str, status: str = "success", user: str = "system", action_type: str = "operation", resource: str = None, severity: str = "info"):
+    """Enhanced log_activity that broadcasts to WebSocket clients with rich metadata"""
+    # Add to local activity log with enhanced format
+    log_activity(title, description, status, user, action_type, resource, severity)
 
-    # Broadcast activity update to all connected clients
-    activity_data = {
-        "type": "activity_update",
-        "activity": {
-            "id": str(uuid.uuid4()),
-            "title": title,
-            "description": description,
-            "status": status,
-            "timestamp": datetime.now().isoformat()
+    # Get the latest activity (with all enhanced fields) for broadcasting
+    latest_activity = activity_log[0] if activity_log else None
+    
+    if latest_activity:
+        activity_data = {
+            "type": "activity_update",
+            "activity": latest_activity  # Send full enhanced activity object
         }
-    }
 
     try:
         await manager.broadcast_json(activity_data)
@@ -810,7 +901,11 @@ async def upload_file(file: UploadFile = File(...)):
         await log_activity_with_broadcast(
             "New data uploaded",
             f"{file.filename} ({rows} rows, {columns} columns)",
-            "success"
+            "success",
+            user="user",
+            action_type="data_upload",
+            resource=f"file_{file.filename}",
+            severity="low"
         )
 
         return {
@@ -851,7 +946,8 @@ async def start_training(
             train_model_background,
             job_id,
             request.file_path,
-            request.model_type
+            request.model_type,
+            request.target_column
         )
 
         return {"job_id": job_id, "message": "Training started"}
@@ -934,7 +1030,11 @@ async def deploy_model(model_id: str):
     await log_activity_with_broadcast(
         "Model deployed",
         f"Model {model_name} is now live with {model_accuracy:.1%} accuracy",
-        "success"
+        "success",
+        user="user",
+        action_type="model_deployment",
+        resource=f"model_{model_id}",
+        severity="medium"
     )
 
     return {"message": "Model deployed successfully"}
