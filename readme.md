@@ -36,7 +36,7 @@ A **simple 4-step ML pipeline** that anyone can use:
 - **Intelligent target detection** - Auto-detects target columns from CSV data for seamless training
 - **Comprehensive activity logging** - 13+ fields per activity including user context and severity levels
 - **Modular architecture** - Component-based design with shared modules for maintainability
-- **Multi-page ready** - Foundation prepared for Pipeline, Architecture, Data, and Monitoring pages
+- **Single-page application** - All functionality consolidated into one powerful dashboard
 - **Reusable UI components** - Card, Metric, ProgressBar, and Grid components reducing code duplication by 71%
 - **Advanced UI components** - ButtonGroup, UploadArea, and ChartContainer for enhanced user interactions
 - **Component-based architecture** - Standardized UI elements with real-time update capabilities
@@ -205,7 +205,7 @@ This dashboard follows the **"Grandma Test"** - if your grandmother can't figure
 - **Traffic light colors** - Green = good, Yellow = warning, Red = problem  
 - **Plain English** - "Training" not "model fitting"
 - **Visual progress** - Progress bars instead of technical logs
-- **One main screen** - No complex navigation
+- **One main screen** - No complex navigation, everything in the dashboard
 
 ### What's Hidden
 - Technical details (accessible in settings)

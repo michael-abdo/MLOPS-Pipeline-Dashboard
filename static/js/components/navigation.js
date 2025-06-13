@@ -25,13 +25,9 @@ export class Navigation {
     }
     
     render() {
+        // Only show the main dashboard page
         const pages = [
-            { name: 'Dashboard', path: CONFIG.PAGES.DASHBOARD, icon: '📊' },
-            { name: 'Pipeline', path: CONFIG.PAGES.PIPELINE, icon: '🔄' },
-            { name: 'Architecture', path: CONFIG.PAGES.ARCHITECTURE, icon: '🏗️' },
-            { name: 'Data', path: CONFIG.PAGES.DATA, icon: '📁' },
-            { name: 'Monitoring', path: CONFIG.PAGES.MONITORING, icon: '📈' },
-            { name: 'Settings', path: CONFIG.PAGES.SETTINGS, icon: '⚙️' }
+            { name: 'Dashboard', path: CONFIG.PAGES.DASHBOARD, icon: '📊' }
         ];
         
         const navHTML = `
