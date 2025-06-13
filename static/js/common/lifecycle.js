@@ -3,6 +3,8 @@
  * Provides memory management and cleanup capabilities for page controllers
  */
 
+import { wsManager } from './websocket.js';
+
 class LifecycleManager {
     constructor() {
         this.eventListeners = new Map();
@@ -51,6 +53,20 @@ class LifecycleManager {
         }
         this.webSocketHandlers.get(eventName).push(handler);
         
+        // Debug: Log handler registration
+        console.log(`🔧 Registering WebSocket handler for event: ${eventName}`);
+        
+        // Actually register the handler with the WebSocket manager
+        if (wsManager && wsManager.on) {
+            const unsubscribe = wsManager.on(eventName, handler);
+            console.log(`✅ WebSocket handler registered for ${eventName}`);
+            
+            // Store the unsubscribe function for cleanup
+            handler._unsubscribe = unsubscribe;
+        } else {
+            console.warn(`❌ WebSocket manager not available for event: ${eventName}`);
+        }
+        
         return this;
     }
 
@@ -93,12 +109,15 @@ class LifecycleManager {
         for (const [eventName, handlers] of this.webSocketHandlers) {
             handlers.forEach(handler => {
                 try {
-                    // Use imported wsManager or global reference
-                    const wsManager = window.wsManager;
-                    if (wsManager && wsManager.off) {
+                    // Use stored unsubscribe function if available
+                    if (handler._unsubscribe && typeof handler._unsubscribe === 'function') {
+                        console.log(`🧹 Unsubscribing WebSocket handler for ${eventName}`);
+                        handler._unsubscribe();
+                    } else if (wsManager && wsManager.off) {
+                        console.log(`🧹 Removing WebSocket handler for ${eventName} via off method`);
                         wsManager.off(eventName, handler);
-                    } else if (wsManager && wsManager.removeListener) {
-                        wsManager.removeListener(eventName, handler);
+                    } else {
+                        console.warn(`No cleanup method available for WebSocket handler: ${eventName}`);
                     }
                 } catch (error) {
                     console.warn(`Failed to remove WebSocket handler for ${eventName}:`, error);

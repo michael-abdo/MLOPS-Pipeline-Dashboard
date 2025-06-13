@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Live System Status Section Test</title>
+    <link rel="stylesheet" href="../static/css/shared.css">
+    <link rel="stylesheet" href="../static/css/dashboard.css">
+    <style>
+        body { padding: 40px; font-family: Arial, sans-serif; background: var(--background-color); }
+        .test-section { margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: white; }
+        .test-controls { margin: 20px 0; }
+        .test-controls button { margin: 5px; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; }
+        .test-controls button.primary { background: var(--primary-color); color: white; }
+        .test-controls button.success { background: var(--success-color); color: white; }
+        .test-controls button.warning { background: var(--warning-color); color: white; }
+        .test-controls button.danger { background: var(--danger-color); color: white; }
+        #test-log { font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; padding: 10px; background: #f0f0f0; }
+        
+        /* Live System Status Mock */
+        .live-status-mock {
+            background: var(--surface-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-xl);
+            margin: 20px 0;
+        }
+        
+        .grid.grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--spacing-lg);
+        }
+        
+        .metric {
+            text-align: center;
+            padding: var(--spacing-md);
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .metric-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .progress-container {
+            margin: var(--spacing-lg) 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            transition: width 0.3s ease;
+        }
+        
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-sm);
+        }
+    </style>
+</head>
+<body>
+    <h1>Live System Status Section Test</h1>
+    
+    <!-- Mock Live System Status -->
+    <div class="live-status-mock">
+        <h2>🔧 Live System Status</h2>
+        
+        <!-- Current Model Status subsection -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+            <div>
+                <strong id="modelNameVersion">Customer Prediction Model v2.1</strong>
+                <p style="color: var(--text-secondary); margin-top: var(--spacing-sm);">
+                    Last trained <span id="lastTrained" data-timestamp="1640995200000">2 hours ago</span> • 
+                    <span id="totalPredictions">1,247</span> predictions made
+                </p>
+            </div>
+            <div class="status-indicator status-good">
+                <div class="status-dot"></div>
+                <span id="modelStatus">Live & Healthy</span>
+            </div>
+        </div>
+        
+        <!-- Training Progress subsection -->
+        <div class="progress-container">
+            <div class="progress-label">
+                <span id="trainingStage">🚀 Ready for New Training</span>
+                <span id="trainingPercent">100%</span>
+            </div>
+            <div class="progress-bar" id="mainProgressBarContainer">
+                <div class="progress-fill" id="mainProgressBar" style="width: 100%"></div>
+            </div>
+            <div style="margin-top: var(--spacing-sm); font-size: 0.9rem; color: var(--text-secondary);" id="trainingDetails">
+                System ready • Last training: 94.2% accuracy in 3m 45s
+            </div>
+        </div>
+
+        <!-- Real-Time Metrics Grid -->
+        <div class="grid grid-3" style="margin-top: var(--spacing-lg);">
+            <div class="metric">
+                <div class="metric-value" id="liveAccuracy">94.2%</div>
+                <div class="metric-label">Current Accuracy</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="livePredictions" data-previous-rate="20">23/min</div>
+                <div class="metric-label">Predictions/Min</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="systemHealth">✅</div>
+                <div class="metric-label">System Health</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Current Model Status Events</h2>
+        <div class="test-controls">
+            <button class="primary" onclick="testModelDeployed()">Model Deployed</button>
+            <button class="primary" onclick="testModelStatusChange('training')">Status: Training</button>
+            <button class="success" onclick="testModelStatusChange('active')">Status: Active</button>
+            <button class="danger" onclick="testModelStatusChange('error')">Status: Error</button>
+            <button class="warning" onclick="testPredictionVolume()">Prediction Volume</button>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Training Progress Events</h2>
+        <div class="test-controls">
+            <button class="primary" onclick="testTrainingProgress(25)">Progress 25%</button>
+            <button class="primary" onclick="testTrainingProgress(75)">Progress 75%</button>
+            <button class="success" onclick="testTrainingCompleted()">Training Completed</button>
+            <button class="danger" onclick="testTrainingFailed()">Training Failed</button>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Real-Time Metrics</h2>
+        <div class="test-controls">
+            <button class="primary" onclick="testAccuracyUpdate(96.5)">Update Accuracy 96.5%</button>
+            <button class="primary" onclick="testPredictionsUpdate(45)">Update Predictions 45/min</button>
+            <button class="success" onclick="testHealthChange('healthy')">Health: Healthy</button>
+            <button class="warning" onclick="testHealthChange('warning')">Health: Warning</button>
+            <button class="danger" onclick="testHealthChange('critical')">Health: Critical</button>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Auto-Refresh Fallback</h2>
+        <div class="test-controls">
+            <button class="warning" onclick="testOfflineMode()">Simulate Offline Mode</button>
+            <button class="success" onclick="testOnlineMode()">Back Online</button>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Log</h2>
+        <div id="test-log"></div>
+    </div>
+    
+    <script>
+        // Mock objects
+        window.wsManager = {
+            _handlers: {},
+            on(event, handler) {
+                if (!this._handlers[event]) this._handlers[event] = [];
+                this._handlers[event].push(handler);
+                log(`Handler registered: ${event}`);
+            },
+            emit(event, data) {
+                log(`Event emitted: ${event}`, data);
+                if (this._handlers[event]) {
+                    this._handlers[event].forEach(handler => handler(data));
+                }
+            },
+            getConnectionInfo() {
+                return { isConnected: this.isConnected || false, status: this.status || 'connected' };
+            }
+        };
+        
+        window.Metric = {
+            update(id, value, options) {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.textContent = options.format === 'percent' ? `${value.toFixed(1)}%` : value;
+                }
+            }
+        };
+        
+        window.ProgressBar = {
+            update(id, progress, options) {
+                const container = document.getElementById(id);
+                if (container) {
+                    const bar = container.querySelector('.progress-fill') || container;
+                    bar.style.width = `${progress}%`;
+                    if (options.style === 'danger') bar.style.background = 'var(--danger-color)';
+                    else if (options.style === 'success') bar.style.background = 'var(--success-color)';
+                    else bar.style.background = 'var(--primary-color)';
+                }
+            }
+        };
+        
+        // Mock dashboard object with enhanced methods
+        window.dashboard = {
+            updateModelMetrics(data) {
+                if (data.accuracy !== undefined) {
+                    const accuracyEl = document.getElementById('liveAccuracy');
+                    const oldValue = parseFloat(accuracyEl.textContent) || 0;
+                    const newValue = parseFloat((data.accuracy * 100).toFixed(1));
+                    
+                    // Apply animation on change
+                    if (Math.abs(oldValue - newValue) > 0.1) {
+                        accuracyEl.style.transition = 'all 0.3s ease';
+                        accuracyEl.style.transform = 'scale(1.1)';
+                        accuracyEl.style.color = 'var(--primary-color)';
+                        
+                        setTimeout(() => {
+                            accuracyEl.style.transform = 'scale(1)';
+                            accuracyEl.style.color = '';
+                        }, 300);
+                    }
+                    
+                    Metric.update('liveAccuracy', data.accuracy * 100, { format: 'percent' });
+                }
+            },
+            
+            updateSystemHealth(data) {
+                const healthEl = document.getElementById('systemHealth');
+                if (healthEl) {
+                    const oldHealth = healthEl.textContent;
+                    let newHealth;
+                    
+                    switch (data.current_health) {
+                        case 'critical':
+                            newHealth = '🚨';
+                            break;
+                        case 'warning':
+                            newHealth = '⚠️';
+                            break;
+                        default:
+                            newHealth = '✅';
+                    }
+                    
+                    // Add pulse animation if health status changed
+                    if (oldHealth !== newHealth) {
+                        healthEl.textContent = newHealth;
+                        healthEl.style.animation = 'healthPulse 0.6s ease-in-out';
+                        
+                        setTimeout(() => {
+                            healthEl.style.animation = '';
+                        }, 600);
+                    }
+                }
+            },
+            
+            updatePredictions(data) {
+                const predEl = document.getElementById('livePredictions');
+                if (predEl && data.predictions_per_minute !== undefined) {
+                    const roundedRate = Math.round(data.predictions_per_minute);
+                    const previousRate = parseInt(predEl.getAttribute('data-previous-rate') || '0');
+                    
+                    let html = `${roundedRate}/min`;
+                    
+                    // Enhanced trend indicators with animation
+                    if (roundedRate > previousRate && previousRate > 0) {
+                        const increase = roundedRate - previousRate;
+                        html += ` <span class="trend-up" style="color: var(--success-color); font-weight: bold; animation: trendPulse 0.5s ease;">↗️ +${increase}</span>`;
+                    } else if (roundedRate < previousRate && previousRate > 0) {
+                        const decrease = previousRate - roundedRate;
+                        html += ` <span class="trend-down" style="color: var(--danger-color); font-weight: bold; animation: trendPulse 0.5s ease;">↘️ -${decrease}</span>`;
+                    }
+                    
+                    predEl.innerHTML = html;
+                    predEl.setAttribute('data-previous-rate', roundedRate);
+                }
+            }
+        };
+        
+        function log(message, data) {
+            const logEl = document.getElementById('test-log');
+            const time = new Date().toTimeString().slice(0, 8);
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${time}] ${message}`;
+            if (data) {
+                logEntry.textContent += ' - ' + JSON.stringify(data);
+            }
+            logEl.appendChild(logEntry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        // Test functions
+        function testModelDeployed() {
+            wsManager.emit('model_deployed', {
+                model_name: 'Advanced Customer Predictor v3.0',
+                model_accuracy: 0.971,
+                deployment_timestamp: new Date().toISOString()
+            });
+            
+            document.getElementById('modelNameVersion').textContent = 'Advanced Customer Predictor v3.0';
+            document.getElementById('modelStatus').textContent = 'Deployed & Active';
+        }
+        
+        function testModelStatusChange(status) {
+            wsManager.emit('model_status_change', {
+                status: status,
+                model_id: 'test-model-123'
+            });
+            
+            const statusEl = document.getElementById('modelStatus');
+            switch (status) {
+                case 'training':
+                    statusEl.textContent = 'Training in Progress';
+                    statusEl.style.color = 'var(--warning-color)';
+                    break;
+                case 'active':
+                    statusEl.textContent = 'Live & Healthy';
+                    statusEl.style.color = 'var(--success-color)';
+                    break;
+                case 'error':
+                    statusEl.textContent = 'Error - Check Logs';
+                    statusEl.style.color = 'var(--danger-color)';
+                    break;
+            }
+        }
+        
+        function testPredictionVolume() {
+            const newTotal = Math.floor(Math.random() * 1000) + 2000;
+            wsManager.emit('prediction_volume', {
+                total_predictions: newTotal,
+                message: `Prediction milestone reached: ${newTotal} predictions!`
+            });
+            
+            document.getElementById('totalPredictions').textContent = newTotal.toLocaleString();
+        }
+        
+        function testTrainingProgress(progress) {
+            wsManager.emit('training_progress', {
+                progress: progress,
+                stage: progress < 50 ? 'Data preprocessing' : 'Model training',
+                current_stage: progress < 50 ? 'Preparing data' : 'Training model',
+                message: `Training ${progress}% complete`
+            });
+            
+            ProgressBar.update('mainProgressBarContainer', progress, { style: 'default' });
+            document.getElementById('trainingStage').textContent = `🔄 ${progress < 50 ? 'Data preprocessing' : 'Model training'}`;
+            document.getElementById('trainingPercent').textContent = `${progress}%`;
+            document.getElementById('trainingDetails').textContent = `Training ${progress}% complete`;
+        }
+        
+        function testTrainingCompleted() {
+            wsManager.emit('training_completed', {
+                final_accuracy: 0.963,
+                message: 'Training completed successfully!'
+            });
+            
+            ProgressBar.update('mainProgressBarContainer', 100, { style: 'success' });
+            document.getElementById('trainingStage').textContent = '✅ Training completed!';
+            document.getElementById('trainingPercent').textContent = '100%';
+            document.getElementById('trainingDetails').textContent = 'Training completed! Final accuracy: 96.3%';
+        }
+        
+        function testTrainingFailed() {
+            wsManager.emit('training_failed', {
+                error: 'Insufficient memory available for training'
+            });
+            
+            ProgressBar.update('mainProgressBarContainer', 0, { style: 'danger' });
+            document.getElementById('trainingStage').textContent = '❌ Training failed';
+            document.getElementById('trainingPercent').textContent = '0%';
+            document.getElementById('trainingDetails').innerHTML = `
+                <span style="color: var(--danger-color);">❌ Training failed: Insufficient memory available for training</span>
+                <button class="btn btn-sm btn-warning" style="margin-left: var(--spacing-md);">🔄 Retry Training</button>
+            `;
+        }
+        
+        function testAccuracyUpdate(accuracy) {
+            dashboard.updateModelMetrics({ accuracy: accuracy / 100 });
+        }
+        
+        function testPredictionsUpdate(rate) {
+            dashboard.updatePredictions({ predictions_per_minute: rate });
+        }
+        
+        function testHealthChange(health) {
+            dashboard.updateSystemHealth({ current_health: health });
+        }
+        
+        function testOfflineMode() {
+            wsManager.isConnected = false;
+            wsManager.status = 'disconnected';
+            log('Simulating offline mode - auto-refresh fallback should activate');
+        }
+        
+        function testOnlineMode() {
+            wsManager.isConnected = true;
+            wsManager.status = 'connected';
+            log('Back online - real-time updates resumed');
+        }
+        
+        // Initialize
+        log('Live System Status Section test initialized');
+    </script>
+</body>
+</html>

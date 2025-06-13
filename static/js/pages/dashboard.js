@@ -98,6 +98,12 @@ class Dashboard extends BasePageController {
         // Setup WebSocket listeners
         this.setupWebSocketListeners();
         
+        // Start time-ago updater
+        this.startTimeAgoUpdater();
+        
+        // Set up auto-refresh fallback
+        this.setupAutoRefresh();
+        
         // Load initial data
         await this.loadInitialData();
     }
@@ -163,40 +169,118 @@ class Dashboard extends BasePageController {
     }
     
     setupWebSocketListeners() {
+        // Debug: Log WebSocket handler setup
+        console.log('🔧 Setting up WebSocket handlers...');
+        
         // Training progress updates - using managed WebSocket handlers
         this.addWebSocketHandler('training_progress', (data) => {
+            console.log('🔧 Received training_progress:', data);
             this.updateTrainingProgress(data);
         });
         
         // Training completed - using managed WebSocket handlers
         this.addWebSocketHandler('training_completed', (data) => {
+            console.log('🔧 Received training_completed:', data);
             this.handleTrainingCompleted(data);
         });
         
         // Training failed - using managed WebSocket handlers
         this.addWebSocketHandler('training_failed', (data) => {
+            console.log('🔧 Received training_failed:', data);
             this.handleTrainingFailed(data);
         });
         
         // System metrics updates - using managed WebSocket handlers
         this.addWebSocketHandler('system_metrics', (data) => {
+            console.log('🔧 Received system_metrics WebSocket message:', data);
             this.updateSystemMetrics(data);
         });
         
         // Health changes - using managed WebSocket handlers
         this.addWebSocketHandler('health_change', (data) => {
+            console.log('🔧 Received health_change:', data);
             this.updateSystemHealth(data);
         });
         
         // Prediction volume milestones - using managed WebSocket handlers
         this.addWebSocketHandler('prediction_volume', (data) => {
+            console.log('🔧 Received prediction_volume:', data);
             this.handlePredictionVolume(data);
         });
         
         // Model deployed - using managed WebSocket handlers
         this.addWebSocketHandler('model_deployed', (data) => {
+            console.log('🔧 Received model_deployed:', data);
             this.handleModelDeployed(data);
         });
+        
+        // Activity updates - using managed WebSocket handlers
+        this.addWebSocketHandler('activity_update', (data) => {
+            console.log('🔧 Received activity_update:', data);
+            this.handleActivityUpdate(data);
+        });
+        
+        // Model status changes
+        this.addWebSocketHandler('model_status_change', (data) => {
+            console.log('🔧 Received model_status_change:', data);
+            this.handleModelStatusChange(data);
+        });
+        
+        // File validation events
+        this.addWebSocketHandler('file_validated', (data) => {
+            console.log('🔧 Received file_validated:', data);
+            this.handleFileValidated(data);
+        });
+        
+        // Model metrics updates
+        this.addWebSocketHandler('model_metrics_update', (data) => {
+            console.log('🔧 Received model_metrics_update:', data);
+            this.updateModelMetrics(data);
+        });
+        
+        // Connection count updates
+        this.addWebSocketHandler('connection_count', (data) => {
+            console.log('🔧 Received connection_count:', data);
+            this.updateConnectionCount(data);
+        });
+        
+        // Performance metrics
+        this.addWebSocketHandler('performance_metrics', (data) => {
+            console.log('🔧 Received performance_metrics:', data);
+            this.updatePerformanceMetrics(data);
+        });
+        
+        // Resource status updates
+        this.addWebSocketHandler('resource_status', (data) => {
+            console.log('🔧 Received resource_status:', data);
+            this.updateResourceStatus(data);
+        });
+        
+        // Chart data updates for real-time visualizations
+        this.addWebSocketHandler('chart_data', (data) => {
+            console.log('🔧 Received chart_data:', data);
+            // This will be used for future chart implementations
+        });
+        
+        // Integration status for architecture page
+        this.addWebSocketHandler('integration_status', (data) => {
+            console.log('🔧 Received integration_status:', data);
+            // This will be used for integration monitoring
+        });
+        
+        // Upload progress events
+        this.addWebSocketHandler('upload_progress', (data) => {
+            console.log('🔧 Received upload_progress:', data);
+            this.handleUploadProgress(data);
+        });
+        
+        // System alerts
+        this.addWebSocketHandler('system_alert', (data) => {
+            console.log('🔧 Received system_alert:', data);
+            this.handleSystemAlert(data);
+        });
+        
+        console.log('✅ WebSocket handlers setup complete');
     }
     
     async loadInitialData() {
@@ -359,18 +443,22 @@ class Dashboard extends BasePageController {
         
         // Update model description with algorithm info
         const descriptionEl = document.querySelector('.card p');
-        if (descriptionEl && model.hyperparameters) {
+        if (descriptionEl) {
             const trainingTime = model.training_duration ? 
                 `${Math.floor(model.training_duration / 60)}m ${Math.floor(model.training_duration % 60)}s` : 
                 'Unknown';
+            
+            // Create time ago element with data-timestamp
+            const timeAgo = model.created_at ? this.formatTimeAgo(model.created_at) : 'Unknown';
+            
             descriptionEl.innerHTML = `
-                Last trained ${this.formatTimeAgo(model.created_at)} • 
-                ${model.predictions_made || 0} predictions made<br>
-                <small style="color: var(--text-secondary);">
+                Last trained <span data-timestamp="${model.created_at}">${timeAgo}</span> • 
+                <span id="modelPredictionCount">${model.predictions_made || 0}</span> predictions made<br>
+                ${model.hyperparameters ? `<small style="color: var(--text-secondary);">
                     ${model.hyperparameters?.algorithm || 'Unknown Algorithm'} • 
                     Training time: ${trainingTime} • 
                     ${model.training_samples || 0} samples
-                </small>
+                </small>` : ''}
             `;
         }
         
@@ -415,6 +503,141 @@ class Dashboard extends BasePageController {
             const diffDays = Math.floor(diffHours / 24);
             return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
         }
+    }
+    
+    startTimeAgoUpdater() {
+        // Update time-ago displays every 30 seconds with enhanced formatting
+        if (this.timeAgoInterval) {
+            clearInterval(this.timeAgoInterval);
+        }
+        
+        this.timeAgoInterval = setInterval(() => {
+            // Update all elements with data-timestamp attribute
+            document.querySelectorAll('[data-timestamp]').forEach(el => {
+                const timestamp = el.getAttribute('data-timestamp');
+                if (timestamp) {
+                    const oldText = el.textContent;
+                    const newText = this.formatTimeAgo(timestamp);
+                    
+                    if (oldText !== newText) {
+                        // Add subtle animation when time updates
+                        el.style.transition = 'opacity 0.2s ease';
+                        el.style.opacity = '0.7';
+                        
+                        setTimeout(() => {
+                            el.textContent = newText;
+                            el.style.opacity = '1';
+                        }, 100);
+                        
+                        setTimeout(() => {
+                            el.style.transition = '';
+                        }, 300);
+                    }
+                }
+            });
+            
+            // Also update "Last trained X ago" in model status
+            this.updateModelTimestamps();
+        }, 30000); // Update every 30 seconds
+    }
+    
+    updateModelTimestamps() {
+        // Update model training timestamps dynamically
+        const modelDescEl = document.querySelector('.card p');
+        if (modelDescEl && modelDescEl.querySelector('[data-timestamp]')) {
+            const timestampEl = modelDescEl.querySelector('[data-timestamp]');
+            const timestamp = timestampEl.getAttribute('data-timestamp');
+            if (timestamp) {
+                timestampEl.textContent = this.formatTimeAgo(timestamp);
+            }
+        }
+    }
+    
+    setupAutoRefresh() {
+        // Set up auto-refresh fallback when WebSocket is disconnected
+        if (this.autoRefreshInterval) {
+            clearInterval(this.autoRefreshInterval);
+        }
+        
+        this.autoRefreshInterval = setInterval(() => {
+            const connInfo = wsManager.getConnectionInfo();
+            
+            // Only refresh if WebSocket is disconnected or in error state
+            if (!connInfo.isConnected && (connInfo.status === 'disconnected' || connInfo.status === 'error')) {
+                console.log('📡 WebSocket disconnected, refreshing data via API...');
+                
+                this.performOfflineRefresh();
+            }
+        }, 30000); // Check every 30 seconds
+    }
+    
+    async performOfflineRefresh() {
+        const api = this.stateAPI || API;
+        
+        try {
+            // Poll /api/models endpoint every 30s for model updates
+            const modelsData = await api.get('/api/models');
+            if (modelsData && Array.isArray(modelsData)) {
+                const activeModel = modelsData.find(m => m.status === 'active' || m.status === 'deployed');
+                if (activeModel) {
+                    // Update model metrics in Live System Status
+                    this.updateCurrentModelDisplay(activeModel);
+                    this.updateModelPerformanceSection(activeModel);
+                    
+                    // Simulate model_metrics_update event
+                    this.updateModelMetrics({
+                        accuracy: activeModel.accuracy,
+                        predictions_made: activeModel.predictions_made,
+                        avg_response_time: activeModel.avg_response_time,
+                        predictions_per_minute: activeModel.predictions_per_minute || 0
+                    });
+                    
+                    // Update Live System Status metrics
+                    const systemMetrics = {
+                        model_accuracy: activeModel.accuracy,
+                        predictions_per_minute: activeModel.predictions_per_minute || 0,
+                        current_accuracy: activeModel.accuracy,
+                        prediction_rate: activeModel.predictions_per_minute || 0
+                    };
+                    this.updateSystemMetrics(systemMetrics);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to refresh models data:', error);
+        }
+        
+        try {
+            // Refresh system status and metrics
+            const systemStatus = await api.get('/api/monitoring/system');
+            if (systemStatus) {
+                this.updateSystemMetrics(systemStatus);
+                this.updateSystemStatusDisplay(systemStatus);
+            }
+        } catch (error) {
+            console.error('Failed to refresh system metrics:', error);
+        }
+        
+        try {
+            // Refresh activity feed
+            if (this.activityFeed) {
+                const activities = await api.get('/api/activity');
+                if (activities && Array.isArray(activities)) {
+                    this.activityFeed.setActivities(activities.slice(0, 50)); // Limit to 50 items
+                }
+            }
+        } catch (error) {
+            console.error('Failed to refresh activities:', error);
+        }
+        
+        // Update disconnected indicator
+        const lastUpdateEl = document.getElementById('lastUpdateTime');
+        if (lastUpdateEl) {
+            lastUpdateEl.textContent = 'Refreshed (offline mode)';
+            lastUpdateEl.style.color = 'var(--warning-color)';
+            lastUpdateEl.setAttribute('data-timestamp', Date.now());
+        }
+        
+        console.log('📡 Offline refresh completed');
     }
     
     updateSystemStatusDisplay(status) {
@@ -579,12 +802,22 @@ class Dashboard extends BasePageController {
         // Update stage info
         const stageEl = document.getElementById('trainingStage');
         if (stageEl) {
-            stageEl.textContent = data.current_stage;
+            stageEl.innerHTML = `<span aria-hidden="true">🔄</span> ${data.current_stage || data.stage || 'Training'}`;
         }
         
         const percentEl = document.getElementById('trainingPercent');
         if (percentEl) {
             percentEl.textContent = `${data.progress}%`;
+        }
+        
+        // Update training details
+        const detailsEl = document.getElementById('trainingDetails');
+        if (detailsEl) {
+            if (data.message) {
+                detailsEl.textContent = data.message;
+            } else if (data.estimated_remaining) {
+                detailsEl.textContent = `${data.current_stage} • ${data.progress}% complete • Est. ${data.estimated_remaining} remaining`;
+            }
         }
         
         // Update detailed progress if visible
@@ -627,6 +860,43 @@ class Dashboard extends BasePageController {
                 elapsedEl.textContent = data.elapsed_time;
             }
         }
+        
+        // Update training stages progress bar
+        if (data.stage_index !== undefined && data.total_stages) {
+            const progressBar = document.getElementById('stagesProgressBar');
+            if (progressBar) {
+                const progress = (data.stage_index / data.total_stages) * 100;
+                progressBar.style.width = `${progress}%`;
+            }
+            
+            const progressText = document.getElementById('stageProgressText');
+            if (progressText) {
+                progressText.textContent = `Stage ${data.stage_index}/${data.total_stages}`;
+            }
+        }
+        
+        // Update training stages list dynamically
+        if (data.stages_completed && Array.isArray(data.stages_completed)) {
+            const stagesList = document.getElementById('trainingStagesList');
+            if (stagesList) {
+                // Update stage items based on completed stages
+                const stageItems = stagesList.querySelectorAll('.stage-item');
+                stageItems.forEach((item, index) => {
+                    const stageName = item.querySelector('.stage-name').textContent;
+                    
+                    if (data.stages_completed.includes(stageName)) {
+                        item.className = 'stage-item completed';
+                        item.querySelector('.stage-icon').textContent = '✅';
+                    } else if (stageName === data.current_stage) {
+                        item.className = 'stage-item active';
+                        item.querySelector('.stage-icon').textContent = '🔄';
+                    } else {
+                        item.className = 'stage-item pending';
+                        item.querySelector('.stage-icon').textContent = '⏳';
+                    }
+                });
+            }
+        }
     }
     
     handleTrainingCompleted(data) {
@@ -663,44 +933,137 @@ class Dashboard extends BasePageController {
     handleTrainingFailed(data) {
         this.isTraining = false;
         
-        // Show error
-        this.showError(`Training failed: ${data.error || 'Unknown error'}`);
+        // Show error message with retry button
+        const errorMessage = data.error || 'Unknown error';
         
-        // Reset UI
+        // Update progress bar to show error state
+        ProgressBar.update('mainProgressBarContainer', 0, {
+            label: `❌ Training failed: ${errorMessage}`,
+            style: 'danger'
+        });
+        
+        // Show error notification
+        this.showError(`Training failed: ${errorMessage}`);
+        
+        // Reset and enable training button as retry button
         const trainButton = document.getElementById('trainButton');
         if (trainButton) {
             ButtonGroup.setLoading(trainButton, false);
             trainButton.disabled = false;
+            trainButton.textContent = 'Retry Training';
+            trainButton.classList.add('btn-warning');
+            trainButton.classList.remove('btn-primary');
+            
+            // Add retry functionality
+            trainButton.onclick = () => {
+                trainButton.textContent = 'Start Training';
+                trainButton.classList.remove('btn-warning');
+                trainButton.classList.add('btn-primary');
+                this.startTraining();
+            };
         }
         
+        // Update training details with retry message
+        const detailsEl = document.getElementById('trainingDetails');
+        if (detailsEl) {
+            detailsEl.innerHTML = `
+                <span style="color: var(--danger-color);">❌ Training failed: ${errorMessage}</span>
+                <button class="btn btn-sm btn-warning" onclick="dashboard.retryTraining()" style="margin-left: var(--spacing-md);">
+                    🔄 Retry Training
+                </button>
+            `;
+        }
+        
+        // Keep detailed card visible to show error details
+        const detailedCard = document.getElementById('detailedTrainingCard');
+        if (detailedCard) {
+            detailedCard.style.display = 'block';
+            
+            // Update training status with error details
+            const statusMsgEl = document.getElementById('trainingStatusMessage');
+            if (statusMsgEl) {
+                statusMsgEl.innerHTML = `
+                    <span style="color: var(--danger-color); font-weight: 600;">❌ Training Failed</span><br>
+                    <span style="color: var(--text-secondary);">${errorMessage}</span><br>
+                    <button class="btn btn-sm btn-primary" onclick="dashboard.retryTraining()" style="margin-top: var(--spacing-sm);">
+                        🔄 Retry Training
+                    </button>
+                `;
+            }
+        }
+    }
+    
+    retryTraining() {
+        // Reset training state and restart
+        this.isTraining = false;
+        
+        // Reset progress bar
+        ProgressBar.update('mainProgressBarContainer', 0, {
+            label: '🚀 Ready for Training',
+            style: 'default'
+        });
+        
+        // Reset training details
+        const detailsEl = document.getElementById('trainingDetails');
+        if (detailsEl) {
+            detailsEl.textContent = 'Click "Start Training" to begin training your model';
+        }
+        
+        // Hide detailed training card
         const detailedCard = document.getElementById('detailedTrainingCard');
         if (detailedCard) {
             detailedCard.style.display = 'none';
         }
+        
+        // Reset train button
+        const trainButton = document.getElementById('trainButton');
+        if (trainButton) {
+            trainButton.textContent = 'Start Training';
+            trainButton.classList.remove('btn-warning');
+            trainButton.classList.add('btn-primary');
+            trainButton.disabled = !this.currentFile;
+            trainButton.onclick = () => this.startTraining();
+        }
+        
+        // Start training if file is available
+        if (this.currentFile) {
+            this.startTraining();
+        } else {
+            this.showError('Please upload a file before retrying training');
+        }
     }
     
     updateSystemMetrics(data) {
-        // Update CPU usage
-        if (data.cpu !== undefined) {
-            Metric.update('cpuPercent', data.cpu, { format: 'percent' });
-            ProgressBar.update('cpuProgressBar', data.cpu, {
-                style: data.cpu > 80 ? 'danger' : data.cpu > 60 ? 'warning' : 'default'
+        // Debug logging to track WebSocket data
+        console.log('🔧 updateSystemMetrics called with data:', {
+            cpu_percent: data.cpu_percent,
+            memory_percent: data.memory_percent,
+            disk_percent: data.disk_percent,
+            type: data.type
+        });
+        
+        // Update CPU usage - fix field name mismatch (backend sends cpu_percent)
+        if (data.cpu_percent !== undefined) {
+            console.log(`🔧 Updating CPU: ${data.cpu_percent}%`);
+            Metric.update('cpuPercent', data.cpu_percent, { format: 'percent' });
+            ProgressBar.update('cpuProgressBar', data.cpu_percent, {
+                style: data.cpu_percent > 80 ? 'danger' : data.cpu_percent > 60 ? 'warning' : 'default'
             });
         }
         
-        // Update memory usage
-        if (data.memory !== undefined) {
-            Metric.update('memoryPercent', data.memory, { format: 'percent' });
-            ProgressBar.update('memoryProgressBar', data.memory, {
-                style: data.memory > 80 ? 'danger' : data.memory > 60 ? 'warning' : 'default'
+        // Update memory usage - fix field name mismatch (backend sends memory_percent)
+        if (data.memory_percent !== undefined) {
+            Metric.update('memoryPercent', data.memory_percent, { format: 'percent' });
+            ProgressBar.update('memoryProgressBar', data.memory_percent, {
+                style: data.memory_percent > 80 ? 'danger' : data.memory_percent > 60 ? 'warning' : 'default'
             });
         }
         
-        // Update disk usage
-        if (data.disk !== undefined) {
-            Metric.update('diskPercent', data.disk, { format: 'percent' });
-            ProgressBar.update('diskProgressBar', data.disk, {
-                style: data.disk > 90 ? 'danger' : data.disk > 70 ? 'warning' : 'default'
+        // Update disk usage - fix field name mismatch (backend sends disk_percent)
+        if (data.disk_percent !== undefined) {
+            Metric.update('diskPercent', data.disk_percent, { format: 'percent' });
+            ProgressBar.update('diskProgressBar', data.disk_percent, {
+                style: data.disk_percent > 90 ? 'danger' : data.disk_percent > 70 ? 'warning' : 'default'
             });
         }
         
@@ -710,25 +1073,191 @@ class Dashboard extends BasePageController {
             if (connEl) connEl.textContent = data.active_connections;
         }
         
-        // Update last update time
+        // Update last update time with timestamp tracking
         const updateEl = document.getElementById('lastUpdateTime');
         if (updateEl) {
             updateEl.textContent = 'Just now';
+            updateEl.setAttribute('data-timestamp', Date.now());
+            
+            // Set up auto-update for relative time
+            if (!this.lastUpdateInterval) {
+                this.lastUpdateInterval = setInterval(() => {
+                    this.updateRelativeTime();
+                }, 1000);
+            }
+        }
+        
+        // Update API and WebSocket response times if available
+        if (data.api_response_time_ms !== undefined) {
+            const apiEl = document.getElementById('apiResponseTime');
+            if (apiEl) apiEl.textContent = `${Math.round(data.api_response_time_ms)}ms`;
+        }
+        
+        if (data.ws_response_time_ms !== undefined) {
+            const wsEl = document.getElementById('wsResponseTime');
+            if (wsEl) wsEl.textContent = `${Math.round(data.ws_response_time_ms)}ms`;
+        }
+        
+        // Update total models count
+        if (data.total_models !== undefined) {
+            const modelsEl = document.getElementById('totalModels');
+            if (modelsEl) modelsEl.textContent = `${data.total_models} Active`;
+        }
+        
+        // Update queue jobs count
+        if (data.active_training_jobs !== undefined) {
+            const jobsEl = document.getElementById('queueJobs');
+            if (jobsEl) jobsEl.textContent = `${data.active_training_jobs} Pending`;
+        }
+        
+        // Update live metrics in the real-time metrics grid
+        // Update live accuracy from system_metrics with animation
+        if (data.current_accuracy !== undefined || data.model_accuracy !== undefined) {
+            const accuracy = data.current_accuracy || data.model_accuracy;
+            const accuracyEl = document.getElementById('liveAccuracy');
+            
+            if (accuracyEl) {
+                const oldValue = parseFloat(accuracyEl.textContent) || 0;
+                const newValue = parseFloat((accuracy * 100).toFixed(1));
+                
+                // Apply animation on change
+                if (Math.abs(oldValue - newValue) > 0.1) {
+                    accuracyEl.style.transition = 'all 0.3s ease';
+                    accuracyEl.style.transform = 'scale(1.1)';
+                    accuracyEl.style.color = 'var(--primary-color)';
+                    
+                    setTimeout(() => {
+                        accuracyEl.style.transform = 'scale(1)';
+                        accuracyEl.style.color = '';
+                    }, 300);
+                }
+                
+                Metric.update('liveAccuracy', accuracy * 100, { format: 'percent' });
+            } else {
+                Metric.update('liveAccuracy', accuracy * 100, { format: 'percent' });
+            }
+        }
+        
+        // Update predictions per minute with enhanced trend arrows
+        if (data.predictions_per_minute !== undefined || data.prediction_rate !== undefined) {
+            const rate = data.predictions_per_minute || data.prediction_rate;
+            const predEl = document.getElementById('livePredictions');
+            if (predEl) {
+                const roundedRate = Math.round(rate);
+                const previousRate = parseInt(predEl.getAttribute('data-previous-rate') || '0');
+                const timestamp = Date.now();
+                
+                let html = `${roundedRate}/min`;
+                let trendClass = '';
+                
+                // Calculate per minute from timestamp if available
+                if (data.timestamp) {
+                    const timeDiff = (timestamp - new Date(data.timestamp).getTime()) / 1000 / 60;
+                    if (timeDiff > 0 && data.total_predictions) {
+                        const calculatedRate = Math.round(data.total_predictions / timeDiff);
+                        html = `${calculatedRate}/min`;
+                    }
+                }
+                
+                // Enhanced trend indicators with animation
+                if (roundedRate > previousRate && previousRate > 0) {
+                    const increase = roundedRate - previousRate;
+                    html += ` <span class="trend-up" style="color: var(--success-color); font-weight: bold; animation: trendPulse 0.5s ease;">↗️ +${increase}</span>`;
+                    trendClass = 'trending-up';
+                } else if (roundedRate < previousRate && previousRate > 0) {
+                    const decrease = previousRate - roundedRate;
+                    html += ` <span class="trend-down" style="color: var(--danger-color); font-weight: bold; animation: trendPulse 0.5s ease;">↘️ -${decrease}</span>`;
+                    trendClass = 'trending-down';
+                } else if (roundedRate === previousRate && previousRate > 0) {
+                    html += ` <span style="color: var(--text-secondary); opacity: 0.7;">→</span>`;
+                    trendClass = 'stable';
+                }
+                
+                predEl.innerHTML = html;
+                predEl.setAttribute('data-previous-rate', roundedRate);
+                predEl.setAttribute('data-last-update', timestamp);
+                predEl.className = `metric-value ${trendClass}`;
+            }
+        }
+    }
+    
+    updateRelativeTime() {
+        const updateEl = document.getElementById('lastUpdateTime');
+        if (!updateEl) return;
+        
+        const timestamp = parseInt(updateEl.getAttribute('data-timestamp') || '0');
+        if (!timestamp) return;
+        
+        const seconds = Math.floor((Date.now() - timestamp) / 1000);
+        
+        if (seconds < 5) {
+            updateEl.textContent = 'Just now';
+        } else if (seconds < 60) {
+            updateEl.textContent = `${seconds}s ago`;
+        } else if (seconds < 3600) {
+            const minutes = Math.floor(seconds / 60);
+            updateEl.textContent = `${minutes}m ago`;
+        } else {
+            const hours = Math.floor(seconds / 3600);
+            updateEl.textContent = `${hours}h ago`;
         }
     }
     
     updateSystemHealth(data) {
         const healthEl = document.getElementById('systemHealth');
         if (healthEl) {
+            const oldHealth = healthEl.textContent;
+            let newHealth;
+            
             switch (data.current_health) {
                 case 'critical':
-                    healthEl.textContent = '🚨';
+                    newHealth = '🚨';
                     break;
                 case 'warning':
-                    healthEl.textContent = '⚠️';
+                    newHealth = '⚠️';
                     break;
                 default:
-                    healthEl.textContent = '✅';
+                    newHealth = '✅';
+            }
+            
+            // Add pulse animation if health status changed
+            if (oldHealth !== newHealth) {
+                healthEl.textContent = newHealth;
+                healthEl.style.animation = 'healthPulse 0.6s ease-in-out';
+                
+                setTimeout(() => {
+                    healthEl.style.animation = '';
+                }, 600);
+            }
+        }
+        
+        // Update system status text and icon
+        const statusIcon = document.getElementById('systemStatusIcon');
+        const statusText = document.getElementById('systemStatusText');
+        const statusDetail = document.getElementById('systemStatusDetail');
+        
+        if (statusIcon && statusText) {
+            switch (data.current_health) {
+                case 'critical':
+                    statusIcon.textContent = '🚨';
+                    statusText.textContent = 'System Critical';
+                    if (statusDetail) {
+                        statusDetail.textContent = `Critical resource usage detected • CPU: ${data.metrics?.cpu_percent || 0}% Memory: ${data.metrics?.memory_percent || 0}%`;
+                    }
+                    break;
+                case 'warning':
+                    statusIcon.textContent = '⚠️';
+                    statusText.textContent = 'System Warning';
+                    if (statusDetail) {
+                        statusDetail.textContent = `Elevated resource usage • CPU: ${data.metrics?.cpu_percent || 0}% Memory: ${data.metrics?.memory_percent || 0}%`;
+                    }
+                    break;
+                default:
+                    statusIcon.textContent = '✅';
+                    statusText.textContent = 'System Healthy';
+                    if (statusDetail) {
+                        statusDetail.textContent = 'All metrics within normal range • Last updated: Just now';
+                    }
             }
         }
     }
@@ -796,6 +1325,391 @@ class Dashboard extends BasePageController {
         if (activeModelsEl) {
             const currentCount = parseInt(activeModelsEl.textContent) || 0;
             activeModelsEl.textContent = currentCount + 1;
+        }
+    }
+    
+    handleActivityUpdate(data) {
+        if (!this.activityFeed || !data.activity) return;
+        
+        // Add the new activity to the feed
+        this.activityFeed.addActivity(data.activity);
+        
+        // Limit the activity feed to last 50 items
+        const activities = this.activityFeed.getActivities();
+        if (activities.length > 50) {
+            this.activityFeed.removeOldestActivities(activities.length - 50);
+        }
+    }
+    
+    handleUploadProgress(data) {
+        const uploadArea = document.querySelector('.upload-area');
+        if (!uploadArea) return;
+        
+        if (data.status === 'starting') {
+            uploadArea.innerHTML = `
+                <div class="upload-icon">📤</div>
+                <h4>Uploading ${data.filename}...</h4>
+                <div class="progress-container" style="margin-top: 1rem;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="wsUploadProgress" style="width: 0%"></div>
+                    </div>
+                </div>
+                <p style="color: var(--text-secondary); margin-top: var(--spacing-sm);">
+                    Starting upload...
+                </p>
+            `;
+        } else if (data.status === 'reading' || data.status === 'saving') {
+            const progressEl = document.getElementById('wsUploadProgress');
+            if (progressEl) {
+                progressEl.style.width = `${data.progress}%`;
+            }
+            const statusText = uploadArea.querySelector('p');
+            if (statusText) {
+                statusText.textContent = data.status === 'reading' ? 'Reading file...' : 'Processing file...';
+            }
+        } else if (data.status === 'completed') {
+            uploadArea.innerHTML = `
+                <div class="upload-icon">✅</div>
+                <h4>Upload Complete!</h4>
+                <p style="color: var(--text-secondary); margin-top: var(--spacing-sm);">
+                    ${data.filename} (${data.rows} rows, ${data.columns} columns)
+                </p>
+            `;
+        }
+    }
+    
+    handleSystemAlert(data) {
+        if (!data.alert) return;
+        
+        const alert = data.alert;
+        
+        // Show notification
+        if (window.notifications) {
+            const notificationType = alert.priority === 'high' ? 'error' : 
+                                   alert.priority === 'medium' ? 'warning' : 'info';
+            window.notifications.show(alert.message, notificationType, 10000);
+        }
+        
+        // Add to activity feed if available
+        if (this.activityFeed) {
+            const activity = {
+                id: alert.id,
+                title: alert.title,
+                description: alert.message,
+                status: alert.alert_type,
+                timestamp: alert.timestamp,
+                user: alert.source,
+                action_type: 'alert',
+                severity_level: alert.priority
+            };
+            this.activityFeed.addActivity(activity);
+        }
+    }
+    
+    handleModelStatusChange(data) {
+        // Update model health status
+        const modelStatus = data.status || data.model_status;
+        const modelId = data.model_id;
+        
+        // Update status dot and health indicator
+        const statusEl = document.querySelector('.status-indicator');
+        if (statusEl) {
+            statusEl.className = 'status-indicator';
+            switch (modelStatus) {
+                case 'active':
+                case 'deployed':
+                    statusEl.classList.add('status-good');
+                    statusEl.innerHTML = '<div class="status-dot"></div>Live & Healthy';
+                    break;
+                case 'training':
+                    statusEl.classList.add('status-warning');
+                    statusEl.innerHTML = '<div class="status-dot"></div>Training in Progress';
+                    break;
+                case 'error':
+                case 'failed':
+                    statusEl.classList.add('status-error');
+                    statusEl.innerHTML = '<div class="status-dot"></div>Error - Check Logs';
+                    break;
+                case 'inactive':
+                    statusEl.classList.add('status-neutral');
+                    statusEl.innerHTML = '<div class="status-dot"></div>Inactive';
+                    break;
+            }
+        }
+        
+        // Update model deployment timestamp if provided
+        if (data.deployment_timestamp) {
+            const modelEl = document.querySelector('.card strong');
+            if (modelEl) {
+                const timeAgo = this.formatTimeAgo(data.deployment_timestamp);
+                const descEl = modelEl.nextElementSibling;
+                if (descEl) {
+                    descEl.innerHTML = descEl.innerHTML.replace(/Last trained.*?•/, 
+                        `Last deployed <span data-timestamp="${data.deployment_timestamp}">${timeAgo}</span> •`);
+                }
+            }
+        }
+        
+        // Enable/disable action buttons based on status
+        const useModelBtn = document.getElementById('useModelButton');
+        if (useModelBtn) {
+            useModelBtn.disabled = modelStatus !== 'active' && modelStatus !== 'deployed';
+        }
+    }
+    
+    handleFileValidated(data) {
+        const uploadArea = document.querySelector('.upload-area');
+        if (!uploadArea) return;
+        
+        if (data.status === 'success') {
+            // Show validation success
+            uploadArea.innerHTML = `
+                <div class="upload-icon">✅</div>
+                <h4>File Validated Successfully!</h4>
+                <p style="color: var(--text-secondary); margin-top: var(--spacing-sm);">
+                    ${data.filename} • ${data.rows} rows, ${data.columns} columns
+                </p>
+                <div style="margin-top: var(--spacing-md); padding: var(--spacing-md); background: var(--background-color); border-radius: var(--radius-md);">
+                    <h5 style="margin: 0 0 var(--spacing-sm) 0;">Data Summary:</h5>
+                    <div style="font-size: 0.9rem; color: var(--text-secondary);">
+                        ${data.summary || 'Ready for training'}
+                    </div>
+                </div>
+            `;
+            
+            // Enable train button
+            const trainButton = document.getElementById('trainButton');
+            if (trainButton) {
+                trainButton.disabled = false;
+                ButtonGroup.setLoading(trainButton, false);
+            }
+            
+            // Store validated file info
+            this.currentFile = {
+                file_path: data.file_path,
+                filename: data.filename,
+                rows: data.rows,
+                columns: data.columns
+            };
+        } else {
+            // Show validation error
+            uploadArea.innerHTML = `
+                <div class="upload-icon">❌</div>
+                <h4>Validation Failed</h4>
+                <p style="color: var(--danger-color); margin-top: var(--spacing-sm);">
+                    ${data.error || 'Invalid file format'}
+                </p>
+                <button class="btn btn-secondary" onclick="dashboard.resetUploadArea()" style="margin-top: var(--spacing-md);">
+                    Try Again
+                </button>
+            `;
+            
+            // Disable train button
+            const trainButton = document.getElementById('trainButton');
+            if (trainButton) {
+                trainButton.disabled = true;
+            }
+        }
+    }
+    
+    updateModelMetrics(data) {
+        // Update model accuracy with animation
+        if (data.accuracy !== undefined) {
+            const accuracyEl = document.getElementById('modelAccuracy');
+            if (accuracyEl) {
+                const newAccuracy = (data.accuracy * 100).toFixed(1);
+                const oldAccuracy = parseFloat(accuracyEl.textContent);
+                
+                // Animate value change
+                if (oldAccuracy !== parseFloat(newAccuracy)) {
+                    accuracyEl.style.transition = 'color 0.3s ease';
+                    accuracyEl.style.color = 'var(--success-color)';
+                    accuracyEl.textContent = `${newAccuracy}%`;
+                    
+                    setTimeout(() => {
+                        accuracyEl.style.color = '';
+                    }, 300);
+                }
+                
+                // Update trend indicator
+                if (data.accuracy_trend) {
+                    const trend = data.accuracy_trend > 0 ? '↑' : data.accuracy_trend < 0 ? '↓' : '→';
+                    const trendColor = data.accuracy_trend > 0 ? 'var(--success-color)' : 
+                                     data.accuracy_trend < 0 ? 'var(--danger-color)' : 'var(--text-secondary)';
+                    accuracyEl.innerHTML = `${newAccuracy}% <span style="color: ${trendColor}; font-size: 0.8em;">${trend}</span>`;
+                }
+            }
+            
+            // Also update live accuracy
+            Metric.update('liveAccuracy', data.accuracy * 100, { format: 'percent' });
+        }
+        
+        // Update prediction count with increment animation
+        if (data.predictions_made !== undefined) {
+            const predEl = document.getElementById('predictionCount');
+            if (predEl) {
+                const oldCount = parseInt(predEl.textContent.replace(/,/g, '')) || 0;
+                const newCount = data.predictions_made;
+                
+                if (newCount > oldCount) {
+                    // Animate counter increment
+                    let current = oldCount;
+                    const increment = Math.ceil((newCount - oldCount) / 20);
+                    const timer = setInterval(() => {
+                        current += increment;
+                        if (current >= newCount) {
+                            current = newCount;
+                            clearInterval(timer);
+                        }
+                        predEl.textContent = current.toLocaleString();
+                    }, 50);
+                } else {
+                    predEl.textContent = newCount.toLocaleString();
+                }
+            }
+        }
+        
+        // Update response time with color coding
+        if (data.avg_response_time !== undefined) {
+            const responseEl = document.getElementById('responseTime');
+            if (responseEl) {
+                const responseTime = Math.round(data.avg_response_time);
+                responseEl.textContent = `${responseTime}ms`;
+                
+                // Color code by threshold
+                if (responseTime < 50) {
+                    responseEl.style.color = 'var(--success-color)';
+                } else if (responseTime < 200) {
+                    responseEl.style.color = 'var(--warning-color)';
+                } else {
+                    responseEl.style.color = 'var(--danger-color)';
+                }
+                
+                // Add P95 if available
+                if (data.p95_response_time) {
+                    responseEl.title = `Average: ${responseTime}ms | P95: ${Math.round(data.p95_response_time)}ms`;
+                }
+            }
+        }
+        
+        // Update predictions per minute with trend
+        if (data.predictions_per_minute !== undefined) {
+            const predEl = document.getElementById('livePredictions');
+            if (predEl) {
+                const rate = Math.round(data.predictions_per_minute);
+                const previousRate = parseInt(predEl.getAttribute('data-previous-rate') || '0');
+                
+                let html = `${rate}/min`;
+                if (rate > previousRate) {
+                    html += ` <span style="color: var(--success-color);">↑</span>`;
+                } else if (rate < previousRate && previousRate > 0) {
+                    html += ` <span style="color: var(--danger-color);">↓</span>`;
+                }
+                
+                predEl.innerHTML = html;
+                predEl.setAttribute('data-previous-rate', rate);
+            }
+        }
+    }
+    
+    updateConnectionCount(data) {
+        const connEl = document.getElementById('activeConnections');
+        if (connEl && data.count !== undefined) {
+            const oldCount = parseInt(connEl.textContent) || 0;
+            const newCount = data.count;
+            
+            // Animate on change
+            if (oldCount !== newCount) {
+                connEl.style.transition = 'transform 0.3s ease';
+                connEl.style.transform = 'scale(1.2)';
+                connEl.textContent = newCount;
+                
+                setTimeout(() => {
+                    connEl.style.transform = 'scale(1)';
+                }, 300);
+            }
+            
+            // Show connection types on hover if available
+            if (data.breakdown) {
+                connEl.title = Object.entries(data.breakdown)
+                    .map(([type, count]) => `${type}: ${count}`)
+                    .join(' | ');
+            }
+        }
+    }
+    
+    updatePerformanceMetrics(data) {
+        // Update API response time with rolling average
+        if (data.api_response_time !== undefined) {
+            const apiEl = document.getElementById('apiResponseTime');
+            if (apiEl) {
+                const avgTime = Math.round(data.api_response_time);
+                apiEl.textContent = `${avgTime}ms`;
+                
+                // Color code by speed
+                if (avgTime < 100) {
+                    apiEl.style.color = 'var(--success-color)';
+                } else if (avgTime < 300) {
+                    apiEl.style.color = 'var(--warning-color)';
+                } else {
+                    apiEl.style.color = 'var(--danger-color)';
+                }
+            }
+        }
+        
+        // Update WebSocket latency including ping time
+        if (data.ws_latency !== undefined) {
+            const wsEl = document.getElementById('wsResponseTime');
+            if (wsEl) {
+                const latency = Math.round(data.ws_latency);
+                wsEl.textContent = `${latency}ms`;
+                
+                // Add ping time if available
+                if (data.ping_time) {
+                    wsEl.title = `Latency: ${latency}ms | Ping: ${Math.round(data.ping_time)}ms`;
+                }
+            }
+        }
+    }
+    
+    updateResourceStatus(data) {
+        // Update total models count
+        if (data.models !== undefined) {
+            const modelsEl = document.getElementById('totalModels');
+            if (modelsEl) {
+                const active = data.models.active || 0;
+                const total = data.models.total || 0;
+                modelsEl.textContent = `${active} Active`;
+                
+                // List model names on hover
+                if (data.models.list && data.models.list.length > 0) {
+                    modelsEl.title = 'Active models: ' + data.models.list.join(', ');
+                }
+            }
+        }
+        
+        // Update queue jobs count
+        if (data.queue !== undefined) {
+            const jobsEl = document.getElementById('queueJobs');
+            if (jobsEl) {
+                const pending = data.queue.pending || 0;
+                const processing = data.queue.processing || 0;
+                
+                jobsEl.textContent = `${pending} Pending`;
+                
+                // Add warning if queue backed up
+                if (pending > 10) {
+                    jobsEl.style.color = 'var(--warning-color)';
+                    jobsEl.innerHTML = `${pending} Pending <span style="color: var(--warning-color);">⚠️</span>`;
+                } else {
+                    jobsEl.style.color = '';
+                }
+                
+                // Show breakdown on hover
+                if (processing > 0) {
+                    jobsEl.title = `Pending: ${pending} | Processing: ${processing}`;
+                }
+            }
         }
     }
     
@@ -1243,12 +2157,53 @@ class Dashboard extends BasePageController {
             this.cleanupState();
         }
         
+        // Clear intervals
+        if (this.lastUpdateInterval) {
+            clearInterval(this.lastUpdateInterval);
+            this.lastUpdateInterval = null;
+        }
+        
+        if (this.timeAgoInterval) {
+            clearInterval(this.timeAgoInterval);
+            this.timeAgoInterval = null;
+        }
+        
+        if (this.autoRefreshInterval) {
+            clearInterval(this.autoRefreshInterval);
+            this.autoRefreshInterval = null;
+        }
+        
         // Reset training state
         this.isTraining = false;
         this.currentFile = null;
         this.currentJobId = null;
         
         // Dashboard custom cleanup completed
+    }
+}
+
+// Expose modules to global scope for compatibility and debugging
+// This fixes the issue where ES6 modules load but aren't accessible globally
+try {
+    window.Dashboard = Dashboard;
+    window.API = API;
+    window.CONFIG = CONFIG;
+    window.errorHandler = errorHandler;
+    
+    // Add development mode logging
+    if (CONFIG.DEBUG_MODE || window.location.hostname === 'localhost') {
+        console.log('✅ Modules exposed globally:', {
+            Dashboard: typeof window.Dashboard,
+            API: typeof window.API,
+            CONFIG: typeof window.CONFIG,
+            errorHandler: typeof window.errorHandler
+        });
+    }
+} catch (error) {
+    console.error('❌ Failed to expose modules globally:', error);
+    // Fallback: Ensure at least basic functionality
+    if (typeof window.console !== 'undefined') {
+        window.console.error('Module exposure failed - upload functionality may not work');
     }
 }
 

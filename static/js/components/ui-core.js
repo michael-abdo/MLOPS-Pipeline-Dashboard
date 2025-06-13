@@ -175,9 +175,16 @@ class Metric {
      * @param {Object} options - Update options
      */
     static update(metric, newValue, options = {}) {
+        console.log(`🔧 Metric.update called: ${metric} = ${newValue}`, options);
         const metricElement = typeof metric === 'string' ? document.getElementById(metric) : metric;
+        console.log(`🔧 Found element:`, metricElement);
         if (metricElement) {
-            const valueDiv = metricElement.querySelector('.metric-value');
+            // Handle both cases: element is metric-value itself OR has metric-value child
+            let valueDiv = metricElement.querySelector('.metric-value');
+            if (!valueDiv && metricElement.classList.contains('metric-value')) {
+                valueDiv = metricElement; // Element itself is the metric-value
+            }
+            console.log(`🔧 Found valueDiv:`, valueDiv);
             if (valueDiv) {
                 // Add update animation
                 valueDiv.classList.add('updating');

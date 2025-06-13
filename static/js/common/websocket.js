@@ -27,6 +27,8 @@ export class WebSocketManager {
         this.connectionQuality = 'good';
         this.pingInterval = null;
         this.reconnectTimeout = null;
+        this.maxLatencyHistory = 10;
+        this.lastAvgLatency = 0;
         
         WebSocketManager.instance = this;
         
@@ -100,6 +102,13 @@ export class WebSocketManager {
         }
         
         try {
+            // Debug: Log all WebSocket messages
+            console.log('🌐 WebSocket message received:', {
+                type: data.type,
+                timestamp: new Date().toISOString(),
+                data: data
+            });
+            
             // Handle pong response for latency measurement
             if (data.type === 'pong') {
                 this.handlePong(data);
@@ -111,6 +120,7 @@ export class WebSocketManager {
             
             // Emit specific event types
             if (data.type) {
+                console.log(`🎯 Emitting WebSocket event: ${data.type}`);
                 this.emit(data.type, data);
             }
             
@@ -270,6 +280,19 @@ export class WebSocketManager {
      * Update connection quality based on latency
      */
     updateConnectionQuality(latency) {
+        // Add to latency history
+        if (!this.latencyHistory) this.latencyHistory = [];
+        this.latencyHistory.push(latency);
+        if (this.latencyHistory.length > this.maxLatencyHistory) {
+            this.latencyHistory.shift();
+        }
+        
+        // Calculate average latency
+        const avgLatency = Math.round(
+            this.latencyHistory.reduce((sum, lat) => sum + lat, 0) / this.latencyHistory.length
+        );
+        this.avgLatency = avgLatency;
+        
         let quality = 'poor';
         
         for (const [key, config] of Object.entries(CONFIG.CONNECTION_QUALITY)) {
@@ -279,9 +302,15 @@ export class WebSocketManager {
             }
         }
         
-        if (quality !== this.connectionQuality) {
+        if (quality !== this.connectionQuality || avgLatency !== this.lastAvgLatency) {
             this.connectionQuality = quality;
-            this.emit('quality_changed', { quality, latency });
+            this.lastAvgLatency = avgLatency;
+            this.emit('quality_changed', { 
+                quality, 
+                latency,
+                avgLatency,
+                samples: this.latencyHistory.length
+            });
         }
     }
     
