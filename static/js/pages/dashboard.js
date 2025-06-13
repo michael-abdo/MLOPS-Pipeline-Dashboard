@@ -267,6 +267,16 @@ class Dashboard extends BasePageController {
         this.addWebSocketHandler('prediction_logged', (data) => {
             this.handlePredictionLogged(data);
         });
+        
+        // Real-time model status updates (enhanced version)
+        this.addWebSocketHandler('model_status_realtime', (data) => {
+            this.handleModelStatusRealtime(data);
+        });
+        
+        // Enhanced model metrics with real-time features
+        this.addWebSocketHandler('model_metrics_realtime', (data) => {
+            this.handleModelMetricsRealtime(data);
+        });
     }
     
     async loadInitialData() {
@@ -1256,11 +1266,344 @@ class Dashboard extends BasePageController {
     }
     
     updateSystemMetrics(data) {
-        // Delegate all updates to the centralized system metrics handler
-        systemMetrics.updateFromWebSocket(data);
-        
-        // Update last update time
-        this.updateLastUpdateTime();
+        try {
+            // Enhanced system metrics processing with model data integration
+            import('../common/config.js').then(({ CONFIG }) => {
+                // Delegate all updates to the centralized system metrics handler
+                systemMetrics.updateFromWebSocket(data);
+                
+                // Process model-specific data if present
+                if (data.model_accuracy !== undefined || data.current_accuracy !== undefined) {
+                    const accuracy = data.model_accuracy || data.current_accuracy;
+                    this.updateLiveModelMetrics({
+                        accuracy: accuracy,
+                        model_id: data.model_id || 'current',
+                        timestamp: data.timestamp || Date.now()
+                    });
+                }
+                
+                // Process prediction rate data if present
+                if (data.predictions_per_minute !== undefined || data.prediction_rate !== undefined) {
+                    const rate = data.predictions_per_minute || data.prediction_rate;
+                    this.updatePredictionRate({
+                        rate: rate,
+                        total_predictions: data.total_predictions,
+                        model_id: data.model_id || 'current',
+                        timestamp: data.timestamp || Date.now()
+                    });
+                }
+                
+                // Enhanced health monitoring with model considerations
+                if (data.model_health || data.model_status) {
+                    this.updateModelHealthStatus({
+                        status: data.model_health || data.model_status,
+                        accuracy: data.model_accuracy || data.current_accuracy,
+                        response_time: data.avg_response_time,
+                        model_id: data.model_id
+                    });
+                }
+                
+                // Update last update time
+                this.updateLastUpdateTime();
+                
+                // Rate limiting and performance optimization
+                if (CONFIG.MODEL_METRICS?.WS_RATE_LIMITING) {
+                    this.applyRateLimiting('system_metrics', CONFIG.MODEL_METRICS.WS_RATE_LIMITING);
+                }
+                
+            }).catch(() => {
+                // Fallback if CONFIG import fails
+                systemMetrics.updateFromWebSocket(data);
+                this.updateLastUpdateTime();
+            });
+            
+        } catch (error) {
+            console.warn('Enhanced system metrics update failed, using fallback:', error);
+            // Fallback to original behavior
+            systemMetrics.updateFromWebSocket(data);
+            this.updateLastUpdateTime();
+        }
+    }
+
+    /**
+     * Update live model metrics with real-time accuracy updates
+     * @param {Object} data - Model metrics data
+     */
+    updateLiveModelMetrics(data) {
+        try {
+            const { accuracy, model_id, timestamp } = data;
+            
+            if (accuracy !== undefined) {
+                // Update live accuracy with enhanced features
+                Metric.updateWithHealth('liveAccuracy', accuracy * 100, {
+                    metricType: 'accuracy',
+                    format: 'percent',
+                    animated: true,
+                    showTrend: true,
+                    previousValue: this.cachedMetrics?.accuracy || null
+                });
+                
+                // Add visual trend indicators with threshold-based arrows
+                const previousAccuracy = this.cachedMetrics?.accuracy || accuracy * 100;
+                const change = (accuracy * 100) - previousAccuracy;
+                
+                if (Math.abs(change) > 0.5) { // Threshold for showing trend
+                    const trendDirection = change > 0 ? 'up' : 'down';
+                    Metric.setTrend('liveAccuracy', trendDirection, Math.abs(change), {
+                        animated: true,
+                        threshold: 0.5
+                    });
+                    
+                    // Pulse for significant changes
+                    if (Math.abs(change) > 2) {
+                        Metric.pulse('liveAccuracy', { 
+                            intensity: 'medium',
+                            color: change > 0 ? '#10b981' : '#ef4444'
+                        });
+                    }
+                }
+                
+                // Cache for trend calculation
+                if (!this.cachedMetrics) this.cachedMetrics = {};
+                this.cachedMetrics.accuracy = accuracy * 100;
+                this.cachedMetrics.lastAccuracyUpdate = timestamp || Date.now();
+                
+                // Update system health based on accuracy
+                this.updateSystemHealthFromAccuracy(accuracy);
+            }
+            
+        } catch (error) {
+            console.warn('Failed to update live model metrics:', error);
+        }
+    }
+
+    /**
+     * Update prediction rate with real-time calculations
+     * @param {Object} data - Prediction rate data
+     */
+    updatePredictionRate(data) {
+        try {
+            const { rate, total_predictions, model_id, timestamp } = data;
+            
+            if (rate !== undefined) {
+                // Update live prediction rate with enhanced features
+                Metric.updateWithHealth('livePredictions', rate, {
+                    metricType: 'prediction_rate', 
+                    format: 'custom',
+                    suffix: '/min',
+                    animated: true,
+                    showTrend: true,
+                    previousValue: this.cachedMetrics?.predictionRate || null
+                });
+                
+                // Calculate and show trend for prediction rate
+                const previousRate = this.cachedMetrics?.predictionRate || rate;
+                const rateChange = rate - previousRate;
+                
+                if (Math.abs(rateChange) > 2) { // Threshold for prediction rate trend
+                    const trendDirection = rateChange > 0 ? 'up' : 'down';
+                    Metric.setTrend('livePredictions', trendDirection, Math.abs(rateChange), {
+                        animated: true,
+                        threshold: 2,
+                        showValue: true
+                    });
+                    
+                    // Light pulse for rate changes
+                    if (Math.abs(rateChange) > 10) {
+                        Metric.pulse('livePredictions', { 
+                            intensity: 'light',
+                            color: rateChange > 0 ? '#3b82f6' : '#f59e0b'
+                        });
+                    }
+                }
+                
+                // Update total predictions counter
+                if (total_predictions !== undefined) {
+                    Metric.updateRealTime('totalPredictions', total_predictions, {
+                        format: 'number',
+                        minInterval: 1000 // Update at most once per second
+                    });
+                }
+                
+                // Cache for trend calculation
+                if (!this.cachedMetrics) this.cachedMetrics = {};
+                this.cachedMetrics.predictionRate = rate;
+                this.cachedMetrics.totalPredictions = total_predictions;
+                this.cachedMetrics.lastRateUpdate = timestamp || Date.now();
+                
+                // Update activity level indicator based on prediction rate
+                this.updateActivityLevel(rate);
+            }
+            
+        } catch (error) {
+            console.warn('Failed to update prediction rate:', error);
+        }
+    }
+
+    /**
+     * Update model health status based on metrics
+     * @param {Object} data - Model health data
+     */
+    updateModelHealthStatus(data) {
+        try {
+            const { status, accuracy, response_time, model_id } = data;
+            
+            // Determine overall health from multiple factors
+            let healthStatus = 'healthy';
+            let healthIcon = '✅';
+            let healthText = 'Live & Healthy';
+            
+            // Health based on accuracy
+            if (accuracy !== undefined) {
+                if (accuracy < 0.8) {
+                    healthStatus = 'critical';
+                    healthIcon = '❌';
+                    healthText = 'Critical - Low Accuracy';
+                } else if (accuracy < 0.85) {
+                    healthStatus = 'warning';
+                    healthIcon = '⚠️';
+                    healthText = 'Warning - Accuracy Below Threshold';
+                }
+            }
+            
+            // Health based on response time
+            if (response_time !== undefined && response_time > 500) {
+                if (healthStatus === 'healthy') {
+                    healthStatus = 'warning';
+                    healthIcon = '⚠️';
+                    healthText = 'Warning - High Response Time';
+                }
+            }
+            
+            // Update system health indicator
+            const healthElement = document.getElementById('systemHealth');
+            if (healthElement) {
+                Metric.update('systemHealth', healthIcon, {
+                    format: 'custom',
+                    tooltip: healthText
+                });
+                
+                Metric.setHealth('systemHealth', healthStatus, {
+                    animated: true,
+                    showIcon: false // Icon is already the value
+                });
+            }
+            
+        } catch (error) {
+            console.warn('Failed to update model health status:', error);
+        }
+    }
+
+    /**
+     * Update system health based on accuracy thresholds
+     * @param {number} accuracy - Model accuracy (0-1)
+     */
+    updateSystemHealthFromAccuracy(accuracy) {
+        try {
+            import('../common/config.js').then(({ CONFIG }) => {
+                const thresholds = CONFIG.MODEL_METRICS?.ACCURACY_THRESHOLDS || {
+                    WARNING: 85,
+                    CRITICAL: 80
+                };
+                
+                const accuracyPercent = accuracy * 100;
+                let healthStatus = 'healthy';
+                
+                if (accuracyPercent < thresholds.CRITICAL) {
+                    healthStatus = 'critical';
+                } else if (accuracyPercent < thresholds.WARNING) {
+                    healthStatus = 'warning';
+                }
+                
+                systemMetrics.updateSystemHealth(healthStatus);
+                
+            }).catch(() => {
+                // Fallback thresholds
+                const accuracyPercent = accuracy * 100;
+                const healthStatus = accuracyPercent < 80 ? 'critical' : 
+                                  accuracyPercent < 85 ? 'warning' : 'healthy';
+                systemMetrics.updateSystemHealth(healthStatus);
+            });
+            
+        } catch (error) {
+            console.warn('Failed to update system health from accuracy:', error);
+        }
+    }
+
+    /**
+     * Update activity level indicator based on prediction rate
+     * @param {number} rate - Predictions per minute
+     */
+    updateActivityLevel(rate) {
+        try {
+            // Visual activity indicator
+            const activityElement = document.querySelector('.activity-indicator');
+            if (activityElement) {
+                let activityLevel = 'low';
+                let activityColor = '#6b7280';
+                
+                if (rate > 50) {
+                    activityLevel = 'high';
+                    activityColor = '#10b981';
+                } else if (rate > 20) {
+                    activityLevel = 'medium';
+                    activityColor = '#f59e0b';
+                }
+                
+                activityElement.className = `activity-indicator activity-${activityLevel}`;
+                activityElement.style.color = activityColor;
+            }
+            
+        } catch (error) {
+            console.warn('Failed to update activity level:', error);
+        }
+    }
+
+    /**
+     * Apply rate limiting for WebSocket updates
+     * @param {string} eventType - Type of event for rate limiting
+     * @param {Object} rateLimitConfig - Rate limiting configuration
+     */
+    applyRateLimiting(eventType, rateLimitConfig) {
+        try {
+            const { MAX_UPDATES_PER_SECOND, BURST_ALLOWANCE, COOLDOWN_PERIOD } = rateLimitConfig;
+            
+            if (!this.rateLimiters) this.rateLimiters = {};
+            if (!this.rateLimiters[eventType]) {
+                this.rateLimiters[eventType] = {
+                    count: 0,
+                    lastReset: Date.now(),
+                    inCooldown: false
+                };
+            }
+            
+            const limiter = this.rateLimiters[eventType];
+            const now = Date.now();
+            
+            // Reset counter every second
+            if (now - limiter.lastReset > 1000) {
+                limiter.count = 0;
+                limiter.lastReset = now;
+                limiter.inCooldown = false;
+            }
+            
+            limiter.count++;
+            
+            // Check if rate limit exceeded
+            if (limiter.count > MAX_UPDATES_PER_SECOND && !limiter.inCooldown) {
+                console.warn(`Rate limit exceeded for ${eventType}, entering cooldown`);
+                limiter.inCooldown = true;
+                
+                // Apply cooldown
+                setTimeout(() => {
+                    limiter.inCooldown = false;
+                    limiter.count = 0;
+                }, COOLDOWN_PERIOD);
+            }
+            
+        } catch (error) {
+            console.warn('Rate limiting failed:', error);
+        }
     }
     
     updateLastUpdateTime() {
@@ -1585,6 +1928,218 @@ class Dashboard extends BasePageController {
             
         } catch (error) {
             console.warn('Failed to handle prediction logged event:', error);
+        }
+    }
+
+    /**
+     * Handle real-time model status updates with enhanced features
+     * @param {Object} data - Real-time model status data
+     */
+    handleModelStatusRealtime(data) {
+        try {
+            // Import CONFIG for real-time thresholds
+            import('../common/config.js').then(({ CONFIG }) => {
+                // Enhanced error handling with rate limiting
+                const now = Date.now();
+                const lastUpdate = this.lastModelStatusUpdate || 0;
+                const minInterval = CONFIG.MODEL_METRICS?.WS_RATE_LIMITING?.MAX_UPDATES_PER_SECOND 
+                    ? 1000 / CONFIG.MODEL_METRICS.WS_RATE_LIMITING.MAX_UPDATES_PER_SECOND 
+                    : 100;
+                
+                if (now - lastUpdate < minInterval) {
+                    // Queue the update
+                    clearTimeout(this.modelStatusUpdateTimeout);
+                    this.modelStatusUpdateTimeout = setTimeout(() => {
+                        this.processModelStatusRealtime(data);
+                    }, minInterval - (now - lastUpdate));
+                    return;
+                }
+                
+                this.processModelStatusRealtime(data);
+                this.lastModelStatusUpdate = now;
+                
+            }).catch(() => {
+                // Fallback if CONFIG import fails
+                this.processModelStatusRealtime(data);
+            });
+            
+        } catch (error) {
+            console.warn('Failed to handle real-time model status update:', error);
+            // Fallback to existing handler
+            this.handleModelStatusChange(data);
+        }
+    }
+
+    /**
+     * Process real-time model status with enhanced UI updates
+     * @param {Object} data - Model status data
+     */
+    processModelStatusRealtime(data) {
+        // Call existing handler first
+        this.handleModelStatusChange(data);
+        
+        // Enhanced real-time features
+        const modelStatus = data.status || data.model_status;
+        const modelId = data.model_id;
+        
+        // Update with enhanced Metric component features
+        if (data.accuracy !== undefined) {
+            // Use new updateWithHealth method for accuracy
+            Metric.updateWithHealth('liveAccuracy', data.accuracy * 100, {
+                metricType: 'accuracy',
+                format: 'percent',
+                animated: true,
+                showTrend: true,
+                previousValue: this.lastModelAccuracy || null
+            });
+            this.lastModelAccuracy = data.accuracy * 100;
+        }
+        
+        if (data.avg_response_time !== undefined) {
+            // Use new updateWithHealth method for response time
+            Metric.updateWithHealth('responseTime', data.avg_response_time, {
+                metricType: 'response_time',
+                format: 'custom',
+                suffix: 'ms',
+                animated: true,
+                showTrend: true,
+                previousValue: this.lastResponseTime || null
+            });
+            this.lastResponseTime = data.avg_response_time;
+        }
+        
+        // Add live indicator for active metrics
+        if (modelStatus === 'active' || modelStatus === 'deployed') {
+            const accuracyElement = document.getElementById('liveAccuracy');
+            const responseTimeElement = document.getElementById('responseTime');
+            
+            if (accuracyElement) accuracyElement.classList.add('metric-live');
+            if (responseTimeElement) responseTimeElement.classList.add('metric-live');
+        }
+        
+        // Enhanced notification for critical status changes
+        if (data.old_status && data.old_status !== modelStatus) {
+            if (modelStatus === 'error' || modelStatus === 'failed') {
+                if (window.notifications) {
+                    window.notifications.show(
+                        `Model ${data.model_name || modelId} status changed to ${modelStatus}`,
+                        'error',
+                        { duration: 8000, icon: '⚠️' }
+                    );
+                }
+            } else if (modelStatus === 'active' || modelStatus === 'deployed') {
+                if (window.notifications) {
+                    window.notifications.show(
+                        `Model ${data.model_name || modelId} is now ${modelStatus}`,
+                        'success',
+                        { duration: 5000, icon: '✅' }
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * Handle enhanced real-time model metrics updates
+     * @param {Object} data - Real-time model metrics data
+     */
+    handleModelMetricsRealtime(data) {
+        try {
+            // Enhanced metrics processing with trend calculation
+            import('../common/config.js').then(({ CONFIG }) => {
+                // Rate limiting check
+                const now = Date.now();
+                const lastUpdate = this.lastMetricsUpdate || 0;
+                const minInterval = CONFIG.MODEL_METRICS?.REFRESH_INTERVAL || 2000;
+                
+                if (now - lastUpdate < minInterval) {
+                    // Queue the update
+                    clearTimeout(this.metricsUpdateTimeout);
+                    this.metricsUpdateTimeout = setTimeout(() => {
+                        this.processModelMetricsRealtime(data);
+                    }, minInterval - (now - lastUpdate));
+                    return;
+                }
+                
+                this.processModelMetricsRealtime(data);
+                this.lastMetricsUpdate = now;
+                
+            }).catch(() => {
+                // Fallback if CONFIG import fails
+                this.processModelMetricsRealtime(data);
+            });
+            
+        } catch (error) {
+            console.warn('Failed to handle real-time model metrics:', error);
+            // Fallback to existing handler
+            this.updateModelMetrics(data);
+        }
+    }
+
+    /**
+     * Process real-time model metrics with enhanced UI features
+     * @param {Object} data - Model metrics data
+     */
+    processModelMetricsRealtime(data) {
+        // Call existing handler first
+        this.updateModelMetrics(data);
+        
+        // Enhanced real-time updates with new Metric features
+        if (data.accuracy !== undefined) {
+            Metric.updateRealTime('liveAccuracy', data.accuracy * 100, {
+                metricType: 'accuracy',
+                format: 'percent',
+                minInterval: 500 // Maximum 2 updates per second
+            });
+            
+            // Pulse for significant accuracy changes
+            if (this.lastLiveAccuracy && Math.abs(data.accuracy * 100 - this.lastLiveAccuracy) > 1) {
+                Metric.pulse('liveAccuracy', { intensity: 'medium' });
+            }
+            this.lastLiveAccuracy = data.accuracy * 100;
+        }
+        
+        if (data.predictions_per_minute !== undefined) {
+            Metric.updateRealTime('livePredictions', data.predictions_per_minute, {
+                metricType: 'prediction_rate',
+                format: 'custom',
+                suffix: '/min',
+                minInterval: 500
+            });
+            
+            // Pulse for significant rate changes
+            if (this.lastPredictionRate && Math.abs(data.predictions_per_minute - this.lastPredictionRate) > 5) {
+                Metric.pulse('livePredictions', { intensity: 'light' });
+            }
+            this.lastPredictionRate = data.predictions_per_minute;
+        }
+        
+        if (data.avg_response_time !== undefined) {
+            Metric.updateRealTime('responseTime', data.avg_response_time, {
+                metricType: 'response_time',
+                format: 'custom',
+                suffix: 'ms',
+                minInterval: 1000 // Less frequent updates for response time
+            });
+        }
+        
+        // Update system health indicator
+        if (data.overall_health) {
+            systemMetrics.updateSystemHealth(data.overall_health);
+        }
+        
+        // Enhanced activity logging
+        if (this.activityFeed && data.significant_change) {
+            const activity = {
+                id: `metrics_${Date.now()}`,
+                title: 'Model Metrics Updated',
+                description: `${data.model_name || 'Model'} metrics updated - Accuracy: ${(data.accuracy * 100).toFixed(1)}%`,
+                status: 'info',
+                timestamp: new Date().toISOString(),
+                user: 'System',
+                action_type: 'metrics_update'
+            };
+            this.activityFeed.addActivity(activity);
         }
     }
     

@@ -9,6 +9,22 @@ class DemoDataService {
     constructor() {
         this.cache = new Map();
         this.isEnabled = CONFIG.DEMO.ENABLED;
+        
+        // Real-time simulation state
+        this.simulationStartTime = Date.now();
+        this.baselineAccuracy = 94.2;
+        this.baselinePredictionRate = 23;
+        this.totalPredictions = 15847;
+        this.lastPredictionTime = Date.now();
+        
+        // Trend simulation
+        this.accuracyTrend = this.generateTrendData();
+        this.predictionRateTrend = this.generateTrendData();
+        
+        // Start real-time simulation if in demo mode
+        if (this.isEnabled) {
+            this.startRealTimeSimulation();
+        }
     }
 
     /**
@@ -309,6 +325,253 @@ class DemoDataService {
             disk_usage: Math.floor(Math.random() * 30) + 50,
             last_updated: new Date().toISOString()
         };
+    }
+
+    /**
+     * Generate realistic trend data for simulation
+     */
+    generateTrendData() {
+        const points = 20; // 20 data points for trend calculation
+        const trendData = [];
+        
+        for (let i = 0; i < points; i++) {
+            // Generate natural-looking variations
+            const variation = (Math.sin(i * 0.3) + Math.random() * 0.4 - 0.2) * 0.02;
+            trendData.push(1 + variation); // Base 1.0 with small variations
+        }
+        
+        return trendData;
+    }
+
+    /**
+     * Get current time-based variation factor
+     */
+    getTimeBasedVariation(seed = 1) {
+        const elapsed = (Date.now() - this.simulationStartTime) / 1000; // seconds
+        
+        // Combine multiple sine waves for realistic variation
+        const slowWave = Math.sin(elapsed * 0.01 * seed) * 0.015; // Very slow drift
+        const mediumWave = Math.sin(elapsed * 0.05 * seed) * 0.008; // Medium fluctuation
+        const fastWave = Math.sin(elapsed * 0.2 * seed) * 0.003; // Fast minor changes
+        const randomNoise = (Math.random() - 0.5) * 0.002; // Small random component
+        
+        return slowWave + mediumWave + fastWave + randomNoise;
+    }
+
+    /**
+     * Get real-time model accuracy with natural variations
+     */
+    getCurrentModelAccuracy() {
+        const variation = this.getTimeBasedVariation(1.2);
+        const currentAccuracy = this.baselineAccuracy * (1 + variation);
+        
+        // Ensure accuracy stays within realistic bounds (85-98%)
+        return Math.max(85, Math.min(98, currentAccuracy));
+    }
+
+    /**
+     * Get real-time prediction rate with fluctuations
+     */
+    getCurrentPredictionRate() {
+        const variation = this.getTimeBasedVariation(0.8);
+        const currentRate = this.baselinePredictionRate * (1 + variation);
+        
+        // Ensure rate stays within realistic bounds (5-100 per minute)
+        return Math.max(5, Math.min(100, currentRate));
+    }
+
+    /**
+     * Get real-time model metrics for live updates
+     */
+    getRealTimeModelMetrics() {
+        const now = Date.now();
+        const accuracy = this.getCurrentModelAccuracy();
+        const predictionRate = this.getCurrentPredictionRate();
+        
+        // Calculate predictions since last call
+        const timeSinceLastPrediction = (now - this.lastPredictionTime) / 1000 / 60; // minutes
+        const newPredictions = Math.floor(predictionRate * timeSinceLastPrediction);
+        
+        if (newPredictions > 0) {
+            this.totalPredictions += newPredictions;
+            this.lastPredictionTime = now;
+        }
+
+        // Calculate response time with variations
+        const baseResponseTime = 25;
+        const responseTimeVariation = this.getTimeBasedVariation(1.5);
+        const avgResponseTime = Math.max(10, Math.min(100, 
+            baseResponseTime * (1 + responseTimeVariation * 2)
+        ));
+
+        return {
+            model_id: 'model_001',
+            model_name: 'Customer Prediction Model',
+            accuracy: accuracy / 100, // Convert to decimal
+            current_accuracy: accuracy,
+            prediction_rate: Math.round(predictionRate),
+            predictions_per_minute: Math.round(predictionRate),
+            total_predictions: this.totalPredictions,
+            avg_response_time: Math.round(avgResponseTime),
+            p95_response_time: Math.round(avgResponseTime * 1.8),
+            f1_score: (accuracy - 2) / 100, // Slightly lower than accuracy
+            validation_accuracy: (accuracy - 1.5) / 100,
+            timestamp: now,
+            is_live: true,
+            overall_health: accuracy > 90 ? 'healthy' : accuracy > 85 ? 'warning' : 'critical'
+        };
+    }
+
+    /**
+     * Get real-time system metrics with variations
+     */
+    getRealTimeSystemMetrics() {
+        const now = Date.now();
+        
+        // CPU usage with realistic patterns (higher during training)
+        const cpuBase = 35;
+        const cpuVariation = this.getTimeBasedVariation(2.1);
+        const cpuUsage = Math.max(15, Math.min(85, cpuBase * (1 + cpuVariation * 1.5)));
+        
+        // Memory usage with gradual increases
+        const memoryBase = 65;
+        const memoryVariation = this.getTimeBasedVariation(0.5);
+        const memoryUsage = Math.max(40, Math.min(90, memoryBase * (1 + memoryVariation * 0.8)));
+        
+        // Network activity based on prediction rate
+        const predictionRate = this.getCurrentPredictionRate();
+        const networkActivity = Math.round(predictionRate * 0.8); // Correlated with predictions
+        
+        return {
+            cpu_usage: Math.round(cpuUsage),
+            memory_usage: Math.round(memoryUsage),
+            disk_usage: Math.round(50 + Math.sin(Date.now() / 100000) * 5), // Slow disk changes
+            network_activity: networkActivity,
+            active_connections: Math.max(1, Math.round(predictionRate * 0.6)),
+            api_response_time: Math.round(20 + Math.random() * 30),
+            ws_latency: Math.round(8 + Math.random() * 15),
+            timestamp: now,
+            overall_health: cpuUsage < 70 && memoryUsage < 80 ? 'healthy' : 
+                           cpuUsage < 85 && memoryUsage < 90 ? 'warning' : 'critical'
+        };
+    }
+
+    /**
+     * Start real-time simulation with periodic updates
+     */
+    startRealTimeSimulation() {
+        // Update internal state every 2 seconds
+        this.simulationInterval = setInterval(() => {
+            // Update trend data occasionally
+            if (Math.random() < 0.1) { // 10% chance every 2 seconds
+                this.accuracyTrend.push(1 + (Math.random() - 0.5) * 0.04);
+                this.predictionRateTrend.push(1 + (Math.random() - 0.5) * 0.06);
+                
+                // Keep only recent trend data
+                if (this.accuracyTrend.length > 20) {
+                    this.accuracyTrend.shift();
+                    this.predictionRateTrend.shift();
+                }
+            }
+            
+            // Randomly adjust baseline values slightly for long-term trends
+            if (Math.random() < 0.05) { // 5% chance every 2 seconds
+                this.baselineAccuracy += (Math.random() - 0.5) * 0.2;
+                this.baselineAccuracy = Math.max(88, Math.min(96, this.baselineAccuracy));
+                
+                this.baselinePredictionRate += (Math.random() - 0.5) * 1;
+                this.baselinePredictionRate = Math.max(15, Math.min(35, this.baselinePredictionRate));
+            }
+        }, 2000);
+    }
+
+    /**
+     * Stop real-time simulation
+     */
+    stopRealTimeSimulation() {
+        if (this.simulationInterval) {
+            clearInterval(this.simulationInterval);
+            this.simulationInterval = null;
+        }
+    }
+
+    /**
+     * Generate a realistic prediction logged event
+     */
+    generatePredictionLoggedEvent() {
+        const now = Date.now();
+        const confidence = 0.7 + Math.random() * 0.25; // 70-95% confidence
+        const predictionValue = Math.random() > 0.7 ? 'high_value' : 'standard'; // 30% high value
+        
+        this.totalPredictions++;
+        
+        return {
+            prediction_id: `pred_${now}_${Math.random().toString(36).substr(2, 6)}`,
+            model_id: 'model_001',
+            model_name: 'Customer Prediction Model',
+            prediction_value: predictionValue,
+            confidence: confidence,
+            response_time: Math.round(20 + Math.random() * 40), // 20-60ms
+            input_features: 12,
+            timestamp: now,
+            updated_metrics: {
+                total_predictions: this.totalPredictions,
+                current_accuracy: this.getCurrentModelAccuracy(),
+                prediction_rate: this.getCurrentPredictionRate()
+            }
+        };
+    }
+
+    /**
+     * Generate realistic model status change event
+     */
+    generateModelStatusChangeEvent() {
+        const statuses = ['healthy', 'warning', 'training', 'deploying'];
+        const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+        
+        return {
+            model_id: 'model_001',
+            model_name: 'Customer Prediction Model',
+            old_status: 'healthy',
+            new_status: randomStatus,
+            status: randomStatus,
+            model_status: randomStatus,
+            accuracy: this.getCurrentModelAccuracy() / 100,
+            deployment_timestamp: Date.now(),
+            health_score: Math.random() * 0.3 + 0.7, // 70-100%
+            timestamp: Date.now()
+        };
+    }
+
+    /**
+     * Enhanced getModels with real-time data
+     */
+    async getModelsWithRealTimeData() {
+        await this.simulateDelay();
+        
+        const realTimeMetrics = this.getRealTimeModelMetrics();
+        const models = await this.getModels();
+        
+        // Update the first model with real-time data
+        if (models.length > 0) {
+            models[0] = {
+                ...models[0],
+                accuracy: realTimeMetrics.current_accuracy,
+                predictions_made: realTimeMetrics.total_predictions,
+                avg_response_time: realTimeMetrics.avg_response_time,
+                predictions_per_minute: realTimeMetrics.prediction_rate,
+                status: realTimeMetrics.overall_health === 'healthy' ? 'active' : 'warning',
+                is_active: true,
+                validation_metrics: {
+                    validation_accuracy: realTimeMetrics.validation_accuracy,
+                    f1_score: realTimeMetrics.f1_score,
+                    precision: realTimeMetrics.f1_score * 1.02,
+                    recall: realTimeMetrics.f1_score * 0.98
+                }
+            };
+        }
+        
+        return models;
     }
 
     /**
