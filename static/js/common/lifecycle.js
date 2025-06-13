@@ -53,18 +53,10 @@ class LifecycleManager {
         }
         this.webSocketHandlers.get(eventName).push(handler);
         
-        // Debug: Log handler registration
-        console.log(`🔧 Registering WebSocket handler for event: ${eventName}`);
-        
-        // Actually register the handler with the WebSocket manager
+        // Register handler with WebSocket manager
         if (wsManager && wsManager.on) {
             const unsubscribe = wsManager.on(eventName, handler);
-            console.log(`✅ WebSocket handler registered for ${eventName}`);
-            
-            // Store the unsubscribe function for cleanup
             handler._unsubscribe = unsubscribe;
-        } else {
-            console.warn(`❌ WebSocket manager not available for event: ${eventName}`);
         }
         
         return this;

@@ -174,109 +174,91 @@ class Dashboard extends BasePageController {
         
         // Training progress updates - using managed WebSocket handlers
         this.addWebSocketHandler('training_progress', (data) => {
-            console.log('🔧 Received training_progress:', data);
             this.updateTrainingProgress(data);
         });
         
         // Training completed - using managed WebSocket handlers
         this.addWebSocketHandler('training_completed', (data) => {
-            console.log('🔧 Received training_completed:', data);
             this.handleTrainingCompleted(data);
         });
         
         // Training failed - using managed WebSocket handlers
         this.addWebSocketHandler('training_failed', (data) => {
-            console.log('🔧 Received training_failed:', data);
             this.handleTrainingFailed(data);
         });
         
         // System metrics updates - using managed WebSocket handlers
         this.addWebSocketHandler('system_metrics', (data) => {
-            console.log('🔧 Received system_metrics WebSocket message:', data);
             this.updateSystemMetrics(data);
         });
         
         // Health changes - using managed WebSocket handlers
         this.addWebSocketHandler('health_change', (data) => {
-            console.log('🔧 Received health_change:', data);
             this.updateSystemHealth(data);
         });
         
         // Prediction volume milestones - using managed WebSocket handlers
         this.addWebSocketHandler('prediction_volume', (data) => {
-            console.log('🔧 Received prediction_volume:', data);
             this.handlePredictionVolume(data);
         });
         
         // Model deployed - using managed WebSocket handlers
         this.addWebSocketHandler('model_deployed', (data) => {
-            console.log('🔧 Received model_deployed:', data);
             this.handleModelDeployed(data);
         });
         
         // Activity updates - using managed WebSocket handlers
         this.addWebSocketHandler('activity_update', (data) => {
-            console.log('🔧 Received activity_update:', data);
             this.handleActivityUpdate(data);
         });
         
         // Model status changes
         this.addWebSocketHandler('model_status_change', (data) => {
-            console.log('🔧 Received model_status_change:', data);
             this.handleModelStatusChange(data);
         });
         
         // File validation events
         this.addWebSocketHandler('file_validated', (data) => {
-            console.log('🔧 Received file_validated:', data);
             this.handleFileValidated(data);
         });
         
         // Model metrics updates
         this.addWebSocketHandler('model_metrics_update', (data) => {
-            console.log('🔧 Received model_metrics_update:', data);
             this.updateModelMetrics(data);
         });
         
         // Connection count updates
         this.addWebSocketHandler('connection_count', (data) => {
-            console.log('🔧 Received connection_count:', data);
             this.updateConnectionCount(data);
         });
         
         // Performance metrics
         this.addWebSocketHandler('performance_metrics', (data) => {
-            console.log('🔧 Received performance_metrics:', data);
             this.updatePerformanceMetrics(data);
         });
         
         // Resource status updates
         this.addWebSocketHandler('resource_status', (data) => {
-            console.log('🔧 Received resource_status:', data);
             this.updateResourceStatus(data);
         });
         
         // Chart data updates for real-time visualizations
         this.addWebSocketHandler('chart_data', (data) => {
-            console.log('🔧 Received chart_data:', data);
             // This will be used for future chart implementations
         });
         
         // Integration status for architecture page
         this.addWebSocketHandler('integration_status', (data) => {
-            console.log('🔧 Received integration_status:', data);
             // This will be used for integration monitoring
         });
         
         // Upload progress events
         this.addWebSocketHandler('upload_progress', (data) => {
-            console.log('🔧 Received upload_progress:', data);
             this.handleUploadProgress(data);
         });
         
         // System alerts
         this.addWebSocketHandler('system_alert', (data) => {
-            console.log('🔧 Received system_alert:', data);
             this.handleSystemAlert(data);
         });
         

@@ -102,12 +102,7 @@ export class WebSocketManager {
         }
         
         try {
-            // Debug: Log all WebSocket messages
-            console.log('🌐 WebSocket message received:', {
-                type: data.type,
-                timestamp: new Date().toISOString(),
-                data: data
-            });
+            // Process WebSocket message
             
             // Handle pong response for latency measurement
             if (data.type === 'pong') {
@@ -120,7 +115,6 @@ export class WebSocketManager {
             
             // Emit specific event types
             if (data.type) {
-                console.log(`🎯 Emitting WebSocket event: ${data.type}`);
                 this.emit(data.type, data);
             }
             
