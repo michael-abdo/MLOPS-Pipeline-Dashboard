@@ -103,10 +103,8 @@ class LifecycleManager {
                 try {
                     // Use stored unsubscribe function if available
                     if (handler._unsubscribe && typeof handler._unsubscribe === 'function') {
-                        console.log(`🧹 Unsubscribing WebSocket handler for ${eventName}`);
                         handler._unsubscribe();
                     } else if (wsManager && wsManager.off) {
-                        console.log(`🧹 Removing WebSocket handler for ${eventName} via off method`);
                         wsManager.off(eventName, handler);
                     } else {
                         console.warn(`No cleanup method available for WebSocket handler: ${eventName}`);
@@ -213,8 +211,6 @@ class BasePageController {
      * Override this method in subclasses for custom cleanup
      */
     destroy() {
-        console.log(`Destroying ${this.constructor.name} with stats:`, this.getLifecycleStats());
-        
         this.lifecycle.destroy();
         
         // Call custom cleanup if implemented

@@ -113,15 +113,31 @@ Triggered during model training to show real-time progress.
   current_epoch: 15,
   total_epochs: 20,
   current_loss: 0.0234,
-  message: 'Training 65% complete - Epoch 15/20'
+  message: 'Training 65% complete - Epoch 15/20',
+  // Training Progress Monitor specific fields
+  stage_index: 5,                  // Current stage number (1-8)
+  total_stages: 8,                 // Total number of stages
+  stages_completed: ['Preparing data', 'Data validation', 'Feature engineering', 'Model selection'],
+  stage_times: {                   // Time taken for each completed stage
+    'Preparing data': 75,
+    'Data validation': 45,
+    'Feature engineering': 120,
+    'Model selection': 90
+  },
+  live_accuracy: 0.834,           // Real-time training accuracy
+  predictions_processed: 1247,     // Number of samples processed
+  estimated_remaining: '8m 15s'    // Formatted time remaining
 }
 ```
 
 **Training Stages:**
 - `data_preparation` - Preparing and validating data
+- `data_validation` - Validating data quality and format
 - `feature_engineering` - Creating feature sets
+- `model_selection` - Selecting best model architecture
 - `model_training` - Training the model
 - `validation` - Validating model performance
+- `optimization` - Optimizing model parameters
 - `finalization` - Finalizing and saving model
 
 **UI Updates:**
@@ -130,6 +146,14 @@ Triggered during model training to show real-time progress.
 - Updates percentage display
 - Updates training details message
 - Updates estimated time remaining
+- **NEW: Training Progress Monitor (Hidden Section)**
+  - Shows/hides detailed training progress card
+  - Updates training stages timeline with animations
+  - Displays live training metrics (accuracy, elapsed time, samples)
+  - Shows real-time training status messages
+  - Animates stage transitions with pulse effects
+  - Updates elapsed time counter every second
+  - Smooth counter animations for predictions processed
 
 #### `training_completed`
 Triggered when model training completes successfully.

@@ -169,9 +169,6 @@ class Dashboard extends BasePageController {
     }
     
     setupWebSocketListeners() {
-        // Debug: Log WebSocket handler setup
-        console.log('🔧 Setting up WebSocket handlers...');
-        
         // Training progress updates - using managed WebSocket handlers
         this.addWebSocketHandler('training_progress', (data) => {
             this.updateTrainingProgress(data);
@@ -261,8 +258,6 @@ class Dashboard extends BasePageController {
         this.addWebSocketHandler('system_alert', (data) => {
             this.handleSystemAlert(data);
         });
-        
-        console.log('✅ WebSocket handlers setup complete');
     }
     
     async loadInitialData() {
@@ -546,8 +541,6 @@ class Dashboard extends BasePageController {
             
             // Only refresh if WebSocket is disconnected or in error state
             if (!connInfo.isConnected && (connInfo.status === 'disconnected' || connInfo.status === 'error')) {
-                console.log('📡 WebSocket disconnected, refreshing data via API...');
-                
                 this.performOfflineRefresh();
             }
         }, 30000); // Check every 30 seconds
@@ -618,8 +611,6 @@ class Dashboard extends BasePageController {
             lastUpdateEl.style.color = 'var(--warning-color)';
             lastUpdateEl.setAttribute('data-timestamp', Date.now());
         }
-        
-        console.log('📡 Offline refresh completed');
     }
     
     updateSystemStatusDisplay(status) {
@@ -761,11 +752,40 @@ class Dashboard extends BasePageController {
     }
     
     showTrainingInProgress() {
-        // Show detailed training card
+        // Initialize training state
+        this.trainingStartTime = Date.now();
+        this.currentStageStartTime = Date.now();
+        this.lastCurrentStage = null;
+        
+        // Show detailed training card with animation
         const detailedCard = document.getElementById('detailedTrainingCard');
         if (detailedCard) {
             detailedCard.style.display = 'block';
+            detailedCard.style.opacity = '0';
+            detailedCard.style.transform = 'translateY(20px)';
+            detailedCard.style.transition = 'all 0.5s ease';
+            
+            setTimeout(() => {
+                detailedCard.style.opacity = '1';
+                detailedCard.style.transform = 'translateY(0)';
+            }, 100);
         }
+        
+        // Initialize the detailed training monitor
+        const initialData = {
+            current_stage: 'Preparing data',
+            progress: 0,
+            stage_index: 1,
+            total_stages: 8,
+            stages_completed: [],
+            live_accuracy: 0,
+            predictions_processed: 0,
+            estimated_time_remaining: 600 // 10 minutes estimate
+        };
+        this.updateDetailedTrainingProgress(initialData);
+        
+        // Start training timers
+        this.startTrainingTimers();
         
         // Update training button
         const trainButton = document.getElementById('trainButton');
@@ -792,6 +812,12 @@ class Dashboard extends BasePageController {
             percentEl.textContent = `${data.progress}%`;
         }
         
+        // Show detailed training card if not visible
+        const detailedCard = document.getElementById('detailedTrainingCard');
+        if (detailedCard && detailedCard.style.display === 'none') {
+            this.showTrainingInProgress();
+        }
+        
         // Update training details
         const detailsEl = document.getElementById('trainingDetails');
         if (detailsEl) {
@@ -807,47 +833,55 @@ class Dashboard extends BasePageController {
     }
     
     updateDetailedTrainingProgress(data) {
-        // Update current stage
+        // Initialize training start time if not set
+        if (!this.trainingStartTime && data.progress > 0) {
+            this.trainingStartTime = Date.now();
+            this.startTrainingTimers();
+        }
+        
+        // Update Training Stages Timeline
+        this.updateTrainingStagesTimeline(data);
+        
+        // Update Live Training Metrics
+        this.updateLiveTrainingMetrics(data);
+        
+        // Update Training Status Messages
+        this.updateTrainingStatusMessages(data);
+    }
+    
+    updateTrainingStagesTimeline(data) {
+        // Update current stage with animation
         const currentStageEl = document.getElementById('currentTrainingStage');
-        if (currentStageEl) {
-            currentStageEl.textContent = data.current_stage;
+        if (currentStageEl && data.current_stage) {
+            if (currentStageEl.textContent !== data.current_stage) {
+                // Animate stage change
+                currentStageEl.style.transition = 'opacity 0.3s ease';
+                currentStageEl.style.opacity = '0.5';
+                
+                setTimeout(() => {
+                    currentStageEl.textContent = data.current_stage;
+                    currentStageEl.style.opacity = '1';
+                }, 150);
+            }
         }
         
-        // Update time remaining
+        // Update time remaining with formatting
         const timeRemainingEl = document.getElementById('trainingTimeRemaining');
-        if (timeRemainingEl && data.estimated_remaining) {
-            timeRemainingEl.textContent = `Estimated: ${data.estimated_remaining} remaining`;
-        }
-        
-        // Update live accuracy if available
-        if (data.live_accuracy) {
-            const liveAccuracyEl = document.getElementById('liveTrainingAccuracy');
-            if (liveAccuracyEl) {
-                liveAccuracyEl.textContent = `${(data.live_accuracy * 100).toFixed(1)}%`;
+        if (timeRemainingEl) {
+            if (data.estimated_time_remaining !== undefined) {
+                const timeStr = this.formatTrainingTime(data.estimated_time_remaining);
+                timeRemainingEl.textContent = `Estimated: ${timeStr} remaining`;
+            } else if (data.estimated_remaining) {
+                timeRemainingEl.textContent = `Estimated: ${data.estimated_remaining} remaining`;
             }
         }
         
-        // Update predictions processed
-        if (data.predictions_processed) {
-            const predictionsEl = document.getElementById('predictionsProcessed');
-            if (predictionsEl) {
-                predictionsEl.textContent = data.predictions_processed.toLocaleString();
-            }
-        }
-        
-        // Update elapsed time
-        if (data.elapsed_time) {
-            const elapsedEl = document.getElementById('trainingElapsedTime');
-            if (elapsedEl) {
-                elapsedEl.textContent = data.elapsed_time;
-            }
-        }
-        
-        // Update training stages progress bar
+        // Update stages progress bar with smooth animation
         if (data.stage_index !== undefined && data.total_stages) {
             const progressBar = document.getElementById('stagesProgressBar');
             if (progressBar) {
                 const progress = (data.stage_index / data.total_stages) * 100;
+                progressBar.style.transition = 'width 0.5s ease';
                 progressBar.style.width = `${progress}%`;
             }
             
@@ -857,38 +891,309 @@ class Dashboard extends BasePageController {
             }
         }
         
-        // Update training stages list dynamically
-        if (data.stages_completed && Array.isArray(data.stages_completed)) {
-            const stagesList = document.getElementById('trainingStagesList');
-            if (stagesList) {
-                // Update stage items based on completed stages
-                const stageItems = stagesList.querySelectorAll('.stage-item');
-                stageItems.forEach((item, index) => {
-                    const stageName = item.querySelector('.stage-name').textContent;
+        // Update training stages list with animations
+        this.updateTrainingStagesList(data);
+    }
+    
+    updateTrainingStagesList(data) {
+        const stagesList = document.getElementById('trainingStagesList');
+        if (!stagesList) return;
+        
+        const stageItems = stagesList.querySelectorAll('.stage-item');
+        
+        // Define standard training stages if not provided
+        const standardStages = [
+            { name: 'Preparing data', icon: '📋', estimatedTime: 75 },
+            { name: 'Data validation', icon: '🔍', estimatedTime: 45 },
+            { name: 'Feature engineering', icon: '⚙️', estimatedTime: 120 },
+            { name: 'Model selection', icon: '🎯', estimatedTime: 90 },
+            { name: 'Training model', icon: '🧠', estimatedTime: 180 },
+            { name: 'Validation', icon: '✅', estimatedTime: 60 },
+            { name: 'Optimization', icon: '⚡', estimatedTime: 90 },
+            { name: 'Finalizing model', icon: '🎉', estimatedTime: 30 }
+        ];
+        
+        stageItems.forEach((item, index) => {
+            const stageName = item.querySelector('.stage-name').textContent;
+            const stageIcon = item.querySelector('.stage-icon');
+            const stageTime = item.querySelector('.stage-time');
+            
+            let newStatus = 'pending';
+            let newIcon = '⏳';
+            
+            // Determine stage status
+            if (data.stages_completed && data.stages_completed.includes(stageName)) {
+                newStatus = 'completed';
+                newIcon = '✅';
+                
+                // Update elapsed time for completed stages
+                if (data.stage_times && data.stage_times[stageName]) {
+                    const elapsedTime = this.formatTrainingTime(data.stage_times[stageName]);
+                    stageTime.textContent = elapsedTime;
+                    stageTime.style.color = 'var(--success-color)';
+                }
+            } else if (stageName === data.current_stage) {
+                newStatus = 'active';
+                newIcon = '🔄';
+                
+                // Show real-time elapsed time for current stage
+                if (this.currentStageStartTime) {
+                    const elapsed = Math.floor((Date.now() - this.currentStageStartTime) / 1000);
+                    stageTime.textContent = this.formatTrainingTime(elapsed);
+                    stageTime.style.color = 'var(--primary-color)';
+                }
+            } else {
+                newStatus = 'pending';
+                const stageInfo = standardStages[index];
+                if (stageInfo) {
+                    newIcon = stageInfo.icon;
+                    stageTime.textContent = this.formatTrainingTime(stageInfo.estimatedTime);
+                    stageTime.style.color = 'var(--text-secondary)';
+                }
+            }
+            
+            // Animate status changes
+            if (item.className !== `stage-item ${newStatus}`) {
+                item.style.transition = 'all 0.3s ease';
+                item.className = `stage-item ${newStatus}`;
+                
+                // Animate icon change
+                if (stageIcon.textContent !== newIcon) {
+                    stageIcon.style.transform = 'scale(1.2)';
+                    stageIcon.textContent = newIcon;
                     
-                    if (data.stages_completed.includes(stageName)) {
-                        item.className = 'stage-item completed';
-                        item.querySelector('.stage-icon').textContent = '✅';
-                    } else if (stageName === data.current_stage) {
-                        item.className = 'stage-item active';
-                        item.querySelector('.stage-icon').textContent = '🔄';
-                    } else {
-                        item.className = 'stage-item pending';
-                        item.querySelector('.stage-icon').textContent = '⏳';
-                    }
-                });
+                    setTimeout(() => {
+                        stageIcon.style.transform = 'scale(1)';
+                    }, 200);
+                }
+            }
+        });
+        
+        // Track current stage start time for elapsed time calculation
+        if (data.current_stage && this.lastCurrentStage !== data.current_stage) {
+            this.currentStageStartTime = Date.now();
+            this.lastCurrentStage = data.current_stage;
+        }
+    }
+    
+    updateLiveTrainingMetrics(data) {
+        // Update live accuracy with trend indicator
+        if (data.live_accuracy !== undefined) {
+            const liveAccuracyEl = document.getElementById('liveTrainingAccuracy');
+            if (liveAccuracyEl) {
+                const newAccuracy = (data.live_accuracy * 100).toFixed(1);
+                const oldAccuracy = parseFloat(liveAccuracyEl.textContent) || 0;
+                
+                // Add trend indicator
+                let trendIcon = '';
+                if (newAccuracy > oldAccuracy) {
+                    trendIcon = ' <span style="color: var(--success-color); font-size: 0.8em;">↗️</span>';
+                } else if (newAccuracy < oldAccuracy) {
+                    trendIcon = ' <span style="color: var(--warning-color); font-size: 0.8em;">↘️</span>';
+                } else if (oldAccuracy > 0) {
+                    trendIcon = ' <span style="color: var(--text-secondary); font-size: 0.8em;">→</span>';
+                }
+                
+                // Animate accuracy change
+                if (Math.abs(newAccuracy - oldAccuracy) > 0.1) {
+                    liveAccuracyEl.style.transition = 'all 0.3s ease';
+                    liveAccuracyEl.style.transform = 'scale(1.1)';
+                    liveAccuracyEl.style.color = 'var(--success-color)';
+                    
+                    setTimeout(() => {
+                        liveAccuracyEl.style.transform = 'scale(1)';
+                        liveAccuracyEl.style.color = 'var(--primary-color)';
+                    }, 300);
+                }
+                
+                liveAccuracyEl.innerHTML = `${newAccuracy}%${trendIcon}`;
             }
         }
+        
+        // Update predictions processed with smooth increment
+        if (data.predictions_processed !== undefined) {
+            const predictionsEl = document.getElementById('predictionsProcessed');
+            if (predictionsEl) {
+                const newCount = data.predictions_processed;
+                const oldCount = parseInt(predictionsEl.textContent.replace(/,/g, '')) || 0;
+                
+                if (newCount > oldCount) {
+                    // Animate counter increment
+                    this.animateCounter(predictionsEl, oldCount, newCount, 1000);
+                } else {
+                    predictionsEl.textContent = newCount.toLocaleString();
+                }
+            }
+        }
+        
+        // The elapsed time will be updated by the real-time timer
+    }
+    
+    updateTrainingStatusMessages(data) {
+        // Update training status message with detailed info
+        const statusMsgEl = document.getElementById('trainingStatusMessage');
+        if (statusMsgEl) {
+            let statusMessage = '';
+            
+            if (data.current_stage && data.progress !== undefined) {
+                statusMessage = `${data.current_stage} - ${data.progress}% complete`;
+                
+                if (data.estimated_time_remaining !== undefined) {
+                    const timeStr = this.formatTrainingTime(data.estimated_time_remaining);
+                    statusMessage += ` • Estimated: ${timeStr} remaining`;
+                } else if (data.estimated_remaining) {
+                    statusMessage += ` • Estimated: ${data.estimated_remaining} remaining`;
+                }
+                
+                if (data.live_accuracy !== undefined) {
+                    statusMessage += ` • Accuracy: ${(data.live_accuracy * 100).toFixed(1)}%`;
+                }
+                
+                if (data.current_epoch && data.total_epochs) {
+                    statusMessage += ` • Epoch: ${data.current_epoch}/${data.total_epochs}`;
+                }
+            } else if (data.message) {
+                statusMessage = data.message;
+            }
+            
+            statusMsgEl.textContent = statusMessage;
+        }
+        
+        // Update last update timestamp
+        this.updateTrainingLastUpdate();
+    }
+    
+    updateTrainingLastUpdate() {
+        const lastUpdateEl = document.getElementById('trainingLastUpdate');
+        if (lastUpdateEl) {
+            lastUpdateEl.textContent = 'Just now';
+            lastUpdateEl.setAttribute('data-timestamp', Date.now());
+        }
+    }
+    
+    startTrainingTimers() {
+        // Start elapsed time timer (updates every second)
+        if (this.trainingElapsedTimer) {
+            clearInterval(this.trainingElapsedTimer);
+        }
+        
+        this.trainingElapsedTimer = setInterval(() => {
+            if (this.trainingStartTime) {
+                const elapsed = Math.floor((Date.now() - this.trainingStartTime) / 1000);
+                const elapsedEl = document.getElementById('trainingElapsedTime');
+                if (elapsedEl) {
+                    elapsedEl.textContent = this.formatTrainingTime(elapsed);
+                }
+            }
+        }, 1000);
+        
+        // Start last update timer (updates every 5 seconds)
+        if (this.trainingLastUpdateTimer) {
+            clearInterval(this.trainingLastUpdateTimer);
+        }
+        
+        this.trainingLastUpdateTimer = setInterval(() => {
+            const lastUpdateEl = document.getElementById('trainingLastUpdate');
+            if (lastUpdateEl) {
+                const timestamp = parseInt(lastUpdateEl.getAttribute('data-timestamp') || '0');
+                if (timestamp) {
+                    const secondsAgo = Math.floor((Date.now() - timestamp) / 1000);
+                    if (secondsAgo < 60) {
+                        lastUpdateEl.textContent = secondsAgo <= 5 ? 'Just now' : `${secondsAgo} seconds ago`;
+                    } else {
+                        const minutesAgo = Math.floor(secondsAgo / 60);
+                        lastUpdateEl.textContent = `${minutesAgo} minute${minutesAgo > 1 ? 's' : ''} ago`;
+                    }
+                }
+            }
+        }, 5000);
+    }
+    
+    stopTrainingTimers() {
+        if (this.trainingElapsedTimer) {
+            clearInterval(this.trainingElapsedTimer);
+            this.trainingElapsedTimer = null;
+        }
+        
+        if (this.trainingLastUpdateTimer) {
+            clearInterval(this.trainingLastUpdateTimer);
+            this.trainingLastUpdateTimer = null;
+        }
+        
+        this.trainingStartTime = null;
+        this.currentStageStartTime = null;
+        this.lastCurrentStage = null;
+    }
+    
+    formatTrainingTime(seconds) {
+        if (seconds < 60) {
+            return `${seconds}s`;
+        } else {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes}m ${remainingSeconds}s`;
+        }
+    }
+    
+    animateCounter(element, startValue, endValue, duration) {
+        const range = endValue - startValue;
+        const startTime = Date.now();
+        
+        const updateCounter = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            // Use easing function for smooth animation
+            const easeProgress = 1 - Math.pow(1 - progress, 3);
+            const currentValue = Math.floor(startValue + (range * easeProgress));
+            
+            element.textContent = currentValue.toLocaleString();
+            
+            if (progress < 1) {
+                requestAnimationFrame(updateCounter);
+            }
+        };
+        
+        requestAnimationFrame(updateCounter);
     }
     
     handleTrainingCompleted(data) {
         this.isTraining = false;
+        
+        // Stop training timers
+        this.stopTrainingTimers();
         
         // Update progress to 100%
         ProgressBar.update('mainProgressBarContainer', 100, {
             label: `✅ Training completed! Accuracy: ${(data.final_accuracy * 100).toFixed(1)}%`,
             style: 'success'
         });
+        
+        // Update detailed training monitor with completion state
+        const finalData = {
+            current_stage: 'Training completed',
+            progress: 100,
+            live_accuracy: data.final_accuracy,
+            stage_index: 8,
+            total_stages: 8,
+            stages_completed: [
+                'Preparing data', 'Data validation', 'Feature engineering', 
+                'Model selection', 'Training model', 'Validation', 
+                'Optimization', 'Finalizing model'
+            ]
+        };
+        this.updateDetailedTrainingProgress(finalData);
+        
+        // Update training status with completion message
+        const statusMsgEl = document.getElementById('trainingStatusMessage');
+        if (statusMsgEl) {
+            statusMsgEl.innerHTML = `
+                <span style="color: var(--success-color); font-weight: 600;">✅ Training Completed Successfully!</span><br>
+                Final accuracy: ${(data.final_accuracy * 100).toFixed(1)}% • 
+                Training time: ${data.training_time || 'N/A'} • 
+                Model ready for deployment
+            `;
+        }
         
         // Show success message
         this.showSuccess(`Training completed! Final accuracy: ${(data.final_accuracy * 100).toFixed(1)}%`);
@@ -900,13 +1205,32 @@ class Dashboard extends BasePageController {
             trainButton.disabled = false;
         }
         
-        // Hide detailed training card after a delay
+        // Show use model button with animation
+        const useModelButton = document.getElementById('useModelButton');
+        if (useModelButton) {
+            useModelButton.disabled = false;
+            useModelButton.style.transform = 'scale(1.05)';
+            useModelButton.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.3)';
+            
+            setTimeout(() => {
+                useModelButton.style.transform = 'scale(1)';
+                useModelButton.style.boxShadow = '';
+            }, 300);
+        }
+        
+        // Hide detailed training card after showing completion for 10 seconds
         setTimeout(() => {
             const detailedCard = document.getElementById('detailedTrainingCard');
             if (detailedCard) {
-                detailedCard.style.display = 'none';
+                detailedCard.style.transition = 'opacity 0.5s ease';
+                detailedCard.style.opacity = '0';
+                
+                setTimeout(() => {
+                    detailedCard.style.display = 'none';
+                    detailedCard.style.opacity = '1';
+                }, 500);
             }
-        }, 5000);
+        }, 10000);
         
         // Reload model metrics
         this.loadCurrentModelMetrics();
@@ -1026,7 +1350,6 @@ class Dashboard extends BasePageController {
         
         // Update CPU usage - fix field name mismatch (backend sends cpu_percent)
         if (data.cpu_percent !== undefined) {
-            console.log(`🔧 Updating CPU: ${data.cpu_percent}%`);
             Metric.update('cpuPercent', data.cpu_percent, { format: 'percent' });
             ProgressBar.update('cpuProgressBar', data.cpu_percent, {
                 style: data.cpu_percent > 80 ? 'danger' : data.cpu_percent > 60 ? 'warning' : 'default'
