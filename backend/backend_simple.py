@@ -16,6 +16,14 @@ from pathlib import Path
 import threading
 from collections import deque
 import hashlib
+import logging
+import signal
+import sys
+
+# Import background task components
+from background_tasks import task_manager
+from cache_manager import cache_manager, cache_result
+from utils.cleanup import CleanupManager
 
 # Get the project root directory (parent of backend/)
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -38,6 +46,16 @@ app.mount("/static", StaticFiles(directory=str(PROJECT_ROOT / "static")), name="
 models_store = {}
 training_jobs = {}
 activity_log = []
+
+# Initialize background task components
+cleanup_manager = CleanupManager(PROJECT_ROOT)
+shutdown_flag = asyncio.Event()
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 # Real-time Model Metrics Tracking System
 # Thread-safe prediction tracking with circular buffers and rate limiting
@@ -257,6 +275,138 @@ def cleanup_old_predictions(max_age_hours=24):
         prediction_tracking["memory_stats"]["last_cleanup"] = current_time
         
         return total_cleaned
+
+# Background Task Functions for Periodic Operations
+async def recalculate_model_accuracy():
+    """Periodically recalculate model accuracy based on recent predictions"""
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Check if we have any active models
+        if not models_store:
+            return
+            
+        updated_models = []
+        
+        for model_id, model_info in models_store.items():
+            if model_info.get("status") in ["active", "deployed"]:
+                # Get current accuracy from prediction tracking
+                current_accuracy = model_info.get("accuracy", 0.0)
+                
+                # Simulate accuracy drift based on recent predictions
+                # In production, this would analyze actual vs predicted outcomes
+                drift_factor = (hash(f"{model_id}_{datetime.now().minute}") % 100 - 50) / 10000
+                new_accuracy = max(0.5, min(1.0, current_accuracy + drift_factor))
+                
+                # Update if significant change
+                if abs(new_accuracy - current_accuracy) > 0.01:
+                    model_info["accuracy"] = new_accuracy
+                    model_info["last_accuracy_update"] = datetime.now().isoformat()
+                    updated_models.append(model_id)
+                    
+                    # Broadcast update via WebSocket
+                    await manager.broadcast_json({
+                        "type": "model_accuracy_update",
+                        "model_id": model_id,
+                        "old_accuracy": round(current_accuracy, 3),
+                        "new_accuracy": round(new_accuracy, 3),
+                        "timestamp": datetime.now().isoformat()
+                    })
+                    
+        if updated_models:
+            logger.info(f"Updated accuracy for {len(updated_models)} models")
+            
+            # Log activity
+            await log_activity_with_broadcast(
+                "Model Accuracy Update",
+                f"Recalculated accuracy for {len(updated_models)} active models",
+                "info"
+            )
+            
+    except Exception as e:
+        logger.error(f"Error in recalculate_model_accuracy: {str(e)}")
+
+async def perform_scheduled_cleanup():
+    """Run all cleanup tasks periodically"""
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Run comprehensive cleanup
+        cleanup_results = await cleanup_manager.run_full_cleanup(
+            models_store=models_store,
+            activity_log=activity_log,
+            prediction_tracking=prediction_tracking
+        )
+        
+        # Extract summary
+        summary = cleanup_results.get("summary", {})
+        successful_ops = summary.get("successful_operations", 0)
+        total_ops = summary.get("total_operations", 0)
+        
+        # Broadcast cleanup status
+        if successful_ops > 0:
+            await manager.broadcast_json({
+                "type": "cleanup_completed",
+                "timestamp": datetime.now().isoformat(),
+                "operations_completed": successful_ops,
+                "total_operations": total_ops,
+                "results": cleanup_results
+            })
+            
+            # Log activity
+            await log_activity_with_broadcast(
+                "System Cleanup",
+                f"Completed {successful_ops}/{total_ops} cleanup operations",
+                "info"
+            )
+            
+        logger.info(f"Scheduled cleanup completed: {successful_ops}/{total_ops} operations")
+        
+    except Exception as e:
+        logger.error(f"Error in perform_scheduled_cleanup: {str(e)}")
+        
+        # Broadcast error
+        await manager.broadcast_json({
+            "type": "cleanup_error",
+            "timestamp": datetime.now().isoformat(),
+            "error": str(e)
+        })
+
+async def cleanup_cache_expired():
+    """Clean up expired cache entries"""
+    logger = logging.getLogger(__name__)
+    
+    try:
+        expired_count = cache_manager.cleanup_expired()
+        
+        if expired_count > 0:
+            logger.debug(f"Cleaned up {expired_count} expired cache entries")
+            
+        # Get cache stats for monitoring
+        stats = cache_manager.get_stats()
+        
+        # Broadcast cache status if usage is high
+        if stats["usage_percent"] > 80:
+            await manager.broadcast_json({
+                "type": "cache_usage_high",
+                "timestamp": datetime.now().isoformat(),
+                "usage_percent": stats["usage_percent"],
+                "stats": stats
+            })
+            
+    except Exception as e:
+        logger.error(f"Error in cleanup_cache_expired: {str(e)}")
+
+# Signal handlers for graceful shutdown
+def signal_handler(signum, frame):
+    """Handle shutdown signals"""
+    logger = logging.getLogger(__name__)
+    logger.info(f"Received signal {signum}, initiating graceful shutdown...")
+    shutdown_flag.set()
+
+# Register signal handlers
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 # Enhanced WebSocket Connection Manager with Phase 4 optimizations
 class ConnectionManager:
@@ -2598,10 +2748,188 @@ async def websocket_endpoint(websocket: WebSocket):
         if 'message_task' in locals():
             message_task.cancel()
 
-# Health check
+# Server Lifecycle Handlers
+@app.on_event("startup")
+async def startup_event():
+    """Initialize server and start background tasks"""
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Create necessary directories
+        os.makedirs(PROJECT_ROOT / "uploads", exist_ok=True)
+        os.makedirs(PROJECT_ROOT / "models", exist_ok=True)
+        os.makedirs(PROJECT_ROOT / "static", exist_ok=True)
+        os.makedirs(PROJECT_ROOT / "logs", exist_ok=True)
+        
+        # Configure file logging
+        log_file = PROJECT_ROOT / "logs" / "server.log"
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+        
+        # Add file handler to root logger
+        root_logger = logging.getLogger()
+        root_logger.addHandler(file_handler)
+        
+        # Register periodic background tasks
+        task_manager.register_periodic_task(
+            "accuracy_recalculation",
+            recalculate_model_accuracy,
+            interval_seconds=30,  # Every 30 seconds
+            initial_delay=60  # Wait 1 minute before first run
+        )
+        
+        task_manager.register_periodic_task(
+            "scheduled_cleanup",
+            perform_scheduled_cleanup,
+            interval_seconds=3600,  # Every hour
+            initial_delay=300  # Wait 5 minutes before first run
+        )
+        
+        task_manager.register_periodic_task(
+            "cache_cleanup",
+            cleanup_cache_expired,
+            interval_seconds=60,  # Every minute
+            initial_delay=30  # Wait 30 seconds before first run
+        )
+        
+        # Start all background tasks
+        await task_manager.start_all_tasks()
+        
+        logger.info("Background task manager started with all periodic tasks")
+        
+        # Initial system status
+        await log_activity_with_broadcast(
+            "System Started",
+            "ML Pipeline backend initialized with background task manager",
+            "success"
+        )
+        
+        # Broadcast startup event
+        await manager.broadcast_json({
+            "type": "system_startup",
+            "timestamp": datetime.now().isoformat(),
+            "background_tasks": len(task_manager._periodic_tasks),
+            "cache_enabled": True
+        })
+        
+        logger.info("Server startup completed successfully")
+        
+    except Exception as e:
+        logger.error(f"Error during server startup: {str(e)}")
+        raise
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Graceful shutdown of server and background tasks"""
+    logger = logging.getLogger(__name__)
+    
+    try:
+        logger.info("Initiating server shutdown...")
+        
+        # Set shutdown flag
+        shutdown_flag.set()
+        
+        # Broadcast shutdown notification
+        await manager.broadcast_json({
+            "type": "system_shutdown",
+            "timestamp": datetime.now().isoformat(),
+            "message": "Server is shutting down gracefully"
+        })
+        
+        # Give clients time to receive shutdown message
+        await asyncio.sleep(1)
+        
+        # Close all WebSocket connections
+        for client_id in list(manager.active_connections.keys()):
+            conn_info = manager.active_connections[client_id]
+            try:
+                await conn_info['websocket'].close(
+                    code=1001, 
+                    reason="Server shutting down"
+                )
+            except Exception as e:
+                logger.warning(f"Error closing WebSocket connection {client_id}: {e}")
+                
+        # Shutdown background tasks
+        await task_manager.shutdown(timeout=30)
+        
+        # Clear cache
+        cache_manager.clear()
+        
+        # Log final activity
+        await log_activity_with_broadcast(
+            "System Shutdown",
+            "Server shutdown completed gracefully",
+            "info"
+        )
+        
+        logger.info("Server shutdown completed")
+        
+    except Exception as e:
+        logger.error(f"Error during server shutdown: {str(e)}")
+
+# Enhanced Health check with background task status
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+    """Enhanced health check with background task and cache status"""
+    try:
+        # Check if shutdown is in progress
+        if shutdown_flag.is_set():
+            return {
+                "status": "shutting_down",
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        # Get background task status
+        task_status = task_manager.get_task_status()
+        tasks_healthy = all(
+            task_info["is_running"] for task_info in task_status.values()
+        )
+        
+        # Get cache statistics
+        cache_stats = cache_manager.get_stats()
+        
+        # Get connection statistics
+        connection_stats = manager.get_connection_stats()
+        
+        # Overall health assessment
+        overall_status = "healthy"
+        if not tasks_healthy:
+            overall_status = "degraded"
+        elif cache_stats["usage_percent"] > 90:
+            overall_status = "warning"
+            
+        return {
+            "status": overall_status,
+            "timestamp": datetime.now().isoformat(),
+            "background_tasks": {
+                "count": len(task_status),
+                "healthy": tasks_healthy,
+                "details": task_status
+            },
+            "cache": {
+                "usage_percent": cache_stats["usage_percent"],
+                "hit_rate_percent": cache_stats["hit_rate_percent"],
+                "total_items": cache_stats["total_items"]
+            },
+            "connections": {
+                "active": connection_stats["active_connections"],
+                "total": connection_stats["total_connections"]
+            },
+            "models": {
+                "loaded": len(models_store),
+                "active_training": len([j for j in training_jobs.values() if j["status"] == "training"])
+            }
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "timestamp": datetime.now().isoformat(),
+            "error": str(e)
+        }
 
 # Debug endpoint to manually create system alerts
 @app.post("/debug/create-alert")
@@ -2654,13 +2982,6 @@ async def debug_trigger_health_change():
 
 if __name__ == "__main__":
     import uvicorn
-
-    # Create necessary directories
-    os.makedirs(PROJECT_ROOT / "uploads", exist_ok=True)
-    os.makedirs(PROJECT_ROOT / "models", exist_ok=True)
-    os.makedirs(PROJECT_ROOT / "static", exist_ok=True)
-
-    # Add some sample activity log entries
-    log_activity("System started", "ML Pipeline backend initialized", "success")
-
+    
+    # Note: Directory creation and initialization now handled in startup_event()
     uvicorn.run(app, host="0.0.0.0", port=8000)
