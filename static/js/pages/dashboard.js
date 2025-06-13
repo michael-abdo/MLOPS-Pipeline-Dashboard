@@ -2363,26 +2363,28 @@ class Dashboard extends BasePageController {
         const metricsGrid = Grid.createMetricGrid([
             {
                 value: 94.2,
-                label: 'Current Accuracy',
+                label: 'Model Accuracy',
                 format: 'percent',
                 id: 'liveAccuracy',
                 trend: 'up',
-                trendValue: 2.3
+                trendValue: 2.3,
+                tooltip: 'Current model accuracy calculated from the last 100 predictions'
             },
             {
                 value: 23,
-                label: 'Predictions/Min',
+                label: 'Prediction Rate',
                 format: 'custom',
                 id: 'livePredictions',
                 trend: 'neutral',
-                trendValue: 0
+                trendValue: 0,
+                tooltip: 'Number of predictions processed per minute with trend indicator'
             },
             {
                 value: '✅',
-                label: 'System Health',
+                label: 'System Status',
                 format: 'custom',
                 id: 'systemHealth',
-                tooltip: 'All systems operational'
+                tooltip: 'Overall system health: ✅ Healthy, ⚠️ Warning, ❌ Critical'
             }
         ], {
             columns: 3,

@@ -401,9 +401,13 @@ body {
 
 .metric-label {
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
+    margin-top: var(--spacing-xs);
+    font-weight: 500;
+    display: block;
+    text-align: center;
 }
 
 /* Animations */
