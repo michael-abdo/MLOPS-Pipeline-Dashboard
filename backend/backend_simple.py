@@ -13,6 +13,9 @@ from datetime import datetime
 import asyncio
 import psutil
 from pathlib import Path
+import threading
+from collections import deque
+import hashlib
 
 # Get the project root directory (parent of backend/)
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -35,6 +38,225 @@ app.mount("/static", StaticFiles(directory=str(PROJECT_ROOT / "static")), name="
 models_store = {}
 training_jobs = {}
 activity_log = []
+
+# Real-time Model Metrics Tracking System
+# Thread-safe prediction tracking with circular buffers and rate limiting
+prediction_tracking_lock = threading.RLock()
+prediction_tracking = {
+    # Real-time metrics per model (updated on each prediction)
+    "active_model_metrics": {},  # {model_id: {accuracy: float, predictions_per_minute: float, health: str}}
+    
+    # Circular buffer storage per model (max 1000 entries to prevent memory bloat)
+    "prediction_history": {},    # {model_id: deque([{timestamp, input_hash, result, correct}], maxlen=1000)}
+    
+    # Cached rate calculations for performance optimization
+    "rate_calculations": {},     # {model_id: {last_calc_time: timestamp, cached_rate: float}}
+    
+    # Rolling accuracy calculations from last 100 predictions
+    "accuracy_buffers": {},      # {model_id: deque([bool], maxlen=100)}
+    
+    # Timestamp tracking for rate limiting and cleanup
+    "last_updated": {},          # {model_id: timestamp}
+    
+    # Memory usage tracking for cleanup thresholds
+    "memory_stats": {
+        "total_predictions": 0,
+        "last_cleanup": time.time(),
+        "cleanup_threshold": 100 * 1024 * 1024  # 100MB threshold
+    }
+}
+
+# Model Metrics Calculation Utilities
+# High-performance functions for real-time metric calculations
+
+def calculate_predictions_per_minute(prediction_history, current_time=None):
+    """
+    Calculate predictions per minute from timestamp history with performance optimization.
+    
+    Args:
+        prediction_history: deque of prediction records with timestamps
+        current_time: optional current timestamp (defaults to time.time())
+    
+    Returns:
+        float: Predictions per minute rate
+    """
+    if not prediction_history:
+        return 0.0
+    
+    current_time = current_time or time.time()
+    one_minute_ago = current_time - 60
+    
+    # Count predictions in the last minute using efficient iteration
+    recent_predictions = 0
+    for prediction in reversed(prediction_history):
+        if prediction['timestamp'] >= one_minute_ago:
+            recent_predictions += 1
+        else:
+            # Since history is chronological, we can break early
+            break
+    
+    return float(recent_predictions)
+
+def calculate_rolling_accuracy(accuracy_buffer):
+    """
+    Calculate rolling accuracy from boolean accuracy buffer.
+    
+    Args:
+        accuracy_buffer: deque of boolean values (True=correct, False=incorrect)
+    
+    Returns:
+        float: Accuracy percentage (0.0 to 1.0)
+    """
+    if not accuracy_buffer:
+        return 0.0
+    
+    # Efficient calculation using sum() on boolean values
+    correct_predictions = sum(accuracy_buffer)
+    total_predictions = len(accuracy_buffer)
+    
+    return correct_predictions / total_predictions
+
+def calculate_model_health_status(accuracy, predictions_per_minute, avg_response_time=0):
+    """
+    Determine model health based on performance metrics.
+    
+    Args:
+        accuracy: Current accuracy (0.0 to 1.0)
+        predictions_per_minute: Current prediction rate
+        avg_response_time: Average response time in milliseconds
+    
+    Returns:
+        str: Health status ('healthy', 'warning', 'critical')
+    """
+    # Health thresholds
+    accuracy_warning = 0.85   # 85%
+    accuracy_critical = 0.80  # 80%
+    response_time_warning = 100  # 100ms
+    response_time_critical = 200  # 200ms
+    
+    # Check critical conditions first
+    if accuracy < accuracy_critical or avg_response_time > response_time_critical:
+        return 'critical'
+    
+    # Check warning conditions
+    if accuracy < accuracy_warning or avg_response_time > response_time_warning:
+        return 'warning'
+    
+    return 'healthy'
+
+def log_prediction_with_metrics(model_id, input_data, prediction_result, correct_result=None):
+    """
+    Thread-safe prediction logging with automatic metric updates.
+    
+    Args:
+        model_id: ID of the model making the prediction
+        input_data: Input data for the prediction
+        prediction_result: The prediction result
+        correct_result: Optional ground truth for accuracy calculation
+    
+    Returns:
+        dict: Updated metrics for the model
+    """
+    with prediction_tracking_lock:
+        current_time = time.time()
+        
+        # Initialize model tracking if not exists
+        if model_id not in prediction_tracking["prediction_history"]:
+            prediction_tracking["prediction_history"][model_id] = deque(maxlen=1000)
+            prediction_tracking["accuracy_buffers"][model_id] = deque(maxlen=100)
+            prediction_tracking["active_model_metrics"][model_id] = {
+                "accuracy": 0.0,
+                "predictions_per_minute": 0.0,
+                "health": "healthy",
+                "total_predictions": 0
+            }
+        
+        # Create prediction record
+        input_hash = hashlib.md5(str(input_data).encode()).hexdigest()[:8]
+        prediction_record = {
+            "timestamp": current_time,
+            "input_hash": input_hash,
+            "result": prediction_result,
+            "correct": correct_result is not None and prediction_result == correct_result
+        }
+        
+        # Add to history buffers
+        prediction_tracking["prediction_history"][model_id].append(prediction_record)
+        
+        # Update accuracy buffer if we have ground truth
+        if correct_result is not None:
+            is_correct = prediction_result == correct_result
+            prediction_tracking["accuracy_buffers"][model_id].append(is_correct)
+        
+        # Calculate updated metrics
+        accuracy = calculate_rolling_accuracy(prediction_tracking["accuracy_buffers"][model_id])
+        predictions_per_minute = calculate_predictions_per_minute(
+            prediction_tracking["prediction_history"][model_id], current_time
+        )
+        
+        # Update cached metrics
+        metrics = prediction_tracking["active_model_metrics"][model_id]
+        metrics["accuracy"] = accuracy
+        metrics["predictions_per_minute"] = predictions_per_minute
+        metrics["health"] = calculate_model_health_status(accuracy, predictions_per_minute)
+        metrics["total_predictions"] = len(prediction_tracking["prediction_history"][model_id])
+        
+        # Update last updated timestamp
+        prediction_tracking["last_updated"][model_id] = current_time
+        
+        # Update global stats
+        prediction_tracking["memory_stats"]["total_predictions"] += 1
+        
+        return metrics.copy()
+
+def get_model_metrics(model_id):
+    """
+    Thread-safe retrieval of current model metrics.
+    
+    Args:
+        model_id: ID of the model
+    
+    Returns:
+        dict: Current metrics or None if model not found
+    """
+    with prediction_tracking_lock:
+        if model_id not in prediction_tracking["active_model_metrics"]:
+            return None
+        
+        return prediction_tracking["active_model_metrics"][model_id].copy()
+
+def cleanup_old_predictions(max_age_hours=24):
+    """
+    Clean up prediction history older than specified age to prevent memory leaks.
+    
+    Args:
+        max_age_hours: Maximum age of predictions to keep (default 24 hours)
+    
+    Returns:
+        int: Number of predictions cleaned up
+    """
+    with prediction_tracking_lock:
+        current_time = time.time()
+        cutoff_time = current_time - (max_age_hours * 3600)
+        total_cleaned = 0
+        
+        for model_id in list(prediction_tracking["prediction_history"].keys()):
+            history = prediction_tracking["prediction_history"][model_id]
+            
+            # Create new deque with only recent predictions
+            new_history = deque(maxlen=1000)
+            for prediction in history:
+                if prediction["timestamp"] >= cutoff_time:
+                    new_history.append(prediction)
+                else:
+                    total_cleaned += 1
+            
+            prediction_tracking["prediction_history"][model_id] = new_history
+        
+        # Update cleanup timestamp
+        prediction_tracking["memory_stats"]["last_cleanup"] = current_time
+        
+        return total_cleaned
 
 # Enhanced WebSocket Connection Manager with Phase 4 optimizations
 class ConnectionManager:
@@ -769,6 +991,87 @@ async def broadcast_prediction_volume_update():
             "priority": "low"
         })
 
+# WebSocket rate limiting for model metrics updates
+last_model_metrics_broadcast = {}
+
+async def broadcast_model_metrics_update(model_id: str, force_broadcast: bool = False):
+    """Broadcast model-specific metrics updates with rate limiting"""
+    global last_model_metrics_broadcast
+    
+    current_time = time.time()
+    
+    # Rate limiting: max 1 update per model per 5 seconds (unless forced)
+    if not force_broadcast:
+        last_broadcast = last_model_metrics_broadcast.get(model_id, 0)
+        if current_time - last_broadcast < 5:
+            return  # Skip if too frequent
+    
+    last_model_metrics_broadcast[model_id] = current_time
+    
+    try:
+        # Get current model metrics
+        real_time_metrics = get_model_metrics(model_id)
+        
+        if real_time_metrics is None or model_id not in models_store:
+            return  # Model not found or no metrics
+        
+        model_info = models_store[model_id]
+        
+        # Create model metrics update event
+        metrics_update = {
+            "type": "model_metrics_update",
+            "timestamp": datetime.now().isoformat(),
+            "model_id": model_id,
+            "model_name": model_info.get("name", f"Model {model_id[:8]}"),
+            "metrics": {
+                "accuracy": round(real_time_metrics["accuracy"], 4),
+                "predictions_per_minute": round(real_time_metrics["predictions_per_minute"], 2),
+                "health_status": real_time_metrics["health"],
+                "total_predictions": real_time_metrics["total_predictions"],
+                "avg_response_time": round(model_info.get("avg_response_time", 0.0), 1)
+            },
+            "status": model_info.get("status", "unknown"),
+            "last_updated": prediction_tracking["last_updated"].get(model_id, current_time)
+        }
+        
+        # Broadcast to all connected clients
+        await manager.broadcast_json(metrics_update)
+        
+    except Exception as e:
+        print(f"Warning: Failed to broadcast model metrics update for {model_id}: {e}")
+
+async def broadcast_prediction_logged_event(model_id: str, prediction_result: Any, input_hash: str):
+    """Broadcast individual prediction logging events for real-time tracking"""
+    try:
+        if model_id not in models_store:
+            return
+            
+        model_info = models_store[model_id]
+        current_metrics = get_model_metrics(model_id)
+        
+        prediction_event = {
+            "type": "prediction_logged",
+            "timestamp": datetime.now().isoformat(),
+            "model_id": model_id,
+            "model_name": model_info.get("name", f"Model {model_id[:8]}"),
+            "prediction": {
+                "result": prediction_result,
+                "input_hash": input_hash,
+                "timestamp": time.time()
+            },
+            "updated_metrics": {
+                "total_predictions": current_metrics["total_predictions"] if current_metrics else 0,
+                "predictions_per_minute": round(current_metrics["predictions_per_minute"], 1) if current_metrics else 0.0,
+                "accuracy": round(current_metrics["accuracy"], 3) if current_metrics else 0.0
+            }
+        }
+        
+        # Broadcast with low priority to avoid flooding
+        await manager.broadcast_json(prediction_event, priority='low')
+        
+    except Exception as e:
+        print(f"Warning: Failed to broadcast prediction logged event for {model_id}: {e}")
+
 # API Routes
 
 @app.get("/", response_class=HTMLResponse)
@@ -978,16 +1281,46 @@ async def get_model(model_id: str):
 
 @app.post("/api/models/{model_id}/predict")
 async def predict(model_id: str, data: Dict[str, Any]):
-    """Make prediction with model"""
+    """Make prediction with model with real-time metrics tracking"""
     try:
         if model_id not in models_store:
             raise HTTPException(status_code=404, detail="Model not found")
 
         # Simulate prediction
         prediction = hash(str(data)) % 2  # Simulated binary prediction
+        prediction_result = int(prediction)
 
         # Update model stats
         models_store[model_id]["predictions_made"] += 1
+        
+        # Log prediction with real-time metrics tracking
+        try:
+            updated_metrics = log_prediction_with_metrics(
+                model_id=model_id,
+                input_data=data,
+                prediction_result=prediction_result,
+                correct_result=None  # No ground truth available for real-time predictions
+            )
+            
+            # Update model's average response time (simulated)
+            models_store[model_id]["avg_response_time"] = 15.0 + (hash(str(data)) % 20)
+            
+            # Generate input hash for WebSocket events
+            input_hash = hashlib.md5(str(data).encode()).hexdigest()[:8]
+            
+            # Broadcast prediction logged event for real-time tracking
+            await broadcast_prediction_logged_event(model_id, prediction_result, input_hash)
+            
+            # Broadcast model metrics update if significant changes occurred
+            # Check if this is a milestone prediction (every 10th prediction)
+            if updated_metrics and updated_metrics.get("total_predictions", 0) % 10 == 0:
+                await broadcast_model_metrics_update(model_id, force_broadcast=True)
+            else:
+                await broadcast_model_metrics_update(model_id)
+            
+        except Exception as e:
+            # Don't break prediction flow if metrics logging fails
+            print(f"Warning: Failed to log prediction metrics for model {model_id}: {e}")
         
         # Check if we should broadcast prediction volume update
         total_predictions = sum(m["predictions_made"] for m in models_store.values())
@@ -995,13 +1328,215 @@ async def predict(model_id: str, data: Dict[str, Any]):
             await broadcast_prediction_volume_update()
 
         return {
-            "prediction": int(prediction),
+            "prediction": prediction_result,
             "model_id": model_id,
             "timestamp": datetime.now().isoformat()
         }
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/models/{model_id}/metrics/realtime")
+async def get_model_realtime_metrics(model_id: str):
+    """Get detailed real-time performance metrics for a specific model"""
+    try:
+        if model_id not in models_store:
+            raise HTTPException(status_code=404, detail="Model not found")
+            
+        model_info = models_store[model_id]
+        
+        # Get real-time metrics from tracking system
+        real_time_metrics = get_model_metrics(model_id)
+        
+        if real_time_metrics is None:
+            # Model exists but no predictions made yet
+            real_time_metrics = {
+                "accuracy": 0.0,
+                "predictions_per_minute": 0.0,
+                "health": "healthy",
+                "total_predictions": 0
+            }
+        
+        # Get recent prediction history for trend analysis
+        prediction_history = []
+        with prediction_tracking_lock:
+            if model_id in prediction_tracking["prediction_history"]:
+                history = prediction_tracking["prediction_history"][model_id]
+                # Get last 50 predictions for trend analysis
+                recent_predictions = list(history)[-50:] if history else []
+                
+                for pred in recent_predictions:
+                    prediction_history.append({
+                        "timestamp": pred["timestamp"],
+                        "input_hash": pred["input_hash"],
+                        "result": pred["result"],
+                        "correct": pred.get("correct", None)
+                    })
+        
+        # Calculate performance trends
+        current_time = time.time()
+        
+        # Calculate accuracy trend (last 10 vs previous 10 predictions)
+        accuracy_trend = "stable"
+        if len(prediction_history) >= 20:
+            recent_accuracy = sum(1 for p in prediction_history[-10:] if p.get("correct", False)) / 10
+            previous_accuracy = sum(1 for p in prediction_history[-20:-10] if p.get("correct", False)) / 10
+            
+            if recent_accuracy > previous_accuracy + 0.05:
+                accuracy_trend = "improving"
+            elif recent_accuracy < previous_accuracy - 0.05:
+                accuracy_trend = "declining"
+        
+        # Calculate prediction rate trend (last 5 minutes vs previous 5 minutes)
+        rate_trend = "stable"
+        five_minutes_ago = current_time - 300
+        ten_minutes_ago = current_time - 600
+        
+        recent_predictions = len([p for p in prediction_history if p["timestamp"] > five_minutes_ago])
+        previous_predictions = len([p for p in prediction_history if ten_minutes_ago < p["timestamp"] <= five_minutes_ago])
+        
+        if recent_predictions > previous_predictions * 1.2:
+            rate_trend = "increasing"
+        elif recent_predictions < previous_predictions * 0.8:
+            rate_trend = "decreasing"
+        
+        # Performance metrics with enriched data
+        response = {
+            "model_id": model_id,
+            "model_name": model_info.get("name", f"Model {model_id[:8]}"),
+            "timestamp": datetime.now().isoformat(),
+            
+            # Core real-time metrics
+            "performance": {
+                "accuracy": round(real_time_metrics["accuracy"], 4),
+                "predictions_per_minute": round(real_time_metrics["predictions_per_minute"], 2),
+                "avg_response_time_ms": round(model_info.get("avg_response_time", 0.0), 1),
+                "total_predictions": real_time_metrics["total_predictions"],
+                "health_status": real_time_metrics["health"]
+            },
+            
+            # Trend analysis
+            "trends": {
+                "accuracy_trend": accuracy_trend,
+                "prediction_rate_trend": rate_trend,
+                "last_updated": prediction_tracking["last_updated"].get(model_id, 0)
+            },
+            
+            # Historical performance (simplified)
+            "history": {
+                "recent_predictions": len(prediction_history),
+                "accuracy_samples": len([p for p in prediction_history if p.get("correct") is not None]),
+                "oldest_prediction": prediction_history[0]["timestamp"] if prediction_history else None,
+                "newest_prediction": prediction_history[-1]["timestamp"] if prediction_history else None
+            },
+            
+            # Model deployment info
+            "deployment": {
+                "status": model_info.get("status", "unknown"),
+                "version": model_info.get("version", "unknown"),
+                "created_at": model_info.get("created_at", "unknown"),
+                "algorithm": model_info.get("hyperparameters", {}).get("algorithm", "unknown")
+            },
+            
+            # Health assessment details
+            "health_details": {
+                "accuracy_status": "healthy" if real_time_metrics["accuracy"] >= 0.85 else "warning" if real_time_metrics["accuracy"] >= 0.80 else "critical",
+                "response_time_status": "healthy" if model_info.get("avg_response_time", 0) <= 100 else "warning" if model_info.get("avg_response_time", 0) <= 200 else "critical",
+                "prediction_volume_status": "active" if real_time_metrics["predictions_per_minute"] > 0 else "idle"
+            }
+        }
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get model metrics: {str(e)}")
+
+@app.get("/api/models/active/status")
+async def get_active_models_status():
+    """Get status and health information for all active models"""
+    try:
+        active_models = []
+        
+        # Get all models with their real-time metrics
+        for model_id, model_info in models_store.items():
+            if model_info.get("status") in ["active", "deployed"]:
+                # Get real-time metrics
+                real_time_metrics = get_model_metrics(model_id)
+                
+                if real_time_metrics is None:
+                    real_time_metrics = {
+                        "accuracy": 0.0,
+                        "predictions_per_minute": 0.0,
+                        "health": "healthy",
+                        "total_predictions": 0
+                    }
+                
+                # Determine overall health based on accuracy and response time
+                accuracy_health = "healthy" if real_time_metrics["accuracy"] >= 0.85 else "warning" if real_time_metrics["accuracy"] >= 0.80 else "critical"
+                response_time_health = "healthy" if model_info.get("avg_response_time", 0) <= 100 else "warning" if model_info.get("avg_response_time", 0) <= 200 else "critical"
+                
+                # Overall health is worst of the two
+                overall_health = real_time_metrics["health"]
+                if accuracy_health == "critical" or response_time_health == "critical":
+                    overall_health = "critical"
+                elif accuracy_health == "warning" or response_time_health == "warning":
+                    overall_health = "warning"
+                
+                active_models.append({
+                    "model_id": model_id,
+                    "name": model_info.get("name", f"Model {model_id[:8]}"),
+                    "status": model_info.get("status", "unknown"),
+                    "accuracy": round(real_time_metrics["accuracy"], 3),
+                    "predictions_per_minute": round(real_time_metrics["predictions_per_minute"], 1),
+                    "total_predictions": real_time_metrics["total_predictions"],
+                    "avg_response_time": round(model_info.get("avg_response_time", 0.0), 1),
+                    "health": overall_health,
+                    "created_at": model_info.get("created_at", "unknown"),
+                    "algorithm": model_info.get("hyperparameters", {}).get("algorithm", "unknown"),
+                    "last_prediction": prediction_tracking["last_updated"].get(model_id, 0)
+                })
+        
+        # Calculate summary statistics
+        total_active = len(active_models)
+        healthy_models = len([m for m in active_models if m["health"] == "healthy"])
+        warning_models = len([m for m in active_models if m["health"] == "warning"])
+        critical_models = len([m for m in active_models if m["health"] == "critical"])
+        
+        total_predictions_all = sum(m["total_predictions"] for m in active_models)
+        avg_accuracy = sum(m["accuracy"] for m in active_models) / total_active if total_active > 0 else 0.0
+        avg_response_time = sum(m["avg_response_time"] for m in active_models) / total_active if total_active > 0 else 0.0
+        total_predictions_per_minute = sum(m["predictions_per_minute"] for m in active_models)
+        
+        # Determine overall system health
+        if critical_models > 0:
+            system_health = "critical"
+        elif warning_models > total_active * 0.3:  # More than 30% in warning
+            system_health = "warning"
+        else:
+            system_health = "healthy"
+        
+        response = {
+            "timestamp": datetime.now().isoformat(),
+            "summary": {
+                "total_active_models": total_active,
+                "healthy_models": healthy_models,
+                "warning_models": warning_models,
+                "critical_models": critical_models,
+                "overall_health": system_health,
+                "total_predictions": total_predictions_all,
+                "avg_accuracy": round(avg_accuracy, 3),
+                "avg_response_time": round(avg_response_time, 1),
+                "total_predictions_per_minute": round(total_predictions_per_minute, 1)
+            },
+            "models": active_models
+        }
+        
+        return response
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get active models status: {str(e)}")
 
 @app.post("/api/models/{model_id}/deploy")
 async def deploy_model(model_id: str):
@@ -1695,6 +2230,110 @@ async def get_system_alerts():
         "unacknowledged": len([a for a in alerts_store.values() if not a.acknowledged])
     }
 
+@app.get("/api/monitoring/system")
+async def get_system_monitoring():
+    """Get comprehensive system status combining system health with active model metrics"""
+    try:
+        # Get basic system metrics
+        cpu_percent = psutil.cpu_percent()
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        # Calculate system health
+        system_health = determine_system_health(cpu_percent, memory.percent, disk.used / disk.total * 100)
+        
+        # Get active training jobs
+        active_training = len([j for j in training_jobs.values() if j["status"] == "training"])
+        
+        # Collect real-time model metrics
+        model_metrics = {}
+        with prediction_tracking_lock:
+            for model_id in prediction_tracking["active_model_metrics"]:
+                if model_id in models_store:
+                    model_info = models_store[model_id]
+                    metrics = prediction_tracking["active_model_metrics"][model_id]
+                    
+                    model_metrics[model_id] = {
+                        "model_name": model_info.get("name", f"Model {model_id[:8]}"),
+                        "status": model_info.get("status", "unknown"),
+                        "accuracy": round(metrics.get("accuracy", 0.0), 3),
+                        "predictions_per_minute": round(metrics.get("predictions_per_minute", 0.0), 1),
+                        "health": metrics.get("health", "unknown"),
+                        "total_predictions": metrics.get("total_predictions", 0),
+                        "avg_response_time": model_info.get("avg_response_time", 0.0),
+                        "last_updated": prediction_tracking["last_updated"].get(model_id, 0)
+                    }
+        
+        # Calculate overall model system health
+        active_models = len([m for m in models_store.values() if m.get("status") == "active"])
+        total_predictions = sum(m["predictions_made"] for m in models_store.values())
+        
+        # Determine overall model health based on individual model health
+        model_health_scores = []
+        for metrics in model_metrics.values():
+            if metrics["health"] == "healthy":
+                model_health_scores.append(100)
+            elif metrics["health"] == "warning":
+                model_health_scores.append(70)
+            elif metrics["health"] == "critical":
+                model_health_scores.append(30)
+        
+        overall_model_health = "healthy"
+        if model_health_scores:
+            avg_health = sum(model_health_scores) / len(model_health_scores)
+            if avg_health < 50:
+                overall_model_health = "critical"
+            elif avg_health < 80:
+                overall_model_health = "warning"
+        
+        response = {
+            "timestamp": datetime.now().isoformat(),
+            "system_health": {
+                "overall_status": system_health,
+                "cpu_percent": round(cpu_percent, 1),
+                "memory_percent": round(memory.percent, 1),
+                "disk_percent": round((disk.used / disk.total) * 100, 1),
+                "active_connections": len(manager.active_connections),
+                "uptime_hours": round((time.time() - psutil.boot_time()) / 3600, 1) if hasattr(psutil, 'boot_time') else 0
+            },
+            "model_metrics": {
+                "overall_status": overall_model_health,
+                "active_models": active_models,
+                "total_models": len(models_store),
+                "total_predictions": total_predictions,
+                "active_training_jobs": active_training,
+                "models": model_metrics
+            },
+            "integration_status": {
+                "websocket_connected": len(manager.active_connections) > 0,
+                "model_tracking_active": len(model_metrics) > 0,
+                "real_time_updates": True,
+                "last_cleanup": prediction_tracking["memory_stats"]["last_cleanup"]
+            }
+        }
+        
+        return response
+        
+    except Exception as e:
+        # Graceful fallback if metrics collection fails
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "system_health": {
+                "overall_status": "unknown",
+                "error": "Failed to collect system metrics"
+            },
+            "model_metrics": {
+                "overall_status": "unknown", 
+                "error": "Failed to collect model metrics"
+            },
+            "integration_status": {
+                "websocket_connected": False,
+                "model_tracking_active": False,
+                "real_time_updates": False,
+                "error": str(e)
+            }
+        }
+
 @app.post("/api/monitoring/alerts/acknowledge")
 async def acknowledge_alert(alert_id: str, acknowledged_by: str = "system"):
     """Acknowledge an alert"""
@@ -1787,13 +2426,54 @@ async def websocket_endpoint(websocket: WebSocket):
             current_health = determine_system_health(cpu_percent, memory.percent, disk.used / disk.total * 100)
             await check_and_broadcast_health_changes(current_health, cpu_percent, memory.percent, disk.used / disk.total * 100)
 
-            # Create optimized metrics payload
+            # Collect real-time model metrics for WebSocket broadcast
+            model_metrics_summary = {}
+            active_models_count = 0
+            total_predictions_per_minute = 0.0
+            avg_model_accuracy = 0.0
+            model_health_counts = {"healthy": 0, "warning": 0, "critical": 0}
+            
+            with prediction_tracking_lock:
+                for model_id in prediction_tracking["active_model_metrics"]:
+                    if model_id in models_store and models_store[model_id].get("status") in ["active", "deployed"]:
+                        metrics_data = prediction_tracking["active_model_metrics"][model_id]
+                        model_info = models_store[model_id]
+                        
+                        active_models_count += 1
+                        total_predictions_per_minute += metrics_data.get("predictions_per_minute", 0.0)
+                        avg_model_accuracy += metrics_data.get("accuracy", 0.0)
+                        
+                        health = metrics_data.get("health", "healthy")
+                        model_health_counts[health] = model_health_counts.get(health, 0) + 1
+                        
+                        # Add individual model data (limited for WebSocket efficiency)
+                        model_metrics_summary[model_id] = {
+                            "name": model_info.get("name", f"Model {model_id[:8]}"),
+                            "accuracy": round(metrics_data.get("accuracy", 0.0), 3),
+                            "predictions_per_minute": round(metrics_data.get("predictions_per_minute", 0.0), 1),
+                            "health": health,
+                            "total_predictions": metrics_data.get("total_predictions", 0),
+                            "response_time": round(model_info.get("avg_response_time", 0.0), 1)
+                        }
+            
+            # Calculate model metrics averages
+            if active_models_count > 0:
+                avg_model_accuracy = avg_model_accuracy / active_models_count
+            
+            # Determine overall model health
+            overall_model_health = "healthy"
+            if model_health_counts["critical"] > 0:
+                overall_model_health = "critical"
+            elif model_health_counts["warning"] > active_models_count * 0.3:
+                overall_model_health = "warning"
+
+            # Create optimized metrics payload with model metrics
             metrics = {
                 "type": "system_metrics",
                 "timestamp": datetime.now().isoformat(),
                 "client_id": client_id,
                 
-                # Core metrics
+                # Core system metrics
                 "cpu_percent": round(cpu_percent, 1),
                 "memory_percent": round(memory.percent, 1),
                 "disk_percent": round((disk.used / disk.total) * 100, 1),
@@ -1803,7 +2483,17 @@ async def websocket_endpoint(websocket: WebSocket):
                 "total_models": len(models_store),
                 "active_training_jobs": len(active_training),
                 
-                # Extended metrics
+                # Live Model Metrics Integration
+                "model_metrics": {
+                    "active_models": active_models_count,
+                    "overall_health": overall_model_health,
+                    "avg_accuracy": round(avg_model_accuracy, 3),
+                    "total_predictions_per_minute": round(total_predictions_per_minute, 1),
+                    "health_breakdown": model_health_counts,
+                    "models": model_metrics_summary  # Individual model data
+                },
+                
+                # Extended system metrics
                 "memory_total_gb": round(memory.total / (1024**3), 1),
                 "memory_used_gb": round(memory.used / (1024**3), 1),
                 "disk_total_gb": round(disk.total / (1024**3), 1),

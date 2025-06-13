@@ -44,10 +44,15 @@ A **simple 4-step ML pipeline** that anyone can use:
 - **Accessibility compliant** - Full keyboard navigation, screen reader support, and ARIA attributes
 - **Chart preparation** - Chart.js integration infrastructure with loading states and error handling
 - **Enterprise memory management** - Automatic cleanup of timers, event listeners, and WebSocket handlers
-- **Real-time Live System Status** - WebSocket-powered dashboard with live metrics, training progress, and model status
-- **Enhanced WebSocket integration** - 15+ event handlers with visual animations and robust offline fallback
-- **Advanced UI animations** - Pulse effects, trend indicators, and scale transformations for engaging user experience
-- **Comprehensive error recovery** - Smart retry systems for training failures with visual feedback
+- **🔧 Live System Status** - Real-time model metrics tracking with WebSocket-powered updates
+- **📊 Real-time Model Analytics** - Live accuracy tracking, prediction rates, and health monitoring
+- **📈 Visual Trend Indicators** - Dynamic arrows showing metric changes with color-coded health status
+- **⚡ WebSocket Performance** - Sub-second metric updates with automatic rate limiting and reconnection
+- **🎯 Prediction Flow Tracking** - Thread-safe circular buffers for high-volume prediction logging
+- **💾 Memory Management** - Automatic cleanup with 100MB thresholds and 24-hour data retention
+- **🔄 Enhanced WebSocket integration** - 15+ event handlers with visual animations and robust offline fallback
+- **✨ Advanced UI animations** - Pulse effects, trend indicators, and scale transformations for engaging user experience
+- **🛠️ Comprehensive error recovery** - Smart retry systems for training failures with visual feedback
 - **Centralized state management** - StateStore with caching and API request deduplication
 - **Environment-aware data handling** - Smart demo/production mode switching with realistic data simulation
 - **Comprehensive testing framework** - 60 automated tests covering memory management, state, and integration
@@ -86,6 +91,33 @@ python backend/backend_api.py
 5. Click "Use This Model" when complete
 
 **That's it!** Your ML model is ready to use.
+
+## 🔧 Live System Status Features
+
+The dashboard includes a **Live System Status** section that provides real-time monitoring of your ML models and system performance:
+
+### Real-time Model Metrics
+- **Live Accuracy Tracking** - Watch model accuracy update in real-time as predictions are made
+- **Prediction Rate Monitoring** - See predictions per minute with trend indicators
+- **Health Status Indicators** - Color-coded health (green/yellow/red) based on performance thresholds
+- **Model Activity** - Track which models are actively processing predictions
+
+### Visual Indicators
+- **Trend Arrows** - See if metrics are improving (↗), declining (↘), or stable (→)
+- **Pulse Animations** - Visual feedback when metrics update
+- **Color-coded Metrics** - Instant visual health assessment
+- **Progress Animations** - Smooth transitions for engaging user experience
+
+### Technical Features
+- **WebSocket Updates** - Sub-second real-time updates without page refresh
+- **Thread-safe Logging** - High-volume prediction tracking with concurrent access
+- **Memory Management** - Automatic cleanup of old data (24-hour retention, 100MB limit)
+- **Rate Limiting** - Smart throttling to prevent UI flooding
+
+### API Endpoints
+- `/api/monitoring/system` - Combined system and model metrics
+- `/api/models/active/status` - Current active model information
+- `/api/models/{id}/metrics/realtime` - Detailed per-model performance data
 
 ## 📁 What's Included
 

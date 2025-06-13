@@ -258,6 +258,11 @@ class Dashboard extends BasePageController {
         this.addWebSocketHandler('system_alert', (data) => {
             this.handleSystemAlert(data);
         });
+        
+        // Prediction logged events for real-time prediction tracking
+        this.addWebSocketHandler('prediction_logged', (data) => {
+            this.handlePredictionLogged(data);
+        });
     }
     
     async loadInitialData() {
@@ -1340,13 +1345,6 @@ class Dashboard extends BasePageController {
     }
     
     updateSystemMetrics(data) {
-        // Debug logging to track WebSocket data
-        console.log('🔧 updateSystemMetrics called with data:', {
-            cpu_percent: data.cpu_percent,
-            memory_percent: data.memory_percent,
-            disk_percent: data.disk_percent,
-            type: data.type
-        });
         
         // Update CPU usage - fix field name mismatch (backend sends cpu_percent)
         if (data.cpu_percent !== undefined) {
@@ -1482,6 +1480,143 @@ class Dashboard extends BasePageController {
                 predEl.setAttribute('data-previous-rate', roundedRate);
                 predEl.setAttribute('data-last-update', timestamp);
                 predEl.className = `metric-value ${trendClass}`;
+            }
+        }
+        
+        // Process enhanced model metrics section from real-time WebSocket events
+        if (data.model_metrics) {
+            const modelMetrics = data.model_metrics;
+            
+            // Update Live System Status with real-time model metrics
+            if (modelMetrics.avg_accuracy !== undefined) {
+                const accuracyEl = document.getElementById('liveAccuracy');
+                if (accuracyEl) {
+                    const oldValue = parseFloat(accuracyEl.textContent) || 0;
+                    const newValue = parseFloat((modelMetrics.avg_accuracy * 100).toFixed(1));
+                    
+                    // Apply enhanced animation on significant change (>1% for aggregated metrics)
+                    if (Math.abs(oldValue - newValue) > 1.0) {
+                        accuracyEl.style.transition = 'all 0.4s ease';
+                        accuracyEl.style.transform = 'scale(1.15)';
+                        
+                        // Color-code based on accuracy thresholds
+                        if (newValue >= 85) {
+                            accuracyEl.style.color = 'var(--success-color)';
+                            accuracyEl.style.textShadow = '0 0 10px rgba(16, 185, 129, 0.5)';
+                        } else if (newValue >= 80) {
+                            accuracyEl.style.color = 'var(--warning-color)';
+                            accuracyEl.style.textShadow = '0 0 10px rgba(251, 191, 36, 0.5)';
+                        } else {
+                            accuracyEl.style.color = 'var(--danger-color)';
+                            accuracyEl.style.textShadow = '0 0 10px rgba(239, 68, 68, 0.5)';
+                        }
+                        
+                        setTimeout(() => {
+                            accuracyEl.style.transform = 'scale(1)';
+                            accuracyEl.style.color = '';
+                            accuracyEl.style.textShadow = '';
+                        }, 400);
+                    }
+                    
+                    Metric.update('liveAccuracy', modelMetrics.avg_accuracy * 100, { format: 'percent' });
+                }
+            }
+            
+            // Update predictions per minute with enhanced model context
+            if (modelMetrics.total_predictions_per_minute !== undefined) {
+                const predEl = document.getElementById('livePredictions');
+                if (predEl) {
+                    const rate = modelMetrics.total_predictions_per_minute;
+                    const roundedRate = Math.round(rate * 10) / 10; // Keep one decimal place
+                    const previousRate = parseFloat(predEl.getAttribute('data-previous-rate') || '0');
+                    const timestamp = Date.now();
+                    
+                    let html = `${roundedRate}/min`;
+                    let trendClass = '';
+                    
+                    // Enhanced trend indicators with model health context
+                    const changeThreshold = 0.5;
+                    if (rate > previousRate + changeThreshold) {
+                        const increase = (rate - previousRate).toFixed(1);
+                        html += ` <span class="trend-up" style="color: var(--success-color); font-weight: bold;">↗ +${increase}</span>`;
+                        trendClass = 'trending-up';
+                    } else if (rate < previousRate - changeThreshold) {
+                        const decrease = (previousRate - rate).toFixed(1);
+                        html += ` <span class="trend-down" style="color: var(--danger-color); font-weight: bold;">↘ -${decrease}</span>`;
+                        trendClass = 'trending-down';
+                    } else if (Math.abs(rate - previousRate) < changeThreshold && previousRate > 0) {
+                        html += ` <span style="color: var(--text-secondary); opacity: 0.7;">→</span>`;
+                        trendClass = 'stable';
+                    }
+                    
+                    // Add model health indicator
+                    if (modelMetrics.overall_health) {
+                        const healthIcons = {
+                            'healthy': '💚',
+                            'warning': '💛',
+                            'critical': '❤️'
+                        };
+                        const healthIcon = healthIcons[modelMetrics.overall_health] || '❓';
+                        html += ` <span style="font-size: 0.8em; opacity: 0.8;">${healthIcon}</span>`;
+                    }
+                    
+                    predEl.innerHTML = html;
+                    predEl.setAttribute('data-previous-rate', rate.toString());
+                    predEl.setAttribute('data-last-update', timestamp);
+                    predEl.className = `metric-value ${trendClass}`;
+                }
+            }
+            
+            // Update active models with health breakdown
+            if (modelMetrics.active_models !== undefined) {
+                const modelsEl = document.getElementById('totalModels');
+                if (modelsEl) {
+                    const activeCount = modelMetrics.active_models;
+                    let displayText = `${activeCount} Active`;
+                    
+                    // Add health breakdown for visual context
+                    if (modelMetrics.health_breakdown) {
+                        const breakdown = modelMetrics.health_breakdown;
+                        const criticalCount = breakdown.critical || 0;
+                        const warningCount = breakdown.warning || 0;
+                        const healthyCount = breakdown.healthy || 0;
+                        
+                        if (criticalCount > 0) {
+                            displayText += ` (${criticalCount} critical)`;
+                            modelsEl.style.color = 'var(--danger-color)';
+                            modelsEl.style.fontWeight = 'bold';
+                        } else if (warningCount > 0) {
+                            displayText += ` (${warningCount} warning)`;
+                            modelsEl.style.color = 'var(--warning-color)';
+                            modelsEl.style.fontWeight = '600';
+                        } else if (healthyCount > 0) {
+                            modelsEl.style.color = 'var(--success-color)';
+                            modelsEl.style.fontWeight = '';
+                        } else {
+                            modelsEl.style.color = '';
+                            modelsEl.style.fontWeight = '';
+                        }
+                    }
+                    
+                    modelsEl.textContent = displayText;
+                }
+            }
+            
+            // Update system health indicator based on model metrics
+            const systemHealthEl = document.getElementById('systemStatusText');
+            const systemIconEl = document.getElementById('systemStatusIcon');
+            if (systemHealthEl && systemIconEl && modelMetrics.overall_health) {
+                const overallHealth = modelMetrics.overall_health;
+                const healthMap = {
+                    'healthy': { text: 'System Healthy', icon: '✅', color: 'var(--success-color)' },
+                    'warning': { text: 'System Warning', icon: '⚠️', color: 'var(--warning-color)' },
+                    'critical': { text: 'System Critical', icon: '🚨', color: 'var(--danger-color)' }
+                };
+                
+                const healthInfo = healthMap[overallHealth] || healthMap['healthy'];
+                systemHealthEl.textContent = healthInfo.text;
+                systemIconEl.textContent = healthInfo.icon;
+                systemHealthEl.style.color = healthInfo.color;
             }
         }
     }
@@ -1814,6 +1949,111 @@ class Dashboard extends BasePageController {
             if (trainButton) {
                 trainButton.disabled = true;
             }
+        }
+    }
+    
+    handlePredictionLogged(data) {
+        try {
+            // Extract prediction information
+            const modelName = data.model_name || `Model ${data.model_id?.slice(0, 8)}`;
+            const prediction = data.prediction || {};
+            const updatedMetrics = data.updated_metrics || {};
+            
+            // Update Live System Status prediction counters
+            const livePredictionsEl = document.getElementById('livePredictions');
+            if (livePredictionsEl && updatedMetrics.total_predictions !== undefined) {
+                // Animate the counter increment
+                const currentCount = parseInt(livePredictionsEl.textContent.replace(/[^\d]/g, '') || '0');
+                const newCount = updatedMetrics.total_predictions;
+                
+                if (newCount > currentCount) {
+                    // Add pulse animation
+                    livePredictionsEl.style.transform = 'scale(1.1)';
+                    livePredictionsEl.style.transition = 'transform 0.2s ease';
+                    
+                    // Update the count with animation
+                    this.animateCounter(livePredictionsEl, currentCount, newCount, 300);
+                    
+                    // Reset animation
+                    setTimeout(() => {
+                        livePredictionsEl.style.transform = 'scale(1)';
+                    }, 200);
+                }
+            }
+            
+            // Update predictions per minute if available
+            if (updatedMetrics.predictions_per_minute !== undefined) {
+                const rateDisplay = document.querySelector('#livePredictions .metric-rate');
+                if (rateDisplay) {
+                    const rate = Math.round(updatedMetrics.predictions_per_minute * 10) / 10;
+                    rateDisplay.textContent = `${rate}/min`;
+                    
+                    // Add trend indicator based on previous rate
+                    const previousRate = parseFloat(rateDisplay.dataset.previousRate || '0');
+                    let trendIcon = '';
+                    let trendColor = 'var(--text-secondary)';
+                    
+                    if (rate > previousRate * 1.1) {
+                        trendIcon = '↗';
+                        trendColor = 'var(--success-color)';
+                    } else if (rate < previousRate * 0.9) {
+                        trendIcon = '↘';
+                        trendColor = 'var(--warning-color)';
+                    } else {
+                        trendIcon = '→';
+                    }
+                    
+                    // Update trend indicator
+                    const trendEl = rateDisplay.querySelector('.trend-indicator') || 
+                                  document.createElement('span');
+                    trendEl.className = 'trend-indicator';
+                    trendEl.textContent = trendIcon;
+                    trendEl.style.color = trendColor;
+                    trendEl.style.marginLeft = 'var(--spacing-xs)';
+                    
+                    if (!rateDisplay.querySelector('.trend-indicator')) {
+                        rateDisplay.appendChild(trendEl);
+                    }
+                    
+                    // Store current rate for next comparison
+                    rateDisplay.dataset.previousRate = rate.toString();
+                }
+            }
+            
+            // Update model-specific prediction counter
+            const predictionCountEl = document.getElementById('predictionCount');
+            if (predictionCountEl && updatedMetrics.total_predictions !== undefined) {
+                const formatNumber = (num) => {
+                    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+                    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+                    return num.toString();
+                };
+                
+                predictionCountEl.textContent = formatNumber(updatedMetrics.total_predictions);
+                
+                // Add subtle glow effect
+                predictionCountEl.style.textShadow = '0 0 8px var(--primary-color)';
+                setTimeout(() => {
+                    predictionCountEl.style.textShadow = 'none';
+                }, 500);
+            }
+            
+            // Show subtle notification for milestone predictions (every 50th prediction)
+            if (updatedMetrics.total_predictions && updatedMetrics.total_predictions % 50 === 0) {
+                const message = `${modelName} reached ${updatedMetrics.total_predictions} predictions`;
+                
+                // Use a subtle success notification that doesn't interrupt workflow
+                if (window.notifications) {
+                    window.notifications.show(message, 'success', {
+                        duration: 3000,
+                        icon: '🎯',
+                        position: 'bottom-right'
+                    });
+                }
+            }
+            
+        } catch (error) {
+            console.warn('Failed to handle prediction logged event:', error);
         }
     }
     

@@ -175,16 +175,13 @@ class Metric {
      * @param {Object} options - Update options
      */
     static update(metric, newValue, options = {}) {
-        console.log(`🔧 Metric.update called: ${metric} = ${newValue}`, options);
         const metricElement = typeof metric === 'string' ? document.getElementById(metric) : metric;
-        console.log(`🔧 Found element:`, metricElement);
         if (metricElement) {
             // Handle both cases: element is metric-value itself OR has metric-value child
             let valueDiv = metricElement.querySelector('.metric-value');
             if (!valueDiv && metricElement.classList.contains('metric-value')) {
                 valueDiv = metricElement; // Element itself is the metric-value
             }
-            console.log(`🔧 Found valueDiv:`, valueDiv);
             if (valueDiv) {
                 // Add update animation
                 valueDiv.classList.add('updating');
@@ -211,6 +208,190 @@ class Metric {
                 setTimeout(() => {
                     valueDiv.classList.remove('updating');
                 }, 500);
+            }
+        }
+    }
+
+    /**
+     * Sets trend indicator for a metric with real-time animation
+     * @param {HTMLElement|string} metric - Metric element or ID
+     * @param {string} trendDirection - Trend direction ('up', 'down', 'stable', 'neutral')
+     * @param {number} trendValue - Trend percentage change
+     * @param {Object} options - Trend options
+     */
+    static setTrend(metric, trendDirection, trendValue = null, options = {}) {
+        const {
+            animated = true,
+            threshold = 5, // Minimum change % to show trend
+            showValue = true,
+            duration = 300
+        } = options;
+
+        const metricElement = typeof metric === 'string' ? document.getElementById(metric) : metric;
+        if (!metricElement) return;
+
+        // Remove existing trend indicator
+        const existingTrend = metricElement.querySelector('.metric-trend');
+        if (existingTrend) {
+            existingTrend.remove();
+        }
+
+        // Only show trend if change exceeds threshold
+        if (Math.abs(trendValue) < threshold && trendDirection !== 'stable') {
+            return;
+        }
+
+        // Create new trend indicator
+        const trendDiv = document.createElement('div');
+        trendDiv.className = `metric-trend trend-${trendDirection}`;
+        
+        // Set trend icon
+        let trendIcon;
+        switch (trendDirection) {
+            case 'up':
+                trendIcon = '↗';
+                trendDiv.classList.add('trend-positive');
+                break;
+            case 'down':
+                trendIcon = '↘';
+                trendDiv.classList.add('trend-negative');
+                break;
+            case 'stable':
+                trendIcon = '→';
+                trendDiv.classList.add('trend-stable');
+                break;
+            default:
+                trendIcon = '→';
+                trendDiv.classList.add('trend-neutral');
+        }
+
+        // Set trend content
+        if (showValue && trendValue !== null) {
+            trendDiv.innerHTML = `${trendIcon} ${Math.abs(trendValue).toFixed(1)}%`;
+        } else {
+            trendDiv.innerHTML = trendIcon;
+        }
+
+        // Insert trend indicator after the value
+        const valueDiv = metricElement.querySelector('.metric-value');
+        if (valueDiv) {
+            valueDiv.insertAdjacentElement('afterend', trendDiv);
+        } else {
+            metricElement.appendChild(trendDiv);
+        }
+
+        // Add animation
+        if (animated) {
+            trendDiv.style.opacity = '0';
+            trendDiv.style.transform = 'scale(0.8)';
+            
+            // Animate in
+            setTimeout(() => {
+                trendDiv.style.transition = `all ${duration}ms ease-out`;
+                trendDiv.style.opacity = '1';
+                trendDiv.style.transform = 'scale(1)';
+            }, 10);
+        }
+    }
+
+    /**
+     * Updates metric with pulse animation for real-time updates
+     * @param {HTMLElement|string} metric - Metric element or ID
+     * @param {Object} options - Pulse options
+     */
+    static pulse(metric, options = {}) {
+        const {
+            duration = 600,
+            intensity = 'medium', // 'light', 'medium', 'strong'
+            color = null // Override pulse color
+        } = options;
+
+        const metricElement = typeof metric === 'string' ? document.getElementById(metric) : metric;
+        if (!metricElement) return;
+
+        // Remove existing pulse classes
+        metricElement.classList.remove('pulse-light', 'pulse-medium', 'pulse-strong');
+        
+        // Add pulse class
+        const pulseClass = `pulse-${intensity}`;
+        metricElement.classList.add(pulseClass);
+
+        // Apply custom color if provided
+        if (color) {
+            metricElement.style.setProperty('--pulse-color', color);
+        }
+
+        // Remove pulse class after animation
+        setTimeout(() => {
+            metricElement.classList.remove(pulseClass);
+            if (color) {
+                metricElement.style.removeProperty('--pulse-color');
+            }
+        }, duration);
+    }
+
+    /**
+     * Updates metric health status with color coding
+     * @param {HTMLElement|string} metric - Metric element or ID
+     * @param {string} healthStatus - Health status ('healthy', 'warning', 'critical')
+     * @param {Object} options - Health options
+     */
+    static setHealth(metric, healthStatus, options = {}) {
+        const {
+            animated = true,
+            showIcon = true
+        } = options;
+
+        const metricElement = typeof metric === 'string' ? document.getElementById(metric) : metric;
+        if (!metricElement) return;
+
+        // Remove existing health classes
+        metricElement.classList.remove('health-healthy', 'health-warning', 'health-critical');
+        
+        // Add new health class
+        metricElement.classList.add(`health-${healthStatus}`);
+
+        // Add health icon if requested
+        if (showIcon) {
+            let healthIcon;
+            switch (healthStatus) {
+                case 'healthy':
+                    healthIcon = '✓';
+                    break;
+                case 'warning':
+                    healthIcon = '⚠';
+                    break;
+                case 'critical':
+                    healthIcon = '✗';
+                    break;
+                default:
+                    healthIcon = '';
+            }
+
+            // Update or create health indicator
+            let healthIndicator = metricElement.querySelector('.metric-health');
+            if (!healthIndicator && healthIcon) {
+                healthIndicator = document.createElement('span');
+                healthIndicator.className = 'metric-health';
+                
+                // Insert after value
+                const valueDiv = metricElement.querySelector('.metric-value');
+                if (valueDiv) {
+                    valueDiv.appendChild(healthIndicator);
+                }
+            }
+
+            if (healthIndicator) {
+                healthIndicator.textContent = healthIcon;
+                healthIndicator.className = `metric-health health-${healthStatus}`;
+
+                // Add animation
+                if (animated) {
+                    healthIndicator.style.animation = 'healthBounce 0.4s ease-out';
+                    setTimeout(() => {
+                        healthIndicator.style.animation = '';
+                    }, 400);
+                }
             }
         }
     }

@@ -643,3 +643,205 @@ body {
         transform: translateY(0);
     }
 }
+
+/* Enhanced Metric Component Styles - Real-time Live System Status */
+
+/* Metric trend indicators */
+.metric-trend {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+    padding: 0.125rem 0.25rem;
+    border-radius: var(--radius-sm);
+    transition: all 0.3s ease;
+}
+
+.metric-trend.trend-positive {
+    color: var(--success-color);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.metric-trend.trend-negative {
+    color: var(--danger-color);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.metric-trend.trend-stable,
+.metric-trend.trend-neutral {
+    color: var(--text-secondary);
+    background: rgba(100, 116, 139, 0.1);
+}
+
+/* Pulse animations for real-time updates */
+.pulse-light {
+    animation: pulseLight 0.6s ease-out;
+}
+
+.pulse-medium {
+    animation: pulseMedium 0.6s ease-out;
+}
+
+.pulse-strong {
+    animation: pulseStrong 0.6s ease-out;
+}
+
+@keyframes pulseLight {
+    0% { 
+        transform: scale(1); 
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+    }
+    50% { 
+        transform: scale(1.02); 
+        box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.1);
+    }
+    100% { 
+        transform: scale(1); 
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    }
+}
+
+@keyframes pulseMedium {
+    0% { 
+        transform: scale(1); 
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.6);
+    }
+    50% { 
+        transform: scale(1.05); 
+        box-shadow: 0 0 0 12px rgba(37, 99, 235, 0.2);
+    }
+    100% { 
+        transform: scale(1); 
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    }
+}
+
+@keyframes pulseStrong {
+    0% { 
+        transform: scale(1); 
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.8);
+    }
+    50% { 
+        transform: scale(1.08); 
+        box-shadow: 0 0 0 16px rgba(37, 99, 235, 0.3);
+    }
+    100% { 
+        transform: scale(1); 
+        box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    }
+}
+
+/* Health status indicators */
+.metric.health-healthy {
+    border-left: 3px solid var(--success-color);
+}
+
+.metric.health-warning {
+    border-left: 3px solid var(--warning-color);
+}
+
+.metric.health-critical {
+    border-left: 3px solid var(--danger-color);
+}
+
+.metric-health {
+    display: inline-block;
+    margin-left: 0.25rem;
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+}
+
+.metric-health.health-healthy {
+    color: var(--success-color);
+}
+
+.metric-health.health-warning {
+    color: var(--warning-color);
+}
+
+.metric-health.health-critical {
+    color: var(--danger-color);
+}
+
+@keyframes healthBounce {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Real-time metric value transitions */
+.metric-value {
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.metric-value.updating {
+    transform: scale(1.1);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+/* Live System Status specific enhancements */
+.live-system-status .metric {
+    position: relative;
+    overflow: hidden;
+}
+
+.live-system-status .metric::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.1), transparent);
+    transition: left 0.5s ease;
+}
+
+.live-system-status .metric.updating::before {
+    left: 100%;
+}
+
+/* Trend arrow animations */
+.metric-trend {
+    position: relative;
+    overflow: hidden;
+}
+
+.metric-trend::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: currentColor;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.metric-trend:hover::after {
+    width: 100%;
+    height: 100%;
+    opacity: 0.1;
+}
+
+/* Color coding for metric values based on thresholds */
+.metric-value.threshold-healthy {
+    color: var(--success-color);
+}
+
+.metric-value.threshold-warning {
+    color: var(--warning-color);
+}
+
+.metric-value.threshold-critical {
+    color: var(--danger-color);
+}
+
+/* Smooth transitions for all metric changes */
+.metric * {
+    transition: color 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
+}
