@@ -323,6 +323,141 @@ class UploadArea {
             }
         }
     }
+
+    /**
+     * Show detailed success state with file information
+     * @param {HTMLElement|string} uploadArea - Upload area element or ID
+     * @param {Object} fileInfo - File information object
+     */
+    static showSuccess(uploadArea, fileInfo = {}) {
+        const element = typeof uploadArea === 'string' ? document.getElementById(uploadArea) : uploadArea;
+        if (!element) return;
+
+        const { filename, rows, columns, size } = fileInfo;
+        
+        element.innerHTML = `
+            <div class="upload-icon">✅</div>
+            <h4>File uploaded successfully!</h4>
+            <p style="color: var(--text-secondary); margin-top: var(--spacing-sm);">
+                ${filename || 'File'} ${rows ? `(${rows} rows, ${columns} columns)` : ''}
+                ${size ? `• ${size}` : ''}
+            </p>
+        `;
+        
+        element.classList.remove('upload-uploading', 'upload-error');
+        element.classList.add('upload-success');
+    }
+
+    /**
+     * Show detailed progress state
+     * @param {HTMLElement|string} uploadArea - Upload area element or ID
+     * @param {Object} progressInfo - Progress information
+     */
+    static showProgress(uploadArea, progressInfo = {}) {
+        const element = typeof uploadArea === 'string' ? document.getElementById(uploadArea) : uploadArea;
+        if (!element) return;
+
+        const { percent = 0, stage = 'Uploading', filename = '', eta = '' } = progressInfo;
+        
+        element.innerHTML = `
+            <div class="upload-icon">📤</div>
+            <h4>${stage}...</h4>
+            <div class="progress-bar" style="width: 100%; background: var(--background-secondary); border-radius: 4px; margin: var(--spacing-sm) 0;">
+                <div class="progress-fill" style="width: ${percent}%; background: var(--primary-color); height: 8px; border-radius: 4px; transition: width 0.3s ease;"></div>
+            </div>
+            <p style="color: var(--text-secondary); margin-top: var(--spacing-sm);">
+                ${filename} • ${percent}% complete ${eta ? `• ${eta}` : ''}
+            </p>
+        `;
+        
+        element.classList.remove('upload-success', 'upload-error');
+        element.classList.add('upload-uploading');
+    }
+
+    /**
+     * Show detailed validation result
+     * @param {HTMLElement|string} uploadArea - Upload area element or ID
+     * @param {Object} validationInfo - Validation information
+     */
+    static showValidation(uploadArea, validationInfo = {}) {
+        const element = typeof uploadArea === 'string' ? document.getElementById(uploadArea) : uploadArea;
+        if (!element) return;
+
+        const { 
+            isValid, 
+            filename, 
+            summary = '', 
+            errors = [], 
+            warnings = [],
+            showRetryButton = true 
+        } = validationInfo;
+        
+        const icon = isValid ? '✅' : '❌';
+        const title = isValid ? 'File validated successfully!' : 'Validation failed';
+        const stateClass = isValid ? 'upload-success' : 'upload-error';
+        
+        let content = `
+            <div class="upload-icon">${icon}</div>
+            <h4>${title}</h4>
+        `;
+        
+        if (summary) {
+            content += `<p style="color: var(--text-secondary); margin: var(--spacing-sm) 0;">${summary}</p>`;
+        }
+        
+        if (errors.length > 0) {
+            content += `
+                <div style="background: var(--error-background, #fee); padding: var(--spacing-sm); border-radius: 4px; margin: var(--spacing-sm) 0;">
+                    <strong style="color: var(--error-color, #d32f2f);">Errors:</strong>
+                    <ul style="margin: var(--spacing-xs) 0 0 var(--spacing-md); color: var(--error-color, #d32f2f);">
+                        ${errors.map(error => `<li>${error}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        if (warnings.length > 0) {
+            content += `
+                <div style="background: var(--warning-background, #fff8e1); padding: var(--spacing-sm); border-radius: 4px; margin: var(--spacing-sm) 0;">
+                    <strong style="color: var(--warning-color, #f57c00);">Warnings:</strong>
+                    <ul style="margin: var(--spacing-xs) 0 0 var(--spacing-md); color: var(--warning-color, #f57c00);">
+                        ${warnings.map(warning => `<li>${warning}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        if (showRetryButton && !isValid) {
+            content += `
+                <button class="btn btn-secondary" onclick="UploadArea.reset('${element.id || 'uploadArea'}')" style="margin-top: var(--spacing-md);">
+                    Try Again
+                </button>
+            `;
+        }
+        
+        element.innerHTML = content;
+        element.classList.remove('upload-uploading', 'upload-success', 'upload-error');
+        element.classList.add(stateClass);
+    }
+
+    /**
+     * Reset upload area to initial state
+     * @param {HTMLElement|string} uploadArea - Upload area element or ID
+     */
+    static reset(uploadArea) {
+        const element = typeof uploadArea === 'string' ? document.getElementById(uploadArea) : uploadArea;
+        if (!element) return;
+
+        element.innerHTML = `
+            <div class="upload-icon">📊</div>
+            <h4>Upload Your Data</h4>
+            <p style="color: var(--text-secondary); margin-top: var(--spacing-sm);">
+                Click here or drag & drop your CSV file
+            </p>
+        `;
+        
+        element.classList.remove('upload-uploading', 'upload-success', 'upload-error');
+    }
 }
 
 // Form styles initialization function

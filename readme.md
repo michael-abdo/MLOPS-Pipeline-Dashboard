@@ -40,10 +40,14 @@ A **simple 4-step ML pipeline** that anyone can use:
 - **Reusable UI components** - Card, Metric, ProgressBar, and Grid components reducing code duplication by 71%
 - **Advanced UI components** - ButtonGroup, UploadArea, and ChartContainer for enhanced user interactions
 - **Component-based architecture** - Standardized UI elements with real-time update capabilities
-- **Modern upload experience** - Drag & drop file handling with validation and visual feedback
+- **Modern upload experience** - Drag & drop file handling with validation and visual feedback  
 - **Accessibility compliant** - Full keyboard navigation, screen reader support, and ARIA attributes
 - **Chart preparation** - Chart.js integration infrastructure with loading states and error handling
 - **Enterprise memory management** - Automatic cleanup of timers, event listeners, and WebSocket handlers
+- **🔧 Legacy Code Modernization** - Complete elimination of direct DOM manipulation conflicts
+- **⚡ TimestampManager System** - Unified timestamp handling with automatic 30-second updates
+- **📋 UploadArea State Management** - Comprehensive upload states (progress/success/validation/error)
+- **🎯 Component API Integration** - All updates use modern component APIs preventing structure conflicts
 - **🔧 Live System Status** - Real-time model metrics tracking with WebSocket-powered updates
 - **📊 Real-time Model Analytics** - Live accuracy tracking, prediction rates, and health monitoring
 - **📈 Visual Trend Indicators** - Dynamic arrows showing metric changes with color-coded health status
@@ -448,6 +452,29 @@ Current version includes **Phase 4 - Polish & Testing** with enterprise-grade re
 - 📊 **Data Format Specs**: `docs/DATA_FORMAT.md`
 - 🔧 **Troubleshooting**: `docs/TROUBLESHOOTING.md`
 - 🤖 **Automation Guide**: `docs/AUTOMATION_GUIDE.md`
+- ✨ **Legacy Code Removal**: `docs/LEGACY_CODE_REMOVAL_COMPLETE.md`
+
+## 🏗️ Recent Architecture Improvements
+
+### Component-Based Update System
+The dashboard now uses a modern component-based architecture that eliminates conflicts between legacy DOM manipulation and modern UI components:
+
+- **TimestampManager**: Unified timestamp handling with automatic updates every 30 seconds
+- **UploadArea Components**: Comprehensive state management for file uploads (progress, success, validation, error states)
+- **SystemMetrics Coordination**: Centralized WebSocket update delegation preventing DOM conflicts
+- **UpdateStrategies**: Batch processing with 50ms debouncing for optimal performance
+
+### Key Benefits
+- **Visual Bug Fixed**: Eliminated "load → revert → populate" cycle in Live System Status cards
+- **Performance Improved**: Reduced DOM queries through element caching and batched updates
+- **Code Quality**: Removed 150+ lines of duplicate code and consolidated update logic
+- **Maintainability**: Clear separation of concerns with component APIs
+
+### Developer Experience
+- All updates now use component APIs: `Metric.update()`, `UploadArea.showProgress()`, `setJustNow()`
+- Automatic timestamp tracking with `TimestampManager.scanForTimestampElements()`
+- Centralized error handling and consistent state management
+- Future-ready architecture for TypeScript integration and automated testing
 
 ### Get Help
 - 🐛 **Common Issues**: See `docs/TROUBLESHOOTING.md`
