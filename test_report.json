@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-06-13T10:53:47.363962",
+  "timestamp": "2025-06-13T11:34:50.656693",
   "summary": {
     "total": 47,
     "passed": 47,
@@ -24,7 +24,7 @@
           "endpoint": "/health",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.004s",
+          "response_time": "0.005s",
           "status_code": 200,
           "error": null
         },
@@ -33,7 +33,7 @@
           "endpoint": "/api/status",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": 200,
           "error": null
         },
@@ -42,7 +42,7 @@
           "endpoint": "/api/activity",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": 200,
           "error": null
         },
@@ -60,7 +60,7 @@
           "endpoint": "/api/settings",
           "method": "POST",
           "status": "\u2705 PASS",
-          "response_time": "0.004s",
+          "response_time": "0.010s",
           "status_code": 200,
           "error": null
         }
@@ -74,7 +74,7 @@
         "failed": 0,
         "skipped": 0,
         "pass_rate": "100.0%",
-        "duration": "0.07s"
+        "duration": "0.01s"
       },
       "tests": [
         {
@@ -82,7 +82,7 @@
           "endpoint": "/api/upload",
           "method": "POST",
           "status": "\u2705 PASS",
-          "response_time": "0.026s",
+          "response_time": "0.008s",
           "status_code": 200,
           "error": null
         },
@@ -91,7 +91,7 @@
           "endpoint": "/api/upload",
           "method": "POST",
           "status": "\u2705 PASS",
-          "response_time": "0.022s",
+          "response_time": "0.003s",
           "status_code": 400,
           "error": null
         },
@@ -100,7 +100,7 @@
           "endpoint": "/api/upload",
           "method": "POST",
           "status": "\u2705 PASS",
-          "response_time": "0.022s",
+          "response_time": "0.002s",
           "status_code": 400,
           "error": null
         }
@@ -122,16 +122,16 @@
           "endpoint": "/api/train",
           "method": "POST",
           "status": "\u2705 PASS",
-          "response_time": "0.005s",
+          "response_time": "0.003s",
           "status_code": 200,
           "error": null
         },
         {
           "name": "Get Training Status",
-          "endpoint": "/api/training/ab19a211-3ebe-4f3d-b3f0-96ea1e812103",
+          "endpoint": "/api/training/34d1c446-3aa8-4a91-ac9b-07821bdaafd9",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": 200,
           "error": null
         },
@@ -140,7 +140,7 @@
           "endpoint": "/api/models",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.002s",
+          "response_time": "0.003s",
           "status_code": 200,
           "error": null
         }
@@ -162,7 +162,7 @@
           "endpoint": "/api/pipelines",
           "method": "POST",
           "status": "\u2705 PASS",
-          "response_time": "0.005s",
+          "response_time": "0.007s",
           "status_code": 200,
           "error": null
         },
@@ -171,49 +171,49 @@
           "endpoint": "/api/pipelines",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.002s",
+          "response_time": "0.003s",
           "status_code": 200,
           "error": null
         },
         {
           "name": "Get Pipeline Details",
-          "endpoint": "/api/pipelines/85f23cd7-0240-448b-b2e3-e85cf80da5d0",
+          "endpoint": "/api/pipelines/53586a85-d878-4c11-9f66-f47bd6ffdba5",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": 200,
           "error": null
         },
         {
           "name": "Update Pipeline",
-          "endpoint": "/api/pipelines/85f23cd7-0240-448b-b2e3-e85cf80da5d0",
+          "endpoint": "/api/pipelines/53586a85-d878-4c11-9f66-f47bd6ffdba5",
           "method": "PUT",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": 200,
           "error": null
         },
         {
           "name": "Run Pipeline",
-          "endpoint": "/api/pipelines/85f23cd7-0240-448b-b2e3-e85cf80da5d0/run",
+          "endpoint": "/api/pipelines/53586a85-d878-4c11-9f66-f47bd6ffdba5/run",
           "method": "POST",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": 200,
           "error": null
         },
         {
           "name": "Get Pipeline Status",
-          "endpoint": "/api/pipelines/85f23cd7-0240-448b-b2e3-e85cf80da5d0/status",
+          "endpoint": "/api/pipelines/53586a85-d878-4c11-9f66-f47bd6ffdba5/status",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.004s",
           "status_code": 200,
           "error": null
         },
         {
           "name": "Delete Pipeline",
-          "endpoint": "/api/pipelines/85f23cd7-0240-448b-b2e3-e85cf80da5d0",
+          "endpoint": "/api/pipelines/53586a85-d878-4c11-9f66-f47bd6ffdba5",
           "method": "DELETE",
           "status": "\u2705 PASS",
           "response_time": "0.003s",
@@ -247,31 +247,31 @@
           "endpoint": "/api/datasets",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.004s",
+          "response_time": "0.002s",
           "status_code": 200,
           "error": null
         },
         {
           "name": "Get Dataset Details",
-          "endpoint": "/api/datasets/3f10a1ec-40e4-48f7-abe5-436c10fbddb2",
+          "endpoint": "/api/datasets/2b7166ad-3828-454f-8642-463db85b7fb0",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.004s",
+          "response_time": "0.002s",
           "status_code": 200,
           "error": null
         },
         {
           "name": "Preview Dataset",
-          "endpoint": "/api/datasets/3f10a1ec-40e4-48f7-abe5-436c10fbddb2/preview?rows=5",
+          "endpoint": "/api/datasets/2b7166ad-3828-454f-8642-463db85b7fb0/preview?rows=5",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.007s",
+          "response_time": "0.006s",
           "status_code": 200,
           "error": null
         },
         {
           "name": "Get Dataset Statistics",
-          "endpoint": "/api/datasets/3f10a1ec-40e4-48f7-abe5-436c10fbddb2/statistics",
+          "endpoint": "/api/datasets/2b7166ad-3828-454f-8642-463db85b7fb0/statistics",
           "method": "GET",
           "status": "\u2705 PASS",
           "response_time": "0.003s",
@@ -280,16 +280,16 @@
         },
         {
           "name": "Validate Dataset",
-          "endpoint": "/api/datasets/3f10a1ec-40e4-48f7-abe5-436c10fbddb2/validate",
+          "endpoint": "/api/datasets/2b7166ad-3828-454f-8642-463db85b7fb0/validate",
           "method": "POST",
           "status": "\u2705 PASS",
-          "response_time": "0.002s",
+          "response_time": "0.004s",
           "status_code": 200,
           "error": null
         },
         {
           "name": "Delete Dataset",
-          "endpoint": "/api/datasets/3f10a1ec-40e4-48f7-abe5-436c10fbddb2",
+          "endpoint": "/api/datasets/2b7166ad-3828-454f-8642-463db85b7fb0",
           "method": "DELETE",
           "status": "\u2705 PASS",
           "response_time": "0.004s",
@@ -323,7 +323,7 @@
           "endpoint": "/api/components/model_service/health",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": 200,
           "error": null
         },
@@ -332,7 +332,7 @@
           "endpoint": "/api/components/model_service/metrics",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": 200,
           "error": null
         },
@@ -341,7 +341,7 @@
           "endpoint": "/api/components/data_processor/health",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": 200,
           "error": null
         },
@@ -350,7 +350,7 @@
           "endpoint": "/api/components/data_processor/metrics",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": 200,
           "error": null
         },
@@ -359,7 +359,7 @@
           "endpoint": "/api/components/websocket_server/health",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": 200,
           "error": null
         },
@@ -399,7 +399,7 @@
           "endpoint": "/api/monitoring/metrics",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.004s",
+          "response_time": "0.003s",
           "status_code": 200,
           "error": null
         },
@@ -408,7 +408,7 @@
           "endpoint": "/api/monitoring/alerts",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": 200,
           "error": null
         }
@@ -422,7 +422,7 @@
         "failed": 0,
         "skipped": 0,
         "pass_rate": "100.0%",
-        "duration": "0.02s"
+        "duration": "0.01s"
       },
       "tests": [
         {
@@ -430,7 +430,7 @@
           "endpoint": "/api/nonexistent",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.004s",
+          "response_time": "0.002s",
           "status_code": 404,
           "error": null
         },
@@ -439,7 +439,7 @@
           "endpoint": "/api/models/invalid-id",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": 404,
           "error": null
         },
@@ -466,7 +466,7 @@
           "endpoint": "/api/pipelines",
           "method": "POST",
           "status": "\u2705 PASS",
-          "response_time": "0.004s",
+          "response_time": "0.002s",
           "status_code": 422,
           "error": null
         }
@@ -480,7 +480,7 @@
         "failed": 0,
         "skipped": 0,
         "pass_rate": "100.0%",
-        "duration": "0.07s"
+        "duration": "0.05s"
       },
       "tests": [
         {
@@ -488,7 +488,7 @@
           "endpoint": "/api/status",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": null,
           "error": null
         },
@@ -506,7 +506,7 @@
           "endpoint": "/api/pipelines",
           "method": "GET",
           "status": "\u2705 PASS",
-          "response_time": "0.003s",
+          "response_time": "0.002s",
           "status_code": null,
           "error": null
         },
@@ -546,7 +546,7 @@
           "endpoint": "/ws",
           "method": "WS",
           "status": "\u2705 PASS",
-          "response_time": "0.030s",
+          "response_time": "0.028s",
           "status_code": null,
           "error": null
         },
