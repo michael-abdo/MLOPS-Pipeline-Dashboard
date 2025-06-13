@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test WebSocket Event Handlers</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #f0f0f0; }
+        .test-result { margin: 10px 0; padding: 10px; background: white; border-radius: 4px; }
+        .success { border-left: 4px solid #4CAF50; }
+        .info { border-left: 4px solid #2196F3; }
+        .warning { border-left: 4px solid #FF9800; }
+        pre { margin: 0; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Event Handler Test Results</h1>
+    <div id="results"></div>
+    
+    <script>
+        // Mock WebSocket Manager
+        window.wsManager = {
+            _handlers: {},
+            on(event, handler) {
+                if (!this._handlers[event]) {
+                    this._handlers[event] = [];
+                }
+                this._handlers[event].push(handler);
+                console.log(`✅ Handler registered for ${event}`);
+                return () => {
+                    const idx = this._handlers[event].indexOf(handler);
+                    if (idx >= 0) this._handlers[event].splice(idx, 1);
+                };
+            },
+            trigger(event, data) {
+                if (this._handlers[event]) {
+                    this._handlers[event].forEach(handler => handler(data));
+                }
+            },
+            getConnectionInfo() {
+                return { isConnected: true, status: 'connected', quality: 'excellent', latency: 15 };
+            }
+        };
+        
+        // Mock UI elements
+        document.body.innerHTML += `
+            <div style="display:none;">
+                <div class="status-indicator">Initial Status</div>
+                <div id="modelAccuracy">--</div>
+                <div id="predictionCount">--</div>
+                <div id="responseTime">--</div>
+                <div id="liveAccuracy">--</div>
+                <div id="livePredictions" data-previous-rate="20">20/min</div>
+                <div id="activeConnections">0</div>
+                <div id="apiResponseTime">--ms</div>
+                <div id="wsResponseTime">--ms</div>
+                <div id="totalModels">0 Active</div>
+                <div id="queueJobs">0 Pending</div>
+                <div class="upload-area">Upload area content</div>
+                <button id="trainButton" disabled>Train</button>
+                <button id="useModelButton">Use Model</button>
+            </div>
+        `;
+        
+        // Mock Metric object
+        window.Metric = {
+            update(id, value, options) {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.textContent = options.format === 'percent' ? `${value.toFixed(1)}%` : value;
+                }
+            }
+        };
+        
+        // Mock ButtonGroup
+        window.ButtonGroup = {
+            setLoading(btn, loading) {
+                if (btn) btn.textContent = loading ? 'Loading...' : 'Train';
+            }
+        };
+        
+        const results = document.getElementById('results');
+        
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = `<pre>${message}</pre>`;
+            results.appendChild(div);
+        }
+        
+        // Test event handler functions
+        const handlers = {
+            handleModelStatusChange(data) {
+                const modelStatus = data.status || data.model_status;
+                const statusEl = document.querySelector('.status-indicator');
+                if (statusEl) {
+                    statusEl.textContent = modelStatus === 'training' ? 'Training in Progress' : 'Unknown';
+                }
+                const useModelBtn = document.getElementById('useModelButton');
+                if (useModelBtn) {
+                    useModelBtn.disabled = modelStatus !== 'active' && modelStatus !== 'deployed';
+                }
+                log(`Model status changed to: ${modelStatus}`, 'success');
+            },
+            
+            handleFileValidated(data) {
+                const uploadArea = document.querySelector('.upload-area');
+                const trainButton = document.getElementById('trainButton');
+                if (data.status === 'success') {
+                    uploadArea.textContent = `File validated: ${data.filename} (${data.rows} rows)`;
+                    trainButton.disabled = false;
+                    log(`File validated successfully: ${data.filename}`, 'success');
+                }
+            },
+            
+            updateModelMetrics(data) {
+                if (data.accuracy !== undefined) {
+                    const el = document.getElementById('modelAccuracy');
+                    el.textContent = `${(data.accuracy * 100).toFixed(1)}%`;
+                }
+                if (data.predictions_made !== undefined) {
+                    document.getElementById('predictionCount').textContent = data.predictions_made.toLocaleString();
+                }
+                if (data.avg_response_time !== undefined) {
+                    const el = document.getElementById('responseTime');
+                    el.textContent = `${Math.round(data.avg_response_time)}ms`;
+                    el.style.color = data.avg_response_time < 50 ? 'green' : 'orange';
+                }
+                log(`Model metrics updated - Accuracy: ${(data.accuracy * 100).toFixed(1)}%`, 'success');
+            },
+            
+            updateConnectionCount(data) {
+                const el = document.getElementById('activeConnections');
+                el.textContent = data.count;
+                log(`Connection count updated: ${data.count}`, 'info');
+            },
+            
+            updatePerformanceMetrics(data) {
+                if (data.api_response_time !== undefined) {
+                    document.getElementById('apiResponseTime').textContent = `${Math.round(data.api_response_time)}ms`;
+                }
+                if (data.ws_latency !== undefined) {
+                    document.getElementById('wsResponseTime').textContent = `${Math.round(data.ws_latency)}ms`;
+                }
+                log(`Performance metrics updated - API: ${data.api_response_time}ms, WS: ${data.ws_latency}ms`, 'info');
+            },
+            
+            updateResourceStatus(data) {
+                if (data.models) {
+                    document.getElementById('totalModels').textContent = `${data.models.active} Active`;
+                }
+                if (data.queue) {
+                    const el = document.getElementById('queueJobs');
+                    el.textContent = `${data.queue.pending} Pending`;
+                    if (data.queue.pending > 10) {
+                        el.style.color = 'orange';
+                    }
+                }
+                log(`Resource status updated - Models: ${data.models.active}, Queue: ${data.queue.pending}`, 'info');
+            },
+            
+            updateSystemMetrics(data) {
+                if (data.current_accuracy !== undefined || data.model_accuracy !== undefined) {
+                    const accuracy = data.current_accuracy || data.model_accuracy;
+                    Metric.update('liveAccuracy', accuracy * 100, { format: 'percent' });
+                }
+                if (data.predictions_per_minute !== undefined || data.prediction_rate !== undefined) {
+                    const rate = data.predictions_per_minute || data.prediction_rate;
+                    const predEl = document.getElementById('livePredictions');
+                    predEl.innerHTML = `${Math.round(rate)}/min <span style="color: green;">↑</span>`;
+                }
+                log(`System metrics updated - Accuracy: ${data.model_accuracy * 100}%`, 'success');
+            }
+        };
+        
+        // Register handlers
+        log('Registering WebSocket event handlers...', 'info');
+        wsManager.on('model_status_change', handlers.handleModelStatusChange);
+        wsManager.on('file_validated', handlers.handleFileValidated);
+        wsManager.on('model_metrics_update', handlers.updateModelMetrics);
+        wsManager.on('connection_count', handlers.updateConnectionCount);
+        wsManager.on('performance_metrics', handlers.updatePerformanceMetrics);
+        wsManager.on('resource_status', handlers.updateResourceStatus);
+        wsManager.on('system_metrics', handlers.updateSystemMetrics);
+        
+        // Test events
+        log('\nTriggering test events...', 'warning');
+        
+        setTimeout(() => {
+            wsManager.trigger('model_status_change', { status: 'training', model_id: 'test-123' });
+        }, 100);
+        
+        setTimeout(() => {
+            wsManager.trigger('file_validated', { 
+                status: 'success', 
+                filename: 'test_data.csv', 
+                rows: 1000, 
+                columns: 5 
+            });
+        }, 200);
+        
+        setTimeout(() => {
+            wsManager.trigger('model_metrics_update', {
+                accuracy: 0.956,
+                predictions_made: 5847,
+                avg_response_time: 42
+            });
+        }, 300);
+        
+        setTimeout(() => {
+            wsManager.trigger('connection_count', { count: 15 });
+        }, 400);
+        
+        setTimeout(() => {
+            wsManager.trigger('performance_metrics', {
+                api_response_time: 145,
+                ws_latency: 18
+            });
+        }, 500);
+        
+        setTimeout(() => {
+            wsManager.trigger('resource_status', {
+                models: { active: 3, total: 5 },
+                queue: { pending: 12, processing: 2 }
+            });
+        }, 600);
+        
+        setTimeout(() => {
+            wsManager.trigger('system_metrics', {
+                model_accuracy: 0.942,
+                predictions_per_minute: 31
+            });
+        }, 700);
+        
+        setTimeout(() => {
+            // Show final UI state
+            log('\nFinal UI State:', 'warning');
+            log(`Model Status: ${document.querySelector('.status-indicator').textContent}`);
+            log(`Model Accuracy: ${document.getElementById('modelAccuracy').textContent}`);
+            log(`Predictions: ${document.getElementById('predictionCount').textContent}`);
+            log(`Response Time: ${document.getElementById('responseTime').textContent}`);
+            log(`Live Accuracy: ${document.getElementById('liveAccuracy').textContent}`);
+            log(`Live Predictions: ${document.getElementById('livePredictions').textContent}`);
+            log(`Connections: ${document.getElementById('activeConnections').textContent}`);
+            log(`API Response: ${document.getElementById('apiResponseTime').textContent}`);
+            log(`WS Response: ${document.getElementById('wsResponseTime').textContent}`);
+            log(`Models: ${document.getElementById('totalModels').textContent}`);
+            log(`Queue Jobs: ${document.getElementById('queueJobs').textContent}`);
+            log(`Train Button Disabled: ${document.getElementById('trainButton').disabled}`);
+            log(`Use Model Button Disabled: ${document.getElementById('useModelButton').disabled}`);
+            
+            log('\n✅ All tests completed!', 'success');
+        }, 1000);
+    </script>
+</body>
+</html>

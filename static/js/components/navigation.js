@@ -25,13 +25,9 @@ export class Navigation {
     }
     
     render() {
+        // Only show the main dashboard page
         const pages = [
-            { name: 'Dashboard', path: CONFIG.PAGES.DASHBOARD, icon: '📊' },
-            { name: 'Pipeline', path: CONFIG.PAGES.PIPELINE, icon: '🔄' },
-            { name: 'Architecture', path: CONFIG.PAGES.ARCHITECTURE, icon: '🏗️' },
-            { name: 'Data', path: CONFIG.PAGES.DATA, icon: '📁' },
-            { name: 'Monitoring', path: CONFIG.PAGES.MONITORING, icon: '📈' },
-            { name: 'Settings', path: CONFIG.PAGES.SETTINGS, icon: '⚙️' }
+            { name: 'Dashboard', path: CONFIG.PAGES.DASHBOARD, icon: '📊' }
         ];
         
         const navHTML = `
@@ -74,8 +70,13 @@ export class Navigation {
         });
         
         // Update connection quality
-        wsManager.on('quality_changed', ({ quality, latency }) => {
-            this.updateConnectionQuality(quality, latency);
+        wsManager.on('quality_changed', ({ quality, latency, avgLatency }) => {
+            this.updateConnectionQuality(quality, latency, avgLatency);
+        });
+        
+        // Listen for max attempts reached
+        wsManager.on('max_reconnect_attempts', () => {
+            this.showRetryButton();
         });
         
         // Set initial status
@@ -118,17 +119,53 @@ export class Navigation {
             case 'error':
                 this.connectionStatusEl.classList.add('connection-error');
                 this.connectionStatusEl.textContent = 'Connection Error';
+                // Check if max attempts reached
+                const connInfo = wsManager.getConnectionInfo();
+                if (connInfo.reconnectAttempts >= connInfo.maxReconnectAttempts) {
+                    this.showRetryButton();
+                }
                 break;
         }
     }
     
-    updateConnectionQuality(quality, latency) {
+    updateConnectionQuality(quality, latency, avgLatency) {
         if (!this.connectionStatusEl) return;
         
         this.connectionStatusEl.setAttribute('data-quality', quality);
         
         if (latency && latency < 1000) {
-            this.connectionStatusEl.title = `Connection: ${quality} (${latency}ms latency)`;
+            const avg = avgLatency || latency;
+            this.connectionStatusEl.title = `Connection: ${quality} | Current: ${latency}ms | Average: ${avg}ms`;
+            
+            // Show average latency in the UI
+            const latencyText = ` (${avg}ms avg)`;
+            if (this.connectionStatusEl.textContent.startsWith('Connected')) {
+                this.connectionStatusEl.innerHTML = `Connected<span class="latency-display">${latencyText}</span>`;
+            }
+        }
+    }
+    
+    showRetryButton() {
+        if (!this.connectionStatusEl) return;
+        
+        this.connectionStatusEl.innerHTML = `
+            <span>Connection Failed</span>
+            <button class="retry-btn" onclick="wsManager.connect()">
+                Retry
+            </button>
+        `;
+        
+        // Add click handler for retry button
+        const retryBtn = this.connectionStatusEl.querySelector('.retry-btn');
+        if (retryBtn) {
+            retryBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Reset attempts and retry
+                wsManager.reconnectAttempts = 0;
+                wsManager.connect();
+                this.updateConnectionStatus('connecting');
+            });
         }
     }
 }

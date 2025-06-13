@@ -1,4 +1,12 @@
 import { CONFIG } from './config.js';
+import { 
+    errorHandler,
+    MLOpsError,
+    ErrorSeverity,
+    ErrorCategory,
+    RecoveryStrategy
+} from './error-handler.js';
+import { withErrorHandling, safeParse } from './error-utils.js';
 
 /**
  * WebSocket Manager Singleton
@@ -19,6 +27,8 @@ export class WebSocketManager {
         this.connectionQuality = 'good';
         this.pingInterval = null;
         this.reconnectTimeout = null;
+        this.maxLatencyHistory = 10;
+        this.lastAvgLatency = 0;
         
         WebSocketManager.instance = this;
         
@@ -36,7 +46,7 @@ export class WebSocketManager {
         
         this.updateStatus('connecting');
         
-        try {
+        return withErrorHandling.websocket(async () => {
             this.ws = new WebSocket(CONFIG.WS_URL);
             
             this.ws.onopen = () => this.handleOpen();
@@ -44,10 +54,17 @@ export class WebSocketManager {
             this.ws.onclose = () => this.handleClose();
             this.ws.onerror = (error) => this.handleError(error);
             
-        } catch (error) {
-            console.error('WebSocket connection error:', error);
-            this.handleError(error);
-        }
+        }, 'connection_setup', {
+            severity: ErrorSeverity.HIGH,
+            recovery: RecoveryStrategy.RETRY,
+            context: { 
+                url: CONFIG.WS_URL,
+                attempt: this.reconnectAttempts + 1
+            },
+            retryFunction: () => this.connect()
+        }).catch(error => {
+            this.handleConnectionError(error);
+        });
     }
     
     /**
@@ -74,8 +91,18 @@ export class WebSocketManager {
      * Handle incoming WebSocket messages
      */
     handleMessage(event) {
+        const data = safeParse(event.data, null, {
+            operation: 'websocket_message_parse',
+            rawMessage: event.data.substring(0, 100)
+        });
+        
+        if (data === null) {
+            // Error was already handled by safeParse
+            return;
+        }
+        
         try {
-            const data = JSON.parse(event.data);
+            // Process WebSocket message
             
             // Handle pong response for latency measurement
             if (data.type === 'pong') {
@@ -92,7 +119,20 @@ export class WebSocketManager {
             }
             
         } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
+            const messageError = new MLOpsError('WebSocket message handling failed', {
+                severity: ErrorSeverity.LOW,
+                category: ErrorCategory.WEBSOCKET,
+                recovery: RecoveryStrategy.NONE,
+                originalError: error,
+                userMessage: 'Real-time data processing error',
+                showToUser: false,
+                context: { 
+                    messageType: data.type,
+                    operation: 'message_handling'
+                }
+            });
+            
+            errorHandler.handleError(messageError);
         }
     }
     
@@ -121,9 +161,48 @@ export class WebSocketManager {
      * Handle WebSocket errors
      */
     handleError(error) {
-        console.error('WebSocket error:', error);
+        const wsError = new MLOpsError('WebSocket connection error', {
+            severity: this.reconnectAttempts < CONFIG.WS_MAX_RECONNECT_ATTEMPTS ? 
+                ErrorSeverity.MEDIUM : ErrorSeverity.HIGH,
+            category: ErrorCategory.WEBSOCKET,
+            recovery: this.reconnectAttempts < CONFIG.WS_MAX_RECONNECT_ATTEMPTS ? 
+                RecoveryStrategy.RETRY : RecoveryStrategy.MANUAL,
+            originalError: error,
+            userMessage: this.reconnectAttempts < CONFIG.WS_MAX_RECONNECT_ATTEMPTS ?
+                'Real-time connection lost. Attempting to reconnect...' :
+                'Real-time connection failed. Please refresh the page.',
+            context: {
+                attempt: this.reconnectAttempts,
+                maxAttempts: CONFIG.WS_MAX_RECONNECT_ATTEMPTS,
+                operation: 'websocket_error'
+            }
+        });
+        
+        errorHandler.handleError(wsError);
         this.updateStatus('error');
-        this.emit('error', { error: error.message || 'Unknown error' });
+        this.emit('error', { error: error.message || 'Unknown error', errorId: wsError.id });
+    }
+
+    /**
+     * Handle connection-specific errors
+     */
+    handleConnectionError(error) {
+        const connectionError = new MLOpsError('Failed to establish WebSocket connection', {
+            severity: ErrorSeverity.HIGH,
+            category: ErrorCategory.WEBSOCKET,
+            recovery: RecoveryStrategy.RETRY,
+            originalError: error,
+            userMessage: 'Unable to establish real-time connection. Please check your network connection.',
+            context: {
+                url: CONFIG.WS_URL,
+                attempt: this.reconnectAttempts,
+                operation: 'connection_establishment'
+            },
+            retryFunction: () => this.connect()
+        });
+        
+        errorHandler.handleError(connectionError);
+        this.updateStatus('error');
     }
     
     /**
@@ -195,6 +274,19 @@ export class WebSocketManager {
      * Update connection quality based on latency
      */
     updateConnectionQuality(latency) {
+        // Add to latency history
+        if (!this.latencyHistory) this.latencyHistory = [];
+        this.latencyHistory.push(latency);
+        if (this.latencyHistory.length > this.maxLatencyHistory) {
+            this.latencyHistory.shift();
+        }
+        
+        // Calculate average latency
+        const avgLatency = Math.round(
+            this.latencyHistory.reduce((sum, lat) => sum + lat, 0) / this.latencyHistory.length
+        );
+        this.avgLatency = avgLatency;
+        
         let quality = 'poor';
         
         for (const [key, config] of Object.entries(CONFIG.CONNECTION_QUALITY)) {
@@ -204,9 +296,15 @@ export class WebSocketManager {
             }
         }
         
-        if (quality !== this.connectionQuality) {
+        if (quality !== this.connectionQuality || avgLatency !== this.lastAvgLatency) {
             this.connectionQuality = quality;
-            this.emit('quality_changed', { quality, latency });
+            this.lastAvgLatency = avgLatency;
+            this.emit('quality_changed', { 
+                quality, 
+                latency,
+                avgLatency,
+                samples: this.latencyHistory.length
+            });
         }
     }
     
@@ -269,7 +367,20 @@ export class WebSocketManager {
                 try {
                     callback(data);
                 } catch (error) {
-                    console.error(`Error in ${event} listener:`, error);
+                    const listenerError = new MLOpsError(`WebSocket listener error for event ${event}`, {
+                        severity: ErrorSeverity.LOW,
+                        category: ErrorCategory.WEBSOCKET,
+                        recovery: RecoveryStrategy.NONE,
+                        originalError: error,
+                        userMessage: 'Real-time event processing error',
+                        showToUser: false,
+                        context: {
+                            event,
+                            operation: 'listener_callback'
+                        }
+                    });
+                    
+                    errorHandler.handleError(listenerError);
                 }
             });
         }

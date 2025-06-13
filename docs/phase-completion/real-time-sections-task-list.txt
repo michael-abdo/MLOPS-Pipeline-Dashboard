@@ -1,0 +1,261 @@
+Real-Time Dashboard Sections Implementation Tasks
+
+Page Header WebSocket Connection Status
+  Implement WebSocket connection indicator
+    Listen to 'connected' event
+      Update status to green "Connected"
+      Show connection latency
+    Listen to 'disconnected' event
+      Update status to red "Disconnected"
+      Show reconnect attempts counter
+    Listen to 'reconnecting' event
+      Update status to yellow "Reconnecting..."
+      Show animated spinner
+    Listen to 'error' event
+      Display connection error message
+      Show retry button if max attempts reached
+  Add connection quality indicator
+    Monitor WebSocket latency from ping/pong
+    Show signal strength bars (poor/fair/good/excellent)
+    Display average latency in ms
+
+Live System Status Section
+  Current Model Status subsection
+    Listen to 'model_deployed' event
+      Update model name and version
+      Update deployment timestamp
+      Refresh status indicator
+    Listen to 'model_status_change' event
+      Update model health status
+      Change status dot color
+    Listen to 'prediction_volume' event
+      Update total predictions counter
+      Calculate predictions per minute rate
+    Implement time-ago formatter
+      Update "Last trained X ago" dynamically
+      Refresh every 30 seconds
+  Training Progress subsection
+    Listen to 'training_progress' event
+      Update progress bar width
+      Update stage text
+      Update percentage text
+      Update training details message
+    Listen to 'training_completed' event
+      Show completion message
+      Update accuracy result
+      Reset progress to "Ready"
+    Listen to 'training_failed' event
+      Show error message
+      Reset progress bar
+      Enable retry button
+  Real-Time Metrics Grid
+    Listen to 'system_metrics' event
+      Update liveAccuracy value
+        Apply animation on change
+        Format to 1 decimal place
+      Update livePredictions rate
+        Calculate per minute from timestamp
+        Show trend arrow
+      Update systemHealth icon
+        Change emoji based on health status
+        Add pulse animation on change
+    Implement auto-refresh fallback
+      Poll /api/models endpoint every 30s
+      Update if WebSocket disconnected
+
+Training Progress Monitor (Hidden Section)
+  Training Stages Timeline
+    Listen to 'training_progress' event
+      Update currentTrainingStage text
+      Update trainingTimeRemaining
+      Update stagesProgressBar width
+      Update stageProgressText (e.g., "Stage 3/8")
+    Dynamically update stage items
+      Mark completed stages with checkmark
+      Highlight current active stage
+      Show elapsed time per stage
+      Animate stage transitions
+  Live Training Metrics
+    Listen to 'training_progress' event
+      Update liveTrainingAccuracy
+        Show incremental improvements
+        Add trend indicator
+      Update trainingElapsedTime
+        Format as "Xm Ys"
+        Update every second
+      Update predictionsProcessed
+        Increment counter smoothly
+        Format with commas
+  Training Status Messages
+    Listen to 'training_progress' event
+      Update trainingStatusMessage
+        Show current activity details
+        Include progress percentage
+      Update trainingLastUpdate
+        Show "Just now" or "X seconds ago"
+        Refresh timestamp every 5s
+
+Training Workflow Section
+  Implement dynamic step highlighting
+    Listen to 'workflow_step_change' event
+      Update step completion status
+      Animate step transitions
+      Show checkmarks for completed
+    Track current active step
+      Highlight with primary color
+      Show progress within step
+    Update step descriptions
+      Show dynamic info based on context
+      Add estimated time remaining
+
+Start New Training Section
+  Upload Area real-time feedback
+    Listen to 'upload_progress' event
+      Show upload percentage
+      Display file processing status
+      Update icon based on state
+    Listen to 'file_validated' event
+      Show file stats (rows, columns)
+      Display validation results
+      Enable/disable train button
+  Train Button state management
+    Listen to 'training_available' event
+      Enable button when file ready
+      Show loading spinner during training
+      Update button text dynamically
+  Advanced Options synchronization
+    Listen to 'settings_changed' event
+      Update model type selection
+      Sync with user preferences
+      Show recommended options
+
+Current Model Performance Section
+  Model metrics real-time updates
+    Listen to 'model_metrics_update' event
+      Update modelAccuracy
+        Animate value changes
+        Show trend indicator
+      Update predictionCount
+        Increment in real-time
+        Format large numbers
+      Update responseTime
+        Show average and P95
+        Color code by threshold
+    Listen to 'model_deployed' event
+      Refresh all metrics
+      Enable action buttons
+      Show deployment status
+  Action buttons state management
+    Listen to 'model_status' event
+      Enable/disable "Use This Model"
+      Update button text based on state
+      Show deployment progress
+
+System Performance Monitor Section
+  Resource metrics updates
+    Listen to 'system_metrics' event
+      Update CPU usage
+        Update cpuPercent text
+        Animate cpuProgressBar width
+        Change color by threshold (green/yellow/red)
+      Update Memory usage
+        Update memoryPercent text
+        Animate memoryProgressBar width
+        Show available vs used
+      Update Disk usage
+        Update diskPercent text
+        Animate diskProgressBar width
+        Show free space remaining
+  System Health Status
+    Listen to 'health_change' event
+      Update systemStatusIcon
+        Change emoji (✅/⚠️/🚨)
+        Add attention animation
+      Update systemStatusText
+        Change text and color
+        Show alert if critical
+      Update systemStatusDetail
+        Show specific issues
+        List affected components
+    Update lastUpdateTime
+      Show relative time
+      Auto-refresh every second
+  Active Connections counter
+    Listen to 'connection_count' event
+      Update activeConnections number
+      Animate on change
+      Show connection types
+  Response Times panel
+    Listen to 'performance_metrics' event
+      Update apiResponseTime
+        Show rolling average
+        Color code by speed
+      Update wsResponseTime
+        Show WebSocket latency
+        Include ping time
+  Resource Status panel
+    Listen to 'resource_status' event
+      Update totalModels count
+        Show active vs total
+        List model names on hover
+      Update queueJobs count
+        Show pending vs processing
+        Add warning if queue backed up
+
+Live Activity Feed Section
+  Implement real-time activity stream
+    Listen to 'activity_update' event
+      Prepend new activities to top
+      Limit to last 50 entries
+      Auto-scroll to latest
+    Format activity entries
+      Show timestamp
+      Color code by type (info/warning/error)
+      Add icons for activity types
+      Include user attribution
+    Implement activity filtering
+      Add type filters (all/errors/warnings)
+      Search within activities
+      Export activity log
+    Add activity interactions
+      Click to expand details
+      Copy activity ID
+      Report false positives
+
+General Infrastructure Tasks
+  WebSocket connection management
+    Implement reconnection logic
+      Exponential backoff
+      Max retry limits
+      Connection state persistence
+    Add connection monitoring
+      Track message latency
+      Monitor dropped messages
+      Log connection issues
+  Error handling for all sections
+    Implement fallback displays
+      Show cached data if available
+      Display "No data" states
+      Provide manual refresh options
+    Add retry mechanisms
+      Automatic retry for failures
+      User-triggered refresh
+      Progressive degradation
+  Performance optimizations
+    Implement update batching
+      Group rapid updates
+      Throttle UI refreshes
+      Use requestAnimationFrame
+    Add virtual scrolling
+      For activity feed
+      For large data lists
+      Maintain scroll position
+  Accessibility enhancements
+    Add ARIA live regions
+      Announce metric changes
+      Alert on status updates
+      Notify of new activities
+    Implement keyboard navigation
+      Tab through sections
+      Arrow keys for lists
+      Shortcuts for actions

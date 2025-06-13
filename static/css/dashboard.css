@@ -1,5 +1,111 @@
 /* Dashboard-specific styles */
 
+/* Ensure sections are visible and have proper dimensions */
+.card {
+    display: block !important;
+    min-height: 100px;
+    visibility: visible !important;
+}
+
+section.card {
+    display: block !important;
+    min-height: 200px;
+    visibility: visible !important;
+}
+
+/* Ensure grid containers don't collapse */
+.grid {
+    min-height: 200px;
+}
+
+.grid-2 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+    min-height: 400px;
+}
+
+/* Upload Area Styles */
+.upload-area {
+    border: 3px dashed var(--border-color);
+    border-radius: 0.75rem;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: var(--surface-color);
+    margin: 2rem 0;
+    height: auto;
+    min-height: 200px !important;
+    width: 100%;
+    display: block !important;
+    box-sizing: border-box;
+    position: relative;
+    visibility: visible !important;
+}
+
+/* Override any inline display: none */
+#detailedTrainingCard {
+    display: none !important; /* Keep this hidden as intended */
+}
+
+.upload-area:hover {
+    border-color: var(--primary-color);
+    background: var(--primary-light);
+    transform: translateY(-2px);
+}
+
+.upload-area:focus {
+    outline: 3px solid #ffbf47;
+    outline-offset: 2px;
+    border-color: var(--primary-color);
+}
+
+.upload-area.drag-over {
+    border-color: var(--primary-color);
+    background: var(--primary-light);
+    transform: scale(1.02);
+}
+
+.upload-area.uploading {
+    border-color: var(--warning-color);
+    background: var(--warning-light);
+    pointer-events: none;
+}
+
+.upload-area.error {
+    border-color: var(--danger-color);
+    background: var(--danger-light);
+}
+
+.upload-area.success {
+    border-color: var(--success-color);
+    background: var(--success-light);
+}
+
+.upload-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.7;
+}
+
+.upload-area h3 {
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+    font-size: 1.2rem;
+}
+
+.upload-area p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.upload-area.drag-over .upload-icon,
+.upload-area:hover .upload-icon {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
 /* 4-Step Workflow Display */
 .workflow-steps {
     display: grid;
@@ -68,16 +174,6 @@
     color: var(--text-secondary);
 }
 
-/* File Upload Area */
-.upload-area {
-    border: 3px dashed var(--border-color);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-xl);
-    text-align: center;
-    transition: all 0.3s ease;
-    cursor: pointer;
-    background: var(--surface-color);
-}
 
 .upload-area:hover, .upload-area.dragover {
     border-color: var(--primary-color);
@@ -214,4 +310,35 @@
     .upload-icon {
         font-size: 2rem;
     }
+}
+
+/* Deployed model styles */
+.metric-card.deployed {
+    border-color: var(--success-color);
+    box-shadow: 0 0 10px rgba(40, 167, 69, 0.2);
+}
+
+.model-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.model-status.deployed {
+    background-color: var(--success-color);
+    color: white;
+}
+
+/* Prediction milestone animation */
+@keyframes milestoneReached {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.milestone-animation {
+    animation: milestoneReached 0.5s ease-in-out;
 }

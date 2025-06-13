@@ -1,0 +1,124 @@
+Live System Status Real-Time Integration - Implementation Plan
+
+Phase 1: Backend Real-Time Data Foundation
+  Backend Data Structure Enhancement
+    Add prediction tracking storage dictionary to backend_simple.py line 35
+    Create model_metrics tracking with accuracy_buffer and prediction_history
+    Add timestamps and rate calculation utilities
+    Implement circular buffer for prediction history (max 1000 entries)
+  API Endpoint Enhancement  
+    Modify existing /api/models/{id}/predict endpoint to log each prediction
+    Add prediction timestamp, input_hash, and result to tracking
+    Calculate real-time accuracy from last 100 predictions
+    Update predictions_per_minute calculation based on actual timestamps
+  New API Endpoints
+    Create /api/monitoring/system endpoint combining system + model status
+    Add /api/models/{id}/metrics/realtime for detailed model metrics
+    Add /api/models/active/status for current active model status
+    Implement proper error handling and fallback responses
+  WebSocket Event Broadcasting
+    Extend existing system_metrics broadcast to include model metrics
+    Add new model_metrics_update event type for high-frequency updates
+    Implement rate limiting to prevent WebSocket flooding (max 1 update per 5 seconds)
+    Add prediction_logged event for individual prediction tracking
+  Performance Optimization
+    Add caching layer for frequently accessed model metrics
+    Implement background task for accuracy recalculation every 30 seconds
+    Add database cleanup for old prediction history entries
+    Monitor memory usage and implement cleanup thresholds
+
+Phase 2: Frontend Integration Enhancement
+  WebSocket Handler Updates
+    Add model_metrics_update handler in dashboard.js setupWebSocketListeners method
+    Add prediction_logged handler for real-time prediction counts
+    Add model_status_realtime handler for status changes
+    Ensure proper error handling and fallback for each new handler
+  Live System Status Display Updates
+    Enhance updateSystemMetrics method to process model data
+    Add updateLiveModelMetrics method for real-time accuracy updates
+    Add updatePredictionRate method for real-time predictions/min calculation
+    Add visual trend indicators (up/down arrows) for metric changes
+  UI Component Enhancements
+    Extend Metric component in ui-core.js to support trend indicators
+    Add real-time pulse animation for actively updating metrics
+    Add color coding for metric health (green/yellow/red based on thresholds)
+    Implement smooth transitions for metric value changes
+  Demo Data Extension
+    Update demo-data.js to simulate real-time model metrics
+    Add time-based variations for accuracy and prediction rates
+    Ensure demo mode properly tests all new features
+    Add realistic prediction volume fluctuations
+  Configuration Updates
+    Add MODEL_METRICS section to config.js with refresh intervals
+    Add thresholds for accuracy warnings (85%) and critical (80%)
+    Add response time thresholds for model health monitoring
+    Add rate limiting configuration for WebSocket updates
+
+Phase 3: Testing and Validation Framework
+  Backend Testing
+    Create test_model_metrics_realtime.py following existing test patterns
+    Test prediction logging and accuracy calculation accuracy
+    Test WebSocket broadcasting of model metrics
+    Test API endpoint responses and error handling
+    Test performance under high prediction volume
+  Frontend Testing
+    Add model metrics tests to test_components_integration.js
+    Test WebSocket handler registration and event processing
+    Test UI updates and visual indicators
+    Test fallback behavior when WebSocket disconnected
+    Test demo mode functionality with new features
+  Integration Testing
+    Create end-to-end test for complete model metrics flow
+    Test real-time updates from prediction to UI display
+    Test accuracy calculation consistency between backend and frontend
+    Test system performance under continuous metric updates
+  Automation Testing
+    Create test-model-metrics-live.js automation test
+    Test Live System Status section real-time updates
+    Test metric trend indicators and visual changes
+    Test error scenarios and recovery mechanisms
+    Add performance benchmarking for metric update latency
+
+Phase 4: Performance Monitoring and Optimization
+  Monitoring Implementation
+    Add performance tracking for model metrics calculation time
+    Monitor WebSocket message frequency and payload size
+    Track frontend rendering performance for real-time updates
+    Add alerting for metric calculation failures
+  Memory Management
+    Implement cleanup for prediction history buffers
+    Monitor memory usage growth over time
+    Add automatic garbage collection for old model data
+    Implement data retention policies for historical metrics
+  Error Handling Enhancement
+    Add comprehensive error logging for model metrics failures
+    Implement graceful degradation when metrics unavailable
+    Add user notifications for temporary metric outages
+    Create automatic recovery mechanisms for failed calculations
+  Documentation Updates
+    Update WEBSOCKET_API.md with new model metric events
+    Create MODEL_METRICS_API.md documentation
+    Update README.md with new real-time capabilities
+    Add troubleshooting guide for model metrics issues
+
+Phase 5: Deployment and Validation
+  Pre-deployment Testing
+    Run full test suite including new model metrics tests
+    Verify WebSocket performance under load
+    Test all fallback scenarios and error conditions
+    Validate demo mode works with all new features
+  Deployment Process
+    Deploy backend changes with feature flags for gradual rollout
+    Monitor system performance during initial deployment
+    Validate real-time metric accuracy in production environment
+    Test scalability with multiple concurrent users
+  Post-deployment Validation
+    Monitor Live System Status section performance
+    Verify metric accuracy against actual prediction logs
+    Check WebSocket connection stability and message delivery
+    Validate user experience improvements with real-time data
+  Performance Benchmarking
+    Measure metric update latency from prediction to UI display
+    Benchmark system resource usage with real-time metrics enabled
+    Test maximum sustainable prediction rate with real-time tracking
+    Document performance characteristics and limitations

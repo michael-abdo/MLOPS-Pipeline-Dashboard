@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ML Pipeline Settings - Configure training preferences, notifications, data management, and advanced options">
+    <title>Settings - ML Pipeline</title>
+    <link rel="stylesheet" href="/static/css/shared.css">
+    <style>
+        /* Screen reader only class for accessibility */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        /* Help text styling */
+        .help-text {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: var(--spacing-xs);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation will be rendered by JavaScript component -->
+    <nav class="main-nav" id="main-nav" role="navigation" aria-label="Main navigation"></nav>
+
+    <!-- Screen reader announcements for dynamic content -->
+    <div id="sr-announcer" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+
+    <!-- Main Content -->
+    <main class="main-content" role="main">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Settings</h1>
+            <p class="page-subtitle">Configure your ML pipeline preferences</p>
+        </div>
+
+        <!-- Settings Form -->
+        <section aria-labelledby="training-settings" class="card">
+            <h2 id="training-settings" style="margin-bottom: var(--spacing-lg);">Training Settings</h2>
+            
+            <form id="settingsForm" role="form" aria-label="ML Pipeline Settings">
+                <fieldset>
+                    <legend class="sr-only">Training Configuration</legend>
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label" for="defaultModel">Default Model Type</label>
+                            <select id="defaultModel" class="form-select" aria-describedby="defaultModel-help">
+                                <option value="automatic">Automatic (Recommended)</option>
+                                <option value="classification">Classification</option>
+                                <option value="regression">Regression</option>
+                            </select>
+                            <div id="defaultModel-help" class="help-text">
+                                Automatic selection chooses the best model type based on your data
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="trainingTimeout">Training Timeout (minutes)</label>
+                            <input type="number" id="trainingTimeout" class="form-input" min="5" max="60" value="15"
+                                   aria-describedby="timeout-help" required>
+                            <div id="timeout-help" class="help-text">
+                                Maximum time allowed for model training (5-60 minutes)
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-2">
+                        <div class="form-group">
+                            <label class="form-label">
+                                <input type="checkbox" id="autoValidation" class="form-checkbox" checked
+                                       aria-describedby="autoValidation-help">
+                                Auto-validate data before training
+                            </label>
+                            <div id="autoValidation-help" class="help-text">
+                                Automatically check data quality before starting training
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                <input type="checkbox" id="trainingNotifications" class="form-checkbox" checked
+                                       aria-describedby="trainingNotifications-help">
+                                Training completion notifications
+                            </label>
+                            <div id="trainingNotifications-help" class="help-text">
+                                Receive notifications when training is complete
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+            </form>
+        </section>
+
+        <!-- Notification Settings -->
+        <section aria-labelledby="notification-settings" class="card">
+            <h2 id="notification-settings" style="margin-bottom: var(--spacing-lg);">Notification Settings</h2>
+            
+            <fieldset form="settingsForm">
+                <legend class="sr-only">Notification Configuration</legend>
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="errorNotifications" class="form-checkbox" checked
+                                   aria-describedby="errorNotifications-help">
+                            Error notifications
+                        </label>
+                        <div id="errorNotifications-help" class="help-text">
+                            Receive alerts when errors occur during training or processing
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="emailAddress">Email Address</label>
+                        <input type="email" id="emailAddress" class="form-input" placeholder="your@email.com"
+                               aria-describedby="email-help">
+                        <div id="email-help" class="help-text">
+                            Email address for receiving notifications (optional)
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+        </section>
+
+        <!-- Data Management -->
+        <section aria-labelledby="data-management" class="card">
+            <h2 id="data-management" style="margin-bottom: var(--spacing-lg);">Data Management</h2>
+            
+            <fieldset form="settingsForm">
+                <legend class="sr-only">Data Storage and Cleanup Configuration</legend>
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label" for="dataCleanup">Auto-cleanup data older than (days)</label>
+                        <select id="dataCleanup" class="form-select" aria-describedby="cleanup-help">
+                            <option value="7">7 days</option>
+                            <option value="30" selected>30 days</option>
+                            <option value="90">90 days</option>
+                            <option value="0">Never</option>
+                        </select>
+                        <div id="cleanup-help" class="help-text">
+                            Automatically remove old training data to save storage space
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="maxFileSize">Max file size (MB)</label>
+                        <input type="number" id="maxFileSize" class="form-input" min="1" max="100" value="50"
+                               aria-describedby="filesize-help" required>
+                        <div id="filesize-help" class="help-text">
+                            Maximum allowed file size for uploads (1-100 MB)
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+        </section>
+
+        <!-- Advanced Settings -->
+        <section aria-labelledby="advanced-settings" class="card">
+            <h2 id="advanced-settings" style="margin-bottom: var(--spacing-lg);">Advanced Settings</h2>
+            
+            <fieldset form="settingsForm">
+                <legend class="sr-only">Advanced Configuration Options</legend>
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="showTechnical" class="form-checkbox"
+                                   aria-describedby="technical-help">
+                            Show technical details
+                        </label>
+                        <div id="technical-help" class="help-text">
+                            Display detailed technical information in the interface
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" id="debugMode" class="form-checkbox"
+                                   aria-describedby="debug-help">
+                            Enable debug mode
+                        </label>
+                        <div id="debug-help" class="help-text">
+                            Enable additional logging and debugging features
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+        </section>
+
+        <!-- Action Buttons -->
+        <div role="group" aria-label="Settings actions" style="text-align: center; margin-top: var(--spacing-xl);">
+            <button type="submit" form="settingsForm" class="btn btn-primary" id="saveSettings" 
+                    style="margin-right: var(--spacing-md);" aria-describedby="save-help">
+                Save Settings
+            </button>
+            <button type="button" class="btn btn-secondary" id="resetSettings" aria-describedby="reset-help">
+                Reset to Defaults
+            </button>
+            <div id="save-help" class="sr-only">Save all current settings</div>
+            <div id="reset-help" class="sr-only">Reset all settings to their default values</div>
+        </div>
+        
+        <!-- Notification area -->
+        <div id="notification" role="status" aria-live="polite" aria-atomic="true" 
+             style="margin-top: var(--spacing-lg);"></div>
+    </main>
+
+    <!-- Import JavaScript modules -->
+    <script type="module" src="/static/js/components/navigation.js"></script>
+    <script type="module" src="/static/js/pages/settings.js"></script>
+</body>
+</html>
