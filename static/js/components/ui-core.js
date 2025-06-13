@@ -395,6 +395,187 @@ class Metric {
             }
         }
     }
+
+    /**
+     * Enhanced update method with health-based color coding
+     * @param {HTMLElement|string} metric - Metric element or ID
+     * @param {string|number} newValue - New value
+     * @param {Object} options - Update options with health thresholds
+     */
+    static updateWithHealth(metric, newValue, options = {}) {
+        const {
+            format = 'number',
+            tooltip = '',
+            metricType = 'generic', // 'accuracy', 'response_time', 'prediction_rate'
+            previousValue = null,
+            animated = true,
+            showTrend = true
+        } = options;
+        
+        // Import CONFIG for thresholds
+        import('../common/config.js').then(({ CONFIG }) => {
+            const metricElement = typeof metric === 'string' ? document.getElementById(metric) : metric;
+            if (!metricElement) return;
+            
+            // Update the value first
+            this.update(metric, newValue, { format, tooltip });
+            
+            // Determine health status based on metric type and value
+            let healthStatus = 'healthy';
+            const numValue = parseFloat(newValue);
+            
+            if (metricType === 'accuracy') {
+                const thresholds = CONFIG.MODEL_METRICS.ACCURACY_THRESHOLDS;
+                if (numValue >= thresholds.EXCELLENT) {
+                    healthStatus = 'healthy';
+                } else if (numValue >= thresholds.WARNING) {
+                    healthStatus = 'healthy';
+                } else if (numValue >= thresholds.CRITICAL) {
+                    healthStatus = 'warning';
+                } else {
+                    healthStatus = 'critical';
+                }
+            } else if (metricType === 'response_time') {
+                const thresholds = CONFIG.MODEL_METRICS.RESPONSE_TIME_THRESHOLDS;
+                if (numValue <= thresholds.EXCELLENT) {
+                    healthStatus = 'healthy';
+                } else if (numValue <= thresholds.WARNING) {
+                    healthStatus = 'healthy';
+                } else if (numValue <= thresholds.CRITICAL) {
+                    healthStatus = 'warning';
+                } else {
+                    healthStatus = 'critical';
+                }
+            }
+            
+            // Apply health status
+            this.setHealth(metric, healthStatus, { animated });
+            
+            // Calculate and show trend if previous value available
+            if (showTrend && previousValue !== null && numValue !== previousValue) {
+                const change = ((numValue - previousValue) / previousValue) * 100;
+                const threshold = CONFIG.MODEL_METRICS.VISUAL_INDICATORS.TREND_ARROW_THRESHOLD;
+                
+                if (Math.abs(change) >= threshold) {
+                    const trendDirection = change > 0 ? 'up' : 'down';
+                    this.setTrend(metric, trendDirection, Math.abs(change), {
+                        animated: true,
+                        threshold
+                    });
+                    
+                    // Add pulse for significant changes
+                    if (Math.abs(change) >= threshold * 2) {
+                        this.pulse(metric, { 
+                            intensity: 'medium',
+                            duration: CONFIG.MODEL_METRICS.VISUAL_INDICATORS.PULSE_ANIMATION_DURATION
+                        });
+                    }
+                }
+            }
+        }).catch(() => {
+            // Fallback if CONFIG import fails
+            this.update(metric, newValue, { format, tooltip });
+        });
+    }
+
+    /**
+     * Real-time metric updater with rate limiting
+     * @param {HTMLElement|string} metric - Metric element or ID
+     * @param {string|number} newValue - New value
+     * @param {Object} options - Update options
+     */
+    static updateRealTime(metric, newValue, options = {}) {
+        const metricElement = typeof metric === 'string' ? document.getElementById(metric) : metric;
+        if (!metricElement) return;
+        
+        // Rate limiting check
+        const now = Date.now();
+        const lastUpdate = metricElement.dataset.lastUpdate || 0;
+        const minInterval = options.minInterval || 100; // Minimum 100ms between updates
+        
+        if (now - lastUpdate < minInterval) {
+            // Queue the update
+            clearTimeout(metricElement.updateTimeout);
+            metricElement.updateTimeout = setTimeout(() => {
+                this.updateWithHealth(metric, newValue, options);
+                metricElement.dataset.lastUpdate = Date.now();
+            }, minInterval - (now - lastUpdate));
+            return;
+        }
+        
+        // Store previous value for trend calculation
+        const valueElement = metricElement.querySelector('.metric-value');
+        const previousValue = valueElement ? parseFloat(valueElement.textContent.replace(/[^\d.-]/g, '')) : null;
+        
+        // Update with previous value for trend calculation
+        this.updateWithHealth(metric, newValue, {
+            ...options,
+            previousValue
+        });
+        
+        metricElement.dataset.lastUpdate = now;
+    }
+
+    /**
+     * Start real-time monitoring for a metric
+     * @param {HTMLElement|string} metric - Metric element or ID
+     * @param {Function} dataSource - Function that returns current value
+     * @param {Object} options - Monitoring options
+     */
+    static startRealTimeMonitoring(metric, dataSource, options = {}) {
+        const {
+            interval = 2000, // 2 seconds default
+            metricType = 'generic',
+            format = 'number'
+        } = options;
+        
+        const metricElement = typeof metric === 'string' ? document.getElementById(metric) : metric;
+        if (!metricElement) return;
+        
+        // Stop existing monitoring
+        this.stopRealTimeMonitoring(metric);
+        
+        // Start new monitoring
+        const monitoringInterval = setInterval(async () => {
+            try {
+                const newValue = await dataSource();
+                if (newValue !== null && newValue !== undefined) {
+                    this.updateRealTime(metric, newValue, {
+                        metricType,
+                        format,
+                        showTrend: true,
+                        animated: true
+                    });
+                }
+            } catch (error) {
+                console.warn('Real-time metric update failed:', error);
+            }
+        }, interval);
+        
+        // Store interval for cleanup
+        metricElement.dataset.monitoringInterval = monitoringInterval;
+    }
+
+    /**
+     * Stop real-time monitoring for a metric
+     * @param {HTMLElement|string} metric - Metric element or ID
+     */
+    static stopRealTimeMonitoring(metric) {
+        const metricElement = typeof metric === 'string' ? document.getElementById(metric) : metric;
+        if (!metricElement) return;
+        
+        const intervalId = metricElement.dataset.monitoringInterval;
+        if (intervalId) {
+            clearInterval(parseInt(intervalId));
+            delete metricElement.dataset.monitoringInterval;
+        }
+        
+        // Clear any pending updates
+        if (metricElement.updateTimeout) {
+            clearTimeout(metricElement.updateTimeout);
+            delete metricElement.updateTimeout;
+        }
+    }
 }
 
 // ProgressBar Component
@@ -602,27 +783,208 @@ function initializeCoreUIStyles() {
                 opacity: 0.8;
             }
             
-            /* Metric Component Styles */
+            /* Enhanced Metric Component Styles */
+            .metric {
+                position: relative;
+                transition: all 0.3s ease;
+            }
+            
+            .metric-value {
+                transition: all 0.3s ease;
+                position: relative;
+            }
+            
+            .metric-value.updating {
+                animation: metricPulse 0.5s ease-in-out;
+            }
+            
             .metric-trend {
                 font-size: 0.8rem;
                 margin: var(--spacing-xs) 0;
                 font-weight: 600;
+                display: inline-flex;
+                align-items: center;
+                gap: 2px;
+                transition: all 0.3s ease;
             }
             
+            .metric-trend.trend-positive,
             .metric-trend.trend-up {
-                color: var(--success-color);
+                color: var(--success-color, #10b981);
             }
             
+            .metric-trend.trend-negative,
             .metric-trend.trend-down {
-                color: var(--danger-color);
+                color: var(--danger-color, #ef4444);
             }
             
+            .metric-trend.trend-stable,
             .metric-trend.trend-neutral {
-                color: var(--text-secondary);
+                color: var(--text-secondary, #6b7280);
             }
             
-            .metric-value.updating {
-                animation: pulse 0.5s ease-in-out;
+            /* Health Status Colors */
+            .metric.health-healthy {
+                border-left: 3px solid var(--success-color, #10b981);
+            }
+            
+            .metric.health-warning {
+                border-left: 3px solid var(--warning-color, #f59e0b);
+            }
+            
+            .metric.health-critical {
+                border-left: 3px solid var(--danger-color, #ef4444);
+            }
+            
+            .metric-health {
+                font-size: 0.9em;
+                margin-left: 4px;
+                vertical-align: middle;
+            }
+            
+            .metric-health.health-healthy {
+                color: var(--success-color, #10b981);
+            }
+            
+            .metric-health.health-warning {
+                color: var(--warning-color, #f59e0b);
+            }
+            
+            .metric-health.health-critical {
+                color: var(--danger-color, #ef4444);
+            }
+            
+            /* Real-time Pulse Animations */
+            .pulse-light {
+                animation: pulseLightAnimation 0.6s ease-out;
+            }
+            
+            .pulse-medium {
+                animation: pulseMediumAnimation 0.8s ease-out;
+            }
+            
+            .pulse-strong {
+                animation: pulseStrongAnimation 1.0s ease-out;
+            }
+            
+            @keyframes pulseLightAnimation {
+                0% { 
+                    transform: scale(1);
+                    box-shadow: 0 0 0 0 rgba(var(--pulse-color, 59, 130, 246), 0.4);
+                }
+                70% {
+                    transform: scale(1.02);
+                    box-shadow: 0 0 0 10px rgba(var(--pulse-color, 59, 130, 246), 0);
+                }
+                100% {
+                    transform: scale(1);
+                    box-shadow: 0 0 0 0 rgba(var(--pulse-color, 59, 130, 246), 0);
+                }
+            }
+            
+            @keyframes pulseMediumAnimation {
+                0% { 
+                    transform: scale(1);
+                    box-shadow: 0 0 0 0 rgba(var(--pulse-color, 59, 130, 246), 0.6);
+                }
+                70% {
+                    transform: scale(1.05);
+                    box-shadow: 0 0 0 15px rgba(var(--pulse-color, 59, 130, 246), 0);
+                }
+                100% {
+                    transform: scale(1);
+                    box-shadow: 0 0 0 0 rgba(var(--pulse-color, 59, 130, 246), 0);
+                }
+            }
+            
+            @keyframes pulseStrongAnimation {
+                0% { 
+                    transform: scale(1);
+                    box-shadow: 0 0 0 0 rgba(var(--pulse-color, 59, 130, 246), 0.8);
+                }
+                70% {
+                    transform: scale(1.08);
+                    box-shadow: 0 0 0 20px rgba(var(--pulse-color, 59, 130, 246), 0);
+                }
+                100% {
+                    transform: scale(1);
+                    box-shadow: 0 0 0 0 rgba(var(--pulse-color, 59, 130, 246), 0);
+                }
+            }
+            
+            @keyframes metricPulse {
+                0%, 100% { 
+                    opacity: 1;
+                    transform: scale(1);
+                }
+                50% { 
+                    opacity: 0.8;
+                    transform: scale(1.02);
+                }
+            }
+            
+            @keyframes healthBounce {
+                0%, 20%, 50%, 80%, 100% {
+                    transform: translateY(0);
+                }
+                40% {
+                    transform: translateY(-3px);
+                }
+                60% {
+                    transform: translateY(-2px);
+                }
+            }
+            
+            /* Enhanced Trend Indicators */
+            .metric-trend::before {
+                content: '';
+                width: 0;
+                height: 0;
+                margin-right: 2px;
+                transition: all 0.3s ease;
+            }
+            
+            .metric-trend.trend-up::before {
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-bottom: 6px solid var(--success-color, #10b981);
+            }
+            
+            .metric-trend.trend-down::before {
+                border-left: 4px solid transparent;
+                border-right: 4px solid transparent;
+                border-top: 6px solid var(--danger-color, #ef4444);
+            }
+            
+            /* Smooth Transitions */
+            .metric-value,
+            .metric-trend,
+            .metric-health {
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            
+            /* Active/Live Indicators */
+            .metric.metric-live::after {
+                content: '';
+                position: absolute;
+                top: 4px;
+                right: 4px;
+                width: 8px;
+                height: 8px;
+                background: var(--success-color, #10b981);
+                border-radius: 50%;
+                animation: livePulse 2s infinite;
+            }
+            
+            @keyframes livePulse {
+                0%, 100% {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+                50% {
+                    opacity: 0.5;
+                    transform: scale(1.2);
+                }
             }
             
             /* Progress Bar Styles */
